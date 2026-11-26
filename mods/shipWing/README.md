@@ -1,6 +1,6 @@
 # Ship Wing (EveJS mod)
 
-A pilot in a ship with a Ship Maintenance Bay (Orca, carriers) launches "copies" of the fitted ships in that bay. A copy follows the pilot, can mine, fight NPCs, salvage and repair, and comes back on command. The real ship stays in the bay and is locked while its copy is in space. If an NPC destroys the copy, the real ship is lost: wreck, killmail, and the ship leaves the bay.
+A pilot launches "copies" of the fitted ships in their current ship's Ship Maintenance Bay. Any hull works: the mod has no host or wing-ship type limit. A ship only needs to be assembled and flyable with your skills. A copy follows the pilot, can mine, fight NPCs, salvage and repair, and comes back on command. The real ship stays in the bay and is locked while its copy is in space. If an NPC destroys the copy, the real ship is lost: wreck, killmail, and the ship leaves the bay.
 
 Version 0.2.0 is a test version. The mod is off by default (`enabled=false`), and every feature has its own switch.
 
@@ -9,7 +9,7 @@ Version 0.2.0 is a test version. The mod is off by default (`enabled=false`), an
 Turn the mod on for players only after you have tried it on a test server.
 
 1. **Losing a copy loses the ship.** When an NPC destroys a copy, the mod deletes the real ship and its fit, drops part of the modules into a wreck under the normal loot rules and posts a killmail for the pilot. If settling the loss fails (for example the hull is in use), the mod retries every `lossSettleRetryMs`. After `lossSettleMaxAttempts` tries the ship stays locked until a restart, and the log has a `LOSS NOT SETTLED` line.
-2. **Repackage and resale.** The loss is settled by ship item ID wherever the ship is (bay, or station hangar after the Orca was repackaged). If the ship was sold before a retry, the record ends as `OWNER_CHANGED`: the mod never destroys another player's ship, and it logs a line for the admin.
+2. **Repackage and resale.** The loss is settled by ship item ID wherever the ship is (bay, or station hangar after the host ship was repackaged). If the ship was sold before a retry, the record ends as `OWNER_CHANGED`: the mod never destroys another player's ship, and it logs a line for the admin.
 3. **Move scan limit.** While any wing record exists on the server (including `LOST`), every item move with more than `guardMaxScannedIds` items (default 4096) is refused, for every player.
 
 ## Requirements and basic rules

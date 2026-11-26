@@ -11,7 +11,7 @@ at startup and change no EveJS file.
 | Mod | Version | What it does |
 |---|---|---|
 | [livingNewEden](mods/livingNewEden/README.md) | 0.1.0 | A living universe: NPC factions hold territory, move fleets, run an economy and fight wars while you play. |
-| [shipWing](mods/shipWing/README.md) | 0.2.0 | Launch copies of the ships in your Orca or carrier Ship Maintenance Bay as a wing that follows you; docked, it lists the bay read-only. Test build, off by default. |
+| [shipWing](mods/shipWing/README.md) | 0.2.0 | Launch copies of the fitted ships in your current ship's Ship Maintenance Bay (any hull) as a wing that follows you; docked, it lists the bay read-only. Test build, off by default. |
 | [hotPathPerf](mods/hotPathPerf/README.md) | 0.24.1 | Measures slow EveJS calls; optional fixes for long server stalls. |
 | [scenePerfFix](mods/scenePerfFix/README.md) | 1.0.0 | Faster busy systems on older EveJS builds (resting wrecks, name lookups). Mostly inactive on 261115.2. |
 | [planetaryDrill](mods/planetaryDrill/README.md) | 1.1.0 | An Orbital Skyhook outside sov null-sec mines a planet P0 resource. Needs skyhookOrphanFix and customTypes. |

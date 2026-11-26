@@ -11,7 +11,7 @@ się pod EveJS przy starcie i nie zmieniają żadnego pliku EveJS.
 | Mod | Wersja | Co robi |
 |---|---|---|
 | [livingNewEden](mods/livingNewEden/README.md) | 0.1.0 | Żywy wszechświat: frakcje NPC trzymają terytorium, przesuwają floty, prowadzą gospodarkę i wojny, kiedy grasz. |
-| [shipWing](mods/shipWing/README.md) | 0.2.0 | Kopie statków z Ship Maintenance Bay Orki lub carriera lecą za tobą jako skrzydło; w doku pokazuje zawartość SMB tylko do odczytu. Wersja testowa, domyślnie wyłączona. |
+| [shipWing](mods/shipWing/README.md) | 0.2.0 | Kopie zafitowanych statków z Ship Maintenance Bay twojego obecnego statku (dowolny kadłub) lecą za tobą jako skrzydło; w doku pokazuje zawartość SMB tylko do odczytu. Wersja testowa, domyślnie wyłączona. |
 | [hotPathPerf](mods/hotPathPerf/README.md) | 0.24.1 | Mierzy wolne wywołania EveJS; opcjonalne poprawki długich zawieszeń serwera. |
 | [scenePerfFix](mods/scenePerfFix/README.md) | 1.0.0 | Szybsze zatłoczone systemy na starszych wersjach EveJS (stojące wraki, wyszukiwanie po nazwie). Na 261115.2 w większości nieaktywny. |
 | [planetaryDrill](mods/planetaryDrill/README.md) | 1.1.0 | Orbital Skyhook poza sov null-sec wydobywa surowiec P0 planety. Wymaga skyhookOrphanFix i customTypes. |
