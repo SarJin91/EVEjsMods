@@ -1,0 +1,150 @@
+{
+  "schemaVersion": 3,
+  "id": "blueprintDrops",
+  "displayName": "Blueprint Drops",
+  "version": "1.0.0",
+  "description": "NPC wrecks have a small chance to hold a blueprint (a copy, a T1 original or a T2 original). Salvaged wrecks keep blueprint copies as copies. Optional, off by default: pirate NET Resonator drops and faction loot tables. The data files are built from the EVE SDE.",
+  "kind": "loader",
+  "supportedBackends": [
+    "native",
+    "docker"
+  ],
+  "activation": {
+    "strategy": "loader_rename"
+  },
+  "restart": "game_server",
+  "compatibility": {
+    "evejsVersions": [
+      "261115.2"
+    ]
+  },
+  "updates": {
+    "provider": "github",
+    "repository": "SarJin91/EVEjsMods",
+    "asset": "blueprintDrops-{version}.zip",
+    "channel": "stable",
+    "tagPrefix": "blueprintDrops-v",
+    "preserveFiles": []
+  },
+  "settings": {
+    "schemaVersion": 1,
+    "files": [
+      {
+        "id": "settings",
+        "base": "mod",
+        "path": "settings.json",
+        "format": "json"
+      }
+    ],
+    "fields": [
+      {
+        "id": "enabled",
+        "label": "Blueprint drops",
+        "description": "NPC wrecks can hold a blueprint. Default: on.",
+        "type": "boolean",
+        "default": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "enabled"
+        ]
+      },
+      {
+        "id": "chanceSmall",
+        "label": "Chance per wreck: small hulls",
+        "description": "Chance (0-1) that a small-hull NPC wreck holds a blueprint. Default: 0.04.",
+        "type": "number",
+        "default": 0.04,
+        "minimum": 0,
+        "maximum": 1,
+        "step": 0.005,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "chanceSmall"
+        ]
+      },
+      {
+        "id": "chanceMedium",
+        "label": "Chance per wreck: medium hulls",
+        "description": "Chance (0-1) for a medium-hull NPC wreck. Default: 0.08.",
+        "type": "number",
+        "default": 0.08,
+        "minimum": 0,
+        "maximum": 1,
+        "step": 0.005,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "chanceMedium"
+        ]
+      },
+      {
+        "id": "chanceLarge",
+        "label": "Chance per wreck: large hulls",
+        "description": "Chance (0-1) for a large-hull NPC wreck. Default: 0.16.",
+        "type": "number",
+        "default": 0.16,
+        "minimum": 0,
+        "maximum": 1,
+        "step": 0.005,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "chanceLarge"
+        ]
+      },
+      {
+        "id": "chanceOther",
+        "label": "Chance per wreck: other",
+        "description": "Chance (0-1) for any other NPC wreck. Default: 0.06.",
+        "type": "number",
+        "default": 0.06,
+        "minimum": 0,
+        "maximum": 1,
+        "step": 0.005,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "chanceOther"
+        ]
+      },
+      {
+        "id": "resonatorsEnabled",
+        "label": "Pirate NET Resonators",
+        "description": "Pirate NPCs can drop their faction's NET Resonator. EVEJS_BPDROPS_RESONATORS_ENABLED overrides this setting. Default: off.",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "resonatorsEnabled"
+        ]
+      },
+      {
+        "id": "factionLootEnabled",
+        "label": "Faction loot tables",
+        "description": "Extra faction loot on NPC wrecks by tier and rarity. EVEJS_BPDROPS_FACTION_LOOT_ENABLED overrides this setting. Default: off.",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "factionLootEnabled"
+        ]
+      },
+      {
+        "id": "log",
+        "label": "Log drops",
+        "description": "One console line per blueprint drop. Default: on.",
+        "type": "boolean",
+        "default": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "log"
+        ]
+      }
+    ]
+  }
+}

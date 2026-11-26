@@ -1,0 +1,16 @@
+"use strict";
+
+const POWER_PER_PILOT = Object.freeze({ HUNT: 1000, RAT: 700, RUN: 500, EXPLORE: 400, MINE: 300, HAUL: 200 });
+const DEFAULT_POWER = 200;
+const BAND_DEFENSE_PERMILLE = Object.freeze({ highsec: 1500, lowsec: 1000, nullsec: 1000, wormhole: 1000 });
+const DEFAULT_DEFENSE_PERMILLE = 1000;
+const ATTACKER_EDGE_PERMILLE = 1200;
+const WINNER_LOSS_MAX_PERMILLE = 340;
+const PREY_KINDS_WAR = Object.freeze(["MINE", "HAUL", "RAT", "EXPLORE", "RUN", "HUNT"]);
+const PREY_KINDS_RANDOM = Object.freeze(["MINE", "HAUL", "RAT", "EXPLORE", "RUN"]);
+const RANDOM_PREY_BANDS = Object.freeze(["lowsec", "nullsec"]);
+const COMPETITOR_WEIGHT = Object.freeze({ sameArchetype: 3, other: 1 });
+
+module.exports = { POWER_PER_PILOT, DEFAULT_POWER, BAND_DEFENSE_PERMILLE, DEFAULT_DEFENSE_PERMILLE,
+  ATTACKER_EDGE_PERMILLE, WINNER_LOSS_MAX_PERMILLE, PREY_KINDS_WAR, PREY_KINDS_RANDOM, RANDOM_PREY_BANDS,
+  COMPETITOR_WEIGHT };

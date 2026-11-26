@@ -1,0 +1,840 @@
+{
+  "schemaVersion": 3,
+  "id": "livingNewEden",
+  "displayName": "Living New Eden",
+  "version": "0.1.0",
+  "description": "A living universe for EveJS: NPC factions that hold territory, move fleets and fight wars while you play. Most of this runs as records in the mod's own database, but the mod changes the game: belt rats take the faction that holds the system, empire navy fleets guard belts in empire-held nullsec, killing pirates in pirate-held systems gives standing, and factions post buy contracts at their stations. Fleets as real ships in space, combat sites and sovereignty are in the Danger group and are off by default; newer features are off by default too. Trade prices are read over HTTPS from market.fuzzwork.co.uk unless you turn that off in the .env file. A read-only page in your browser at http://127.0.0.1:26410/ shows what the mod is doing. Settings saved here are overridden by the same setting in the mod's .env file or the environment, if set, and the console window says so.",
+  "kind": "loader",
+  "supportedBackends": [
+    "native",
+    "docker"
+  ],
+  "activation": {
+    "strategy": "loader_rename"
+  },
+  "restart": "game_server",
+  "loadAfter": [
+    "scenePerfFix",
+    "hotPathPerf",
+    "shipWing",
+    "blueprintDrops",
+    "marketAllRegions",
+    "dailyGoalsPersist",
+    "industryOrphanCleanup",
+    "skyhookOrphanFix",
+    "customTypes",
+    "planetaryDrill",
+    "missionStructureRestore"
+  ],
+  "compatibility": {
+    "evejsVersions": [
+      "261115.2"
+    ]
+  },
+  "updates": {
+    "provider": "github",
+    "repository": "SarJin91/EVEjsMods",
+    "asset": "livingNewEden-{version}.zip",
+    "channel": "stable",
+    "tagPrefix": "livingNewEden-v",
+    "preserveFiles": []
+  },
+  "settings": {
+    "schemaVersion": 1,
+    "files": [
+      {
+        "id": "settings",
+        "base": "mod",
+        "path": "settings.json",
+        "format": "json"
+      }
+    ],
+    "fields": [
+      {
+        "id": "debug",
+        "label": "Debug log lines",
+        "description": "Prints extra [debug] lines in the console window. Changes nothing in the game. Default: false.",
+        "group": "General",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "debug"
+        ]
+      },
+      {
+        "id": "standings.enabled",
+        "label": "Standings for fighting pirates",
+        "description": "Killing pirate NPCs in a pirate-held or contested system gives a small standing plus with the empire fighting them (writes your character standings). Default: true.",
+        "group": "General",
+        "type": "boolean",
+        "default": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "standings",
+          "enabled"
+        ]
+      },
+      {
+        "id": "modules.graph.enabled",
+        "label": "Module: Universe graph",
+        "description": "Builds the map of systems, gates and regions the mod plans on. Off puts this module to sleep. Default: true.",
+        "group": "Modules",
+        "type": "boolean",
+        "default": true,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "modules",
+          "graph",
+          "enabled"
+        ]
+      },
+      {
+        "id": "modules.world.enabled",
+        "label": "Module: World state",
+        "description": "Keeps faction territory, influence and occupation in the mod's own database. Off puts this module to sleep. Default: true.",
+        "group": "Modules",
+        "type": "boolean",
+        "default": true,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "modules",
+          "world",
+          "enabled"
+        ]
+      },
+      {
+        "id": "modules.fleets.enabled",
+        "label": "Module: Virtual fleets",
+        "description": "Moves NPC faction fleets on the map as records, without spawning ships. Off puts this module to sleep. Default: true.",
+        "group": "Modules",
+        "type": "boolean",
+        "default": true,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "modules",
+          "fleets",
+          "enabled"
+        ]
+      },
+      {
+        "id": "modules.scheduler.enabled",
+        "label": "Module: Scheduler",
+        "description": "Runs the mod's due work in small budgeted passes about once a second, outside the server tick. Off puts this module to sleep. Default: true.",
+        "group": "Modules",
+        "type": "boolean",
+        "default": true,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "modules",
+          "scheduler",
+          "enabled"
+        ]
+      },
+      {
+        "id": "modules.strategy.enabled",
+        "label": "Module: Strategic AI",
+        "description": "Lets factions choose targets, fronts and fleet orders. Off puts this module to sleep. Default: true.",
+        "group": "Modules",
+        "type": "boolean",
+        "default": true,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "modules",
+          "strategy",
+          "enabled"
+        ]
+      },
+      {
+        "id": "modules.battle.enabled",
+        "label": "Module: Battle resolver",
+        "description": "Settles fights between virtual fleets away from players. Off puts this module to sleep. Default: true.",
+        "group": "Modules",
+        "type": "boolean",
+        "default": true,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "modules",
+          "battle",
+          "enabled"
+        ]
+      },
+      {
+        "id": "modules.events.enabled",
+        "label": "Module: Event director",
+        "description": "Turns the mod's world state into in-game events near players. Creates objects in the game world the player can see. Off by default. Default: false.",
+        "group": "Danger",
+        "type": "boolean",
+        "default": false,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "modules",
+          "events",
+          "enabled"
+        ]
+      },
+      {
+        "id": "modules.sites.enabled",
+        "label": "Module: Site generation",
+        "description": "Spawns combat sites in space from faction activity. Creates objects in the game world the player can see. Off by default. Default: false.",
+        "group": "Danger",
+        "type": "boolean",
+        "default": false,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "modules",
+          "sites",
+          "enabled"
+        ]
+      },
+      {
+        "id": "modules.materialization.enabled",
+        "label": "Module: Live fleets",
+        "description": "Turns virtual fleets near a player into real NPC ships in space. Creates objects in the game world the player can see. Off by default. Default: false.",
+        "group": "Danger",
+        "type": "boolean",
+        "default": false,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "modules",
+          "materialization",
+          "enabled"
+        ]
+      },
+      {
+        "id": "modules.virtualCorps.enabled",
+        "label": "Module: Virtual identities",
+        "description": "Creates real EveJS alliances, corporations and characters (offline, accountId 0) per qualifying faction. Creates objects in the game world the player can see. Off by default. Default: false.",
+        "group": "Danger",
+        "type": "boolean",
+        "default": false,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "modules",
+          "virtualCorps",
+          "enabled"
+        ]
+      },
+      {
+        "id": "modules.sovProjection.enabled",
+        "label": "Module: Sovereignty projection",
+        "description": "Projects mod controller changes onto EveJS native sovereignty (Sov Hubs, claims). Creates objects in the game world the player can see. Off by default. Default: false.",
+        "group": "Danger",
+        "type": "boolean",
+        "default": false,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "modules",
+          "sovProjection",
+          "enabled"
+        ]
+      },
+      {
+        "id": "modules.structures.enabled",
+        "label": "Module: Upwell structures",
+        "description": "Projects faction Upwell stations onto real EveJS structures. Creates objects in the game world the player can see. Off by default. Default: false.",
+        "group": "Danger",
+        "type": "boolean",
+        "default": false,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "modules",
+          "structures",
+          "enabled"
+        ]
+      },
+      {
+        "id": "modules.persistence.enabled",
+        "label": "Module: Persistence",
+        "description": "Stores the mod's state in its own database under the data folder. Off puts this module to sleep. Default: true.",
+        "group": "Modules",
+        "type": "boolean",
+        "default": true,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "modules",
+          "persistence",
+          "enabled"
+        ]
+      },
+      {
+        "id": "modules.telemetry.enabled",
+        "label": "Module: Telemetry",
+        "description": "Measures the mod's work per tick and writes its metrics. Off puts this module to sleep. Default: true.",
+        "group": "Modules",
+        "type": "boolean",
+        "default": true,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "modules",
+          "telemetry",
+          "enabled"
+        ]
+      },
+      {
+        "id": "modules.presence.enabled",
+        "label": "Module: Player presence",
+        "description": "Tracks which systems have logged-in players, read only. Off puts this module to sleep. Default: true.",
+        "group": "Modules",
+        "type": "boolean",
+        "default": true,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "modules",
+          "presence",
+          "enabled"
+        ]
+      },
+      {
+        "id": "wormholes.enabled",
+        "label": "Wormhole routes",
+        "description": "Reads the open wormhole pairs of EveJS (read only) so the mod can plan routes through them. Off: no poll, routes use gates only. Default: true.",
+        "group": "Modules",
+        "type": "boolean",
+        "default": true,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "wormholes",
+          "enabled"
+        ]
+      },
+      {
+        "id": "abyssal.enabled",
+        "label": "Abyssal run register",
+        "description": "Records the Abyssal Deadspace runs of the players (read only: the game does not change) and shows them on the observer panel abyssal-runs. Needs presence. Off: no hook, no read, no row. Default: false.",
+        "group": "Modules",
+        "type": "boolean",
+        "default": false,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "abyssal",
+          "enabled"
+        ]
+      },
+      {
+        "id": "limits.maxVirtualFleets",
+        "label": "Max virtual fleets",
+        "description": "Most NPC faction fleets the mod keeps on the map at once. Default: 1000.",
+        "group": "Limits",
+        "type": "integer",
+        "default": 1000,
+        "minimum": 1,
+        "maximum": 5000,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "limits",
+          "maxVirtualFleets"
+        ]
+      },
+      {
+        "id": "limits.maxDueEventsPerPass",
+        "label": "Max due events per pass",
+        "description": "Most due events the scheduler handles in one pass. Default: 64.",
+        "group": "Limits",
+        "type": "integer",
+        "default": 64,
+        "minimum": 1,
+        "maximum": 1024,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "limits",
+          "maxDueEventsPerPass"
+        ]
+      },
+      {
+        "id": "limits.maxSchedulerWorkMs",
+        "label": "Scheduler work per pass (ms)",
+        "description": "Most milliseconds of server time the mod's scheduler uses in one pass. Default: 8.",
+        "group": "Limits",
+        "type": "number",
+        "default": 8,
+        "minimum": 0.5,
+        "maximum": 50,
+        "step": 0.5,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "limits",
+          "maxSchedulerWorkMs"
+        ]
+      },
+      {
+        "id": "limits.maxBattleResolutionsPerPass",
+        "label": "Max battle resolutions per pass",
+        "description": "Most fights between virtual fleets settled in one pass. Default: 2.",
+        "group": "Limits",
+        "type": "integer",
+        "default": 2,
+        "minimum": 1,
+        "maximum": 256,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "limits",
+          "maxBattleResolutionsPerPass"
+        ]
+      },
+      {
+        "id": "limits.maxLiveMaterializationsPerSystem",
+        "label": "Max live NPC ships per system",
+        "description": "Most real NPC ships the mod puts in space in one solar system. Default: 48.",
+        "group": "Limits",
+        "type": "integer",
+        "default": 48,
+        "minimum": 0,
+        "maximum": 256,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "limits",
+          "maxLiveMaterializationsPerSystem"
+        ]
+      },
+      {
+        "id": "limits.maxLiveMaterializationsGlobal",
+        "label": "Max live NPC ships in total",
+        "description": "Most real NPC ships the mod puts in space across the whole universe. Default: 120.",
+        "group": "Limits",
+        "type": "integer",
+        "default": 120,
+        "minimum": 0,
+        "maximum": 1000,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "limits",
+          "maxLiveMaterializationsGlobal"
+        ]
+      },
+      {
+        "id": "limits.maxNewSitesPerSystemPerWindow",
+        "label": "Max new sites per system",
+        "description": "Most new combat sites the mod spawns in one solar system per time window. Default: 2.",
+        "group": "Limits",
+        "type": "integer",
+        "default": 2,
+        "minimum": 0,
+        "maximum": 32,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "limits",
+          "maxNewSitesPerSystemPerWindow"
+        ]
+      },
+      {
+        "id": "limits.maxActiveFrontsPerFaction",
+        "label": "Max active fronts per faction",
+        "description": "Most war fronts one NPC faction fights on at the same time. Default: 6.",
+        "group": "Limits",
+        "type": "integer",
+        "default": 6,
+        "minimum": 1,
+        "maximum": 16,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "limits",
+          "maxActiveFrontsPerFaction"
+        ]
+      },
+      {
+        "id": "limits.maxCatchUpEventsPerPass",
+        "label": "Max catch-up events per pass",
+        "description": "Most missed events the mod replays per pass after the server was off. Default: 32.",
+        "group": "Limits",
+        "type": "integer",
+        "default": 32,
+        "minimum": 1,
+        "maximum": 1024,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "limits",
+          "maxCatchUpEventsPerPass"
+        ]
+      },
+      {
+        "id": "limits.maxSovWritesPerWindow",
+        "label": "Max sov writes per window",
+        "description": "Most sovereignty table flushes allowed per time window. Default: 8.",
+        "group": "Limits",
+        "type": "integer",
+        "default": 8,
+        "minimum": 1,
+        "maximum": 100,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "limits",
+          "maxSovWritesPerWindow"
+        ]
+      },
+      {
+        "id": "limits.sovWriteWindowMs",
+        "label": "Sov write window (ms)",
+        "description": "Time window in milliseconds for the sovereignty write budget. Default: 300000.",
+        "group": "Limits",
+        "type": "integer",
+        "default": 300000,
+        "minimum": 1000,
+        "maximum": 3600000,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "limits",
+          "sovWriteWindowMs"
+        ]
+      },
+      {
+        "id": "persistence.busyTimeoutMs",
+        "label": "Database busy wait (ms)",
+        "description": "How long a database write waits for a brief lock held by another connection. A second server process on the same file is refused at once. Default: 5000.",
+        "group": "Limits",
+        "type": "integer",
+        "default": 5000,
+        "minimum": 0,
+        "maximum": 10000,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "persistence",
+          "busyTimeoutMs"
+        ]
+      },
+      {
+        "id": "persistence.maxRowsPerTransaction",
+        "label": "Max rows per database write",
+        "description": "Most rows the mod changes in its database in one transaction. Default: 1000.",
+        "group": "Limits",
+        "type": "integer",
+        "default": 1000,
+        "minimum": 1,
+        "maximum": 10000,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "persistence",
+          "maxRowsPerTransaction"
+        ]
+      },
+      {
+        "id": "persistence.maxWriteMsPerPass",
+        "label": "Database write time per pass (ms)",
+        "description": "Most milliseconds the mod spends writing its database in one scheduler pass. Default: 5.",
+        "group": "Limits",
+        "type": "number",
+        "default": 5,
+        "minimum": 0.5,
+        "maximum": 50,
+        "step": 0.5,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "persistence",
+          "maxWriteMsPerPass"
+        ]
+      },
+      {
+        "id": "telemetry.intervalSeconds",
+        "label": "Telemetry interval (s)",
+        "description": "How often the mod rebuilds its metrics snapshot and writes telemetry/latest.json. Default: 10.",
+        "group": "General",
+        "type": "integer",
+        "default": 10,
+        "minimum": 1,
+        "maximum": 300,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "telemetry",
+          "intervalSeconds"
+        ]
+      },
+      {
+        "id": "governor.warningP95Ms",
+        "label": "Tick p95 warning (ms)",
+        "description": "Tick interval p95 at which the mod defers its strategy work (only with governor signal p95). Default: 120.",
+        "group": "Load governor",
+        "type": "number",
+        "default": 120,
+        "minimum": 101,
+        "maximum": 499,
+        "step": 0.5,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "governor",
+          "warningP95Ms"
+        ]
+      },
+      {
+        "id": "governor.overloadP95Ms",
+        "label": "Tick p95 overload (ms)",
+        "description": "Tick interval p95 at which the mod runs only settlements and live work (only with governor signal p95). Default: 130.",
+        "group": "Load governor",
+        "type": "number",
+        "default": 130,
+        "minimum": 102,
+        "maximum": 499,
+        "step": 0.5,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "governor",
+          "overloadP95Ms"
+        ]
+      },
+      {
+        "id": "governor.emergencyMs",
+        "label": "Tick emergency (ms)",
+        "description": "A single tick this long pauses all background work of the mod for a moment. Default: 500.",
+        "group": "Load governor",
+        "type": "number",
+        "default": 500,
+        "minimum": 130,
+        "maximum": 599,
+        "step": 0.5,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "governor",
+          "emergencyMs"
+        ]
+      },
+      {
+        "id": "governor.recoverySeconds",
+        "label": "Recovery window (s)",
+        "description": "How long the tick must stay healthy before the mod works at full speed again. Default: 15.",
+        "group": "Load governor",
+        "type": "number",
+        "default": 15,
+        "minimum": 0,
+        "maximum": 60,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "governor",
+          "recoverySeconds"
+        ]
+      },
+      {
+        "id": "observer.enabled",
+        "label": "Web observer page",
+        "description": "Serves a read-only page about the mod's state at http://127.0.0.1:26410/ in your browser. Changes nothing in the game. Default: true.",
+        "group": "Observer",
+        "type": "boolean",
+        "default": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "observer",
+          "enabled"
+        ]
+      },
+      {
+        "id": "observer.port",
+        "label": "Observer port",
+        "description": "TCP port of the observer page. In Docker set EVEJS_LNE_OBSERVER_PORT in compose instead. Default: 26410.",
+        "group": "Observer",
+        "type": "integer",
+        "default": 26410,
+        "minimum": 0,
+        "maximum": 65535,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "observer",
+          "port"
+        ]
+      },
+      {
+        "id": "observer.refreshSeconds",
+        "label": "Page refresh (s)",
+        "description": "How often the observer page in the browser reloads its data. Default: 5.",
+        "group": "Observer",
+        "type": "integer",
+        "default": 5,
+        "minimum": 1,
+        "maximum": 60,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "observer",
+          "refreshSeconds"
+        ]
+      },
+      {
+        "id": "observer.journalLimit",
+        "label": "Journal entries shown",
+        "description": "How many of the newest journal entries the observer page lists. Default: 50.",
+        "group": "Observer",
+        "type": "integer",
+        "default": 50,
+        "minimum": 1,
+        "maximum": 200,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "observer",
+          "journalLimit"
+        ]
+      },
+      {
+        "id": "observer.galaxyEnabled",
+        "label": "Galaxy map",
+        "description": "Shows a map of the galaxy (systems, gates, territory control) on the observer page. Changes nothing in the game. Default: true.",
+        "group": "Observer",
+        "type": "boolean",
+        "default": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "observer",
+          "galaxyEnabled"
+        ]
+      },
+      {
+        "id": "observer.galaxyMaxLabels",
+        "label": "Galaxy map labels",
+        "description": "Most system names the galaxy map draws at once when zoomed in. Default: 300.",
+        "group": "Observer",
+        "type": "integer",
+        "default": 300,
+        "minimum": 0,
+        "maximum": 2000,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "observer",
+          "galaxyMaxLabels"
+        ]
+      },
+      {
+        "id": "observer.galaxyPlayersEnabled",
+        "label": "Players on the galaxy map",
+        "description": "Marks systems with logged-in players and their character names on the observer map. Changes nothing in the game. Default: true.",
+        "group": "Observer",
+        "type": "boolean",
+        "default": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "observer",
+          "galaxyPlayersEnabled"
+        ]
+      },
+      {
+        "id": "observer.galaxyPlayersMaxNames",
+        "label": "Player names per system",
+        "description": "Most character names the galaxy map lists per system; 0 shows counts only. Default: 10.",
+        "group": "Observer",
+        "type": "integer",
+        "default": 10,
+        "minimum": 0,
+        "maximum": 50,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "observer",
+          "galaxyPlayersMaxNames"
+        ]
+      },
+      {
+        "id": "observer.sovProjectionEnabled",
+        "label": "Sovereignty projection layer",
+        "description": "Shows systems with virtual alliance sovereignty projections on the galaxy map. Changes nothing in the game. Default: true.",
+        "group": "Observer",
+        "type": "boolean",
+        "default": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "observer",
+          "sovProjectionEnabled"
+        ]
+      }
+    ]
+  }
+}

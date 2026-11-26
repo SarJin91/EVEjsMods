@@ -1,0 +1,74 @@
+{
+  "packID": "listening-post",
+  "version": 1,
+  "source": "FEATURE-20261119-listening-post-sub1 (D14352, D14369). 340520 Listening Post = clone of the Scanner Array 16216 without a group change (group 709 Scanner Array, category 23, anchorable; SDE 3396210 typeDogma: hp 10000, shield 5000, armor 2000, signature 2000, effects 901/1022/1023 online/anchor, no weapon). dogma.attributes 9 (hp) 50000, 263 (shieldCapacity) 50000, 265 (armorHP) 100000 = 200000 HP. The Living New Eden mod anchors it by its sentry path (typeID range 340520-340539 reserved for K1/K7) and makes it a target of the faction battles only while its owner is online. iconID 24666 = res:/UI/Texture/Icons/d-scan.png (SDE icons; the Scanner Array row is not in the local SDE, H3); the client keeps the source look. 340521 blueprint = clone of Spatial Attunement Unit Blueprint 33196 (like the PI and drill blueprints, D693/D700) with group 447. Manufacturing: plain minerals 12000 Tritanium, 4000 Pyerite, 1500 Mexallon, 500 Isogen, Industry V, 6000 s; copying 14400 s, ME/TE 6300 s and max runs 10 = the Scanner Array Blueprint 2821 (SDE 3396210 blueprints.jsonl). Shop 100 million ISK. Client: re-run ApplyClientData.",
+  "types": [
+    {
+      "typeID": 340520,
+      "sourceTypeID": 16216,
+      "overrides": {
+        "name": "Listening Post",
+        "iconID": 24666,
+        "published": true,
+        "marketGroupID": null,
+        "description": "Passive listening structure built from a Scanner Array. Launch it from your cargo, then Anchor it 5-30 km from a stargate, an NPC station or your corporation's Upwell structure (low-security and null-security space only). No control tower and no fuel. It has no weapon. While someone of the owner corporation is online, faction fleets may attack it. Destructible."
+      },
+      "dogma": {
+        "attributes": {
+          "9": 50000,
+          "263": 50000,
+          "265": 100000
+        }
+      }
+    },
+    {
+      "typeID": 340521,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Listening Post Blueprint",
+        "groupID": 447,
+        "iconID": 2185,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Listening Post, a passive listening structure built from a Scanner Array: 12000 Tritanium, 4000 Pyerite, 1500 Mexallon and 500 Isogen, Industry V. See the item description."
+      }
+    }
+  ],
+  "blueprints": [
+    {
+      "blueprintTypeID": 340521,
+      "productTypeID": 340520,
+      "maxProductionLimit": 10,
+      "activities": {
+        "copying": {
+          "time": 14400
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 12000, "typeID": 34 },
+            { "quantity": 4000, "typeID": 35 },
+            { "quantity": 1500, "typeID": 36 },
+            { "quantity": 500, "typeID": 37 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340520 }
+          ],
+          "skills": [
+            { "level": 5, "typeID": 3380 }
+          ],
+          "time": 6000
+        },
+        "research_material": {
+          "time": 6300
+        },
+        "research_time": {
+          "time": 6300
+        }
+      },
+      "shop": {
+        "listed": true,
+        "price": 100000000
+      }
+    }
+  ]
+}

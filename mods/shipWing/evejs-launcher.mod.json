@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 3,
+  "id": "shipWing",
+  "displayName": "Ship Wing",
+  "version": "0.2.0",
+  "description": "Launch copies of the fitted ships in your Orca or carrier Ship Maintenance Bay as a wing that follows you. Type !wing launch, !wing return or !wing status in Local. The real ship stays locked in the bay while its copy is out. Copies can also mine and fight NPCs (each feature has its own flag, off by default). A destroyed copy is settled: the real ship is removed and leaves a wreck and a killmail. TEST BUILD: do not turn it on for players yet (read the README). Off by default.",
+  "kind": "loader",
+  "supportedBackends": [
+    "native",
+    "docker"
+  ],
+  "activation": {
+    "strategy": "loader_rename"
+  },
+  "restart": "game_server",
+  "compatibility": {
+    "evejsVersions": [
+      "261115.2"
+    ]
+  },
+  "updates": {
+    "provider": "github",
+    "repository": "SarJin91/EVEjsMods",
+    "asset": "shipWing-{version}.zip",
+    "channel": "stable",
+    "tagPrefix": "shipWing-v",
+    "preserveFiles": []
+  },
+  "settings": {
+    "schemaVersion": 1,
+    "files": [
+      {
+        "id": "settings",
+        "base": "mod",
+        "path": "settings.json",
+        "format": "json"
+      }
+    ],
+    "fields": [
+      {
+        "id": "enabled",
+        "label": "Turn Ship Wing on (test build)",
+        "description": "WARNING: test build. Do not turn it on for players yet: when a copy is destroyed, the mod removes its real ship from the bay (wreck and killmail, read the README). Off = the mod installs nothing in the game. EVEJS_SHIPWING_ENABLED in the mod's .env file or in the environment overrides this setting. Default: off.",
+        "group": "Ship Wing",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "enabled"
+        ]
+      },
+      {
+        "id": "maxWingPerPilot",
+        "label": "Copies per pilot",
+        "description": "Most wing copies one pilot can have out at the same time. Default: 2.",
+        "group": "Ship Wing",
+        "type": "integer",
+        "default": 2,
+        "minimum": 1,
+        "maximum": 10,
+        "step": 1,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "maxWingPerPilot"
+        ]
+      },
+      {
+        "id": "controlRangeMeters",
+        "label": "Control range (m)",
+        "description": "A copy that stays further than this from its pilot's ship (surface to surface, meters) goes back to the bay. Default: 20000.",
+        "group": "Ship Wing",
+        "type": "integer",
+        "default": 20000,
+        "minimum": 1000,
+        "maximum": 250000,
+        "step": 1000,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "controlRangeMeters"
+        ]
+      }
+    ]
+  }
+}

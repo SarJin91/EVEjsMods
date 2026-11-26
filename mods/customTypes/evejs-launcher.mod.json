@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 3,
+  "id": "customTypes",
+  "displayName": "Custom Types",
+  "version": "1.0.0",
+  "description": "Server half of custom item types and their industry blueprints (data/*.json packs): adds the item type rows and blueprint definitions in memory at startup, without writing EveJS tables. The client needs the matching data from client/apply_client_data.py. Off by default (EVEJS_CUSTOMTYPES_ENABLED). Optional blueprint shop: public NPC item exchange contracts with the pack blueprints in the trade hubs (EVEJS_CUSTOMTYPES_SHOP_ENABLED).",
+  "kind": "loader",
+  "supportedBackends": [
+    "native",
+    "docker"
+  ],
+  "activation": {
+    "strategy": "loader_rename"
+  },
+  "restart": "game_server",
+  "loadBefore": [
+    "planetaryDrill"
+  ],
+  "compatibility": {
+    "evejsVersions": [
+      "261115.2"
+    ]
+  },
+  "updates": {
+    "provider": "github",
+    "repository": "SarJin91/EVEjsMods",
+    "asset": "customTypes-{version}.zip",
+    "channel": "stable",
+    "tagPrefix": "customTypes-v",
+    "preserveFiles": []
+  }
+}

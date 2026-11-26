@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 3,
+  "id": "marketAllRegions",
+  "displayName": "Market All Regions",
+  "version": "1.0.0",
+  "description": "The market window's order list shows buy and sell orders from every region, not only the current one. Trading itself stays regional.",
+  "kind": "loader",
+  "supportedBackends": [
+    "native",
+    "docker"
+  ],
+  "activation": {
+    "strategy": "loader_rename"
+  },
+  "restart": "game_server",
+  "compatibility": {
+    "evejsVersions": [
+      "261115.2"
+    ]
+  },
+  "updates": {
+    "provider": "github",
+    "repository": "SarJin91/EVEjsMods",
+    "asset": "marketAllRegions-{version}.zip",
+    "channel": "stable",
+    "tagPrefix": "marketAllRegions-v",
+    "preserveFiles": []
+  }
+}

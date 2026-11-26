@@ -1,0 +1,9 @@
+{
+  "schema": 1,
+  "smbForEveryShip": {
+    "enabled": true,
+    "ratioPermille": 750,
+    "excludedGroupIds": [29],
+    "maxCapacityM3": 0
+  }
+}

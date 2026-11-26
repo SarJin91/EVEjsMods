@@ -1,0 +1,7 @@
+# Local configuration and runtime output
+.env
+mods/*/settings.json
+node_modules/
+__pycache__/
+*.log
+_local/

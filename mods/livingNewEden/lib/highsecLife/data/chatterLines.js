@@ -1,0 +1,176 @@
+"use strict";
+
+function lines(prefix, texts) {
+  return Object.freeze(texts.map((text, i) => Object.freeze({ id: `${prefix}${String(i + 1).padStart(2, "0")}`,
+    text })));
+}
+
+const BACKGROUND = Object.freeze({
+  TRADE: lines("t", [
+    "WTS {item}, below Jita sell, convo me",
+    "WTB {item} in bulk, paying well",
+    "WTS {item}, contract up in {system}",
+    "WTB {item}, will pick up anywhere in {region}",
+    "anyone selling {item} cheaper than the market?",
+    "selling {item}, need the isk for a new ship",
+    "WTS {item} x100, check my contracts",
+    "buying {item}, convo with a price",
+    "{item} prices are insane today",
+    "who keeps undercutting {item} by 0.01 isk",
+    "WTB {item}, quick deal please",
+    "WTS {item}, 5% under market, today only",
+    "market in {system} is dead slow tonight",
+    "price check: {item}?",
+    "margin trading {item} is not worth it anymore",
+    "WTS {item}, can deliver within {region}",
+  ]),
+  GREETING: lines("g", [
+    "o7",
+    "o/ {system}",
+    "evening all",
+    "hi local",
+    "o7 everyone, fly safe",
+    "anyone awake?",
+    "back from a long trip, hello {system}",
+    "quiet in {system} today",
+    "o7 from a fellow capsuleer",
+    "morning {region}",
+    "busy local today",
+    "hey all, nice to be back in {region}",
+    "fly safe o7",
+    "good to see {system} so lively",
+  ]),
+  MISSION: lines("m", [
+    "anyone want to share a level 3 mission?",
+    "agent sent me to deadspace again, ugh",
+    "looking for a mission partner in {region}",
+    "these courier missions never end",
+    "just finished a level 4, rats everywhere",
+    "anyone know which agent in {system} gives good standings?",
+    "need a salvager for my mission wrecks",
+    "storyline mission done, finally",
+    "mission rewards in {region} are terrible lately",
+    "LF fleet for a combat mission, bring a logi",
+    "who else is grinding standings this week?",
+    "my mission pocket had way too many frigates",
+    "distribution missions all day, so relaxing",
+    "anyone run the Angel Extravaganza lately?",
+    "lost a drone in my mission, worth it",
+    "need help with a mission boss, will split loot",
+  ]),
+  ESCORT: lines("e", [
+    "LF escort for a hauler out of {system}",
+    "paying for an escort to the next hub",
+    "anyone want to scout a route for my freighter?",
+    "need a scout through {region}, convo me",
+    "hauling a full load, any escort around?",
+    "careful on the gates out of {system}",
+    "gankers reported near {system}, stay aligned",
+    "looking for a webber for my freighter",
+    "will pay for a scout, low risk run",
+    "anyone flying towards the next hub? want company",
+    "watch out for suspect flags around {system}",
+    "need cover for a haul through {region}",
+    "escort wanted, short route, fair pay",
+    "is the route out of {system} clear?",
+    "convoy forming in {system}, haulers welcome",
+    "my insurance does not cover pirates, need an escort",
+  ]),
+});
+
+const BACKGROUND_CATEGORIES = Object.freeze(["TRADE", "GREETING", "MISSION", "ESCORT"]);
+
+const RUMOURS = Object.freeze({
+  ATTACK_STARTED: lines("ra", [
+    "heard {attacker} moved on {place} in {placeRegion}",
+    "word is {attacker} is pushing into {place}",
+    "fighting broke out in {place}, convoys rerouting",
+    "{defender} is under attack in {place}, avoid the area",
+    "someone said {place} is contested now",
+    "pilots coming back from {placeRegion} talk about an invasion of {place}",
+  ]),
+  SYSTEM_CAPTURED: lines("rc", [
+    "heard {attacker} took {place}, convoys rerouting",
+    "{place} fell to {attacker}, {defender} lost it",
+    "{place} changed hands, the route through {placeRegion} is not safe",
+    "they say {place} has a new master now",
+    "{attacker} flags flying over {place} now",
+  ]),
+  SYSTEM_RELEASED: lines("rr", [
+    "{defender} pulled out of {place}",
+    "{place} is free again, nobody holds it",
+    "the occupation of {place} ended, heard it from a hauler",
+    "nobody controls {place} anymore, strange times",
+  ]),
+  ATTACK_REPELLED: lines("rp", [
+    "{defender} beat back {attacker} at {place}",
+    "the attack on {place} failed, defenders held",
+    "{place} held out, the attackers are gone",
+    "heard the invasion of {place} in {placeRegion} was repelled",
+  ]),
+  SIEGE_STARTED: lines("rs", [
+    "{attacker} is besieging a station in {place}",
+    "a station in {place} is under siege",
+    "siege at {place}, docking there is a gamble now",
+    "heard the station in {place} has hostile fleets outside",
+  ]),
+  SIEGE_ENDED: lines("re", [
+    "the siege in {place} is over",
+    "station siege at {place} ended, traffic is moving again",
+    "{place} siege finished, heard it went badly for someone",
+    "the fleets left the station in {place}",
+  ]),
+  HEAVY_EVENT_STARTED: lines("rh", [
+    "{attacker} forces gathering near {place}",
+    "big fleet activity reported around {place}",
+    "something big is happening in {place}, stay clear",
+    "pilots say {place} in {placeRegion} is crawling with warships",
+  ]),
+  BATTLE: lines("rb", [
+    "big fight in {place}, {losses} ships down",
+    "heard about a battle in {place}, {losses} wrecks on the grid",
+    "fleets clashed in {place} in {placeRegion}, {losses} losses",
+    "salvagers are heading to {place}, {losses} ships died there",
+    "a fight in {place} left {losses} wrecks, watch your step",
+  ]),
+  GANK: lines("rg", [
+    "freighter ganked in {place}, {losses} wrecks on the gate",
+    "gankers hit a hauler in {place}, CONCORD showed up late again",
+    "someone got suicide ganked in {place}, {losses} ships down with CONCORD",
+    "wrecks all over {place} in {placeRegion}, a hauler did not make it",
+    "heard about a gank in {place}, salvagers are already there",
+    "{place} is a gank camp today, {losses} wrecks, fly safe",
+  ]),
+  FC_LOST: lines("rl", [
+    "heard {defender} lost {losses} ships in {place}",
+    "a small corp got caught in {place}, {losses} ships gone",
+    "{place} in {placeRegion} is dangerous, a crew died there",
+    "{defender} had a bad day in {place}",
+  ]),
+  FC_RICH: lines("rf", [
+    "{defender} came back from {place} with a full hold",
+    "heard a crew made a fortune in {place}",
+    "{place} in {placeRegion} is paying well lately",
+    "word is {defender} got rich working {place}",
+  ]),
+  SIT_RESCUED: lines("rv", [
+    "heard someone answered a mayday in {place}, {losses} pilots made it home",
+    "pilots saved some miners in {place}, {losses} of them got out alive",
+    "a call for help in {place} got answered, {losses} miners are safe",
+    "word is the pirates at a belt in {place} in {placeRegion} got chased off",
+  ]),
+  SIT_LOST: lines("rx", [
+    "a call for help in {place} went unanswered, {losses} ships lost",
+    "heard miners in {place} called for help and nobody came",
+    "pirates caught a mining crew in {place}, {losses} ships gone",
+    "nobody showed up for the mayday in {place} in {placeRegion}",
+  ]),
+});
+
+const ITEMS = Object.freeze(["Tritanium", "Pyerite", "Mexallon", "Isogen", "Nocxium", "Zydrine", "Megacyte",
+  "PLEX", "Large Skill Injector", "Nanite Repair Paste", "Drake", "Raven", "Megathron", "Apocalypse", "Tempest",
+  "Retriever", "Covetor", "Venture", "Iteron Mark V", "Hammerhead II", "Warrior II", "Damage Control II",
+  "Antimatter Charge M", "Scourge Heavy Missile", "Cap Booster 800", "Liquid Ozone", "Mobile Tractor Unit",
+  "Exotic Dancers", "Spirits", "Quafe"]);
+
+module.exports = { BACKGROUND, BACKGROUND_CATEGORIES, RUMOURS, ITEMS };

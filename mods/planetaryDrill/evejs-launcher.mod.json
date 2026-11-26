@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 3,
+  "id": "planetaryDrill",
+  "displayName": "Planetary Drill (Skyhook outside sov null)",
+  "version": "1.1.0",
+  "description": "A vanilla Orbital Skyhook anchored at a high-sec or low-sec planet mines that planet's P0 resource (the best-quality one, or the one named by a Planetary Drill (<P0>) item) into its secured bay; Extract to cargo works as for sov null-sec Skyhooks. Requires skyhookOrphanFix (loaded before this mod); the drill items come from customTypes. Off by default (EVEJS_PDRILL_ENABLED). Danger: drill stock is lost if the mod is turned off or stops working after an EveJS update, or if a drill's P0 changes. Extract first. Read the README.",
+  "kind": "loader",
+  "supportedBackends": [
+    "native",
+    "docker"
+  ],
+  "activation": {
+    "strategy": "loader_rename"
+  },
+  "restart": "game_server",
+  "requires": [
+    "skyhookOrphanFix"
+  ],
+  "loadAfter": [
+    "customTypes"
+  ],
+  "compatibility": {
+    "evejsVersions": [
+      "261115.2"
+    ]
+  },
+  "updates": {
+    "provider": "github",
+    "repository": "SarJin91/EVEjsMods",
+    "asset": "planetaryDrill-{version}.zip",
+    "channel": "stable",
+    "tagPrefix": "planetaryDrill-v",
+    "preserveFiles": []
+  }
+}

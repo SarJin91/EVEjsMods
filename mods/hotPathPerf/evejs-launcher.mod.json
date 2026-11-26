@@ -1,0 +1,713 @@
+{
+  "schemaVersion": 3,
+  "id": "hotPathPerf",
+  "displayName": "Hot Path Performance",
+  "version": "0.24.1",
+  "description": "Diagnostics for long server stalls: measures the wall time of selected EveJS calls (dungeon site scheduler boundary, Agency/scanner site lists, empty-scene sweep, scene creation, location lookups) and logs the slow ones plus periodic stats. No gameplay change. Optional (off by default): active site index, keeping docked systems' scenes loaded, career Abyssal read without parsing the whole site table, read-only dungeon templates for site lists, batched saving of ore left in dungeon rocks, per-system structure reads without copying every structure (optionally without repeating a fresh structure timer refresh), batched mining drone saves, structure timers advanced once per 5-10 s, fast Industry blueprint list, fast NPC wreck list, server config remembered between logins.",
+  "kind": "loader",
+  "supportedBackends": [
+    "native",
+    "docker"
+  ],
+  "activation": {
+    "strategy": "loader_rename"
+  },
+  "restart": "game_server",
+  "compatibility": {
+    "evejsVersions": [
+      "261115.2"
+    ]
+  },
+  "updates": {
+    "provider": "github",
+    "repository": "SarJin91/EVEjsMods",
+    "asset": "hotPathPerf-{version}.zip",
+    "channel": "stable",
+    "tagPrefix": "hotPathPerf-v",
+    "preserveFiles": []
+  },
+  "settings": {
+    "schemaVersion": 1,
+    "files": [
+      {
+        "id": "settings",
+        "base": "mod",
+        "path": "settings.json",
+        "format": "json"
+      }
+    ],
+    "fields": [
+      {
+        "id": "enabled",
+        "label": "Enabled",
+        "description": "Measure selected server calls. Off = the mod wraps nothing. Default: on.",
+        "type": "boolean",
+        "default": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "enabled"
+        ]
+      },
+      {
+        "id": "slowCallMs",
+        "label": "Slow call threshold (ms)",
+        "description": "A call taking at least this long is written to the log as a '[hotPathPerf] slow' line. Default: 250.",
+        "type": "integer",
+        "default": 250,
+        "minimum": 0,
+        "maximum": 60000,
+        "step": 50,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "slowCallMs"
+        ]
+      },
+      {
+        "id": "statsLogMinutes",
+        "label": "Stats interval (minutes)",
+        "description": "How often to write call counts and times to the log. 0 = never. Default: 10.",
+        "type": "integer",
+        "default": 10,
+        "minimum": 0,
+        "maximum": 1440,
+        "step": 1,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "statsLogMinutes"
+        ]
+      },
+      {
+        "id": "dungeonIndex",
+        "label": "Active site index",
+        "description": "Serve the Agency/scanner site lists and the site scheduler boundary from an in-memory index instead of cloning every active site. Same data as the server. Default: off.",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "dungeonIndex"
+        ]
+      },
+      {
+        "id": "sceneRetention",
+        "label": "Keep docked systems loaded",
+        "description": "Keep the space scene of systems where players are docked in memory (max 16, up to 120 min of docking), so undocking does not rebuild the whole scene. Costs memory and tick time per kept scene. Default: off.",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "sceneRetention"
+        ]
+      },
+      {
+        "id": "prewarmLocations",
+        "label": "Pre-warm location lookups",
+        "description": "Build the static location map once at server start (before players can connect), so the first location lookup in game does not stall the server for 1-3 s. Adds the same time to server start. Default: on.",
+        "type": "boolean",
+        "default": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "prewarmLocations"
+        ]
+      },
+      {
+        "id": "careerAbyssalRead",
+        "label": "Career Abyssal read",
+        "description": "Career goal updates read only the Abyssal pocket rows of the site table instead of parsing the whole table on every update. Same data as the server. Default: off.",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "careerAbyssalRead"
+        ]
+      },
+      {
+        "id": "careerCombatItemsRead",
+        "label": "Career combat outcomes read",
+        "description": "Career combat updates (e.g. every drone or mining cycle) read only the combat outcome ledger row of the item table instead of parsing the whole item table. Same data as the server. Default: off.",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "careerCombatItemsRead"
+        ]
+      },
+      {
+        "id": "templateReadOnlyView",
+        "label": "Read-only site templates",
+        "description": "Agency/scanner site lists use the server's shared read-only copy of each site template instead of a fresh copy per site. Same data as the server. Default: off.",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "templateReadOnlyView"
+        ]
+      },
+      {
+        "id": "templateReadOnlyRotate",
+        "label": "Read-only templates in site rotation",
+        "description": "When expired dungeon sites are replaced by new ones, the new site is built from the server's shared read-only copy of its template instead of a fresh copy. Same data as the server. Works only together with 'Read-only site templates'. Default: off.",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "templateReadOnlyRotate"
+        ]
+      },
+      {
+        "id": "rockRemainderCoalesce",
+        "label": "Batch dungeon rock ore writes",
+        "description": "Ore left in dungeon site rocks is saved once per site every 10 s instead of after every mining cycle (a mined-out rock is saved at once). After a hard server kill a rock may come back with up to 10 s of mined ore. Default: off.",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "rockRemainderCoalesce"
+        ]
+      },
+      {
+        "id": "structuresSystemFilter",
+        "label": "Per-system structure reads",
+        "description": "Reading the structures of one solar system (every scene, every server tick) copies only that system's structures instead of every structure in the universe. Same data as the server. Default: off.",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "structuresSystemFilter"
+        ]
+      },
+      {
+        "id": "structuresRefreshCoalesce",
+        "label": "Skip repeated structure timer refreshes",
+        "description": "When a per-system structure read asks for fresh timers and structure timers were already advanced less than 5 s ago, use that state instead of advancing every structure in the universe again. Structure timers may react up to 5 s later on those reads. Works only together with 'Per-system structure reads'. Default: off.",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "structuresRefreshCoalesce"
+        ]
+      },
+      {
+        "id": "dronePersistCoalesce",
+        "label": "Batch mining drone saves",
+        "description": "A mining drone's position is saved every 5 s instead of every server tick (10 times a second). Any other change (target, recall, scoop, abandon, system unload, server stop) is saved at once. After a hard server kill a drone may stand up to 5 s back on its path. Default: off.",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "dronePersistCoalesce"
+        ]
+      },
+      {
+        "id": "tickStructuresThrottle",
+        "label": "Throttle structure timers",
+        "description": "The server tick advances structure timers (fuel, reinforcement, anchoring, unanchoring) at most once per 5 s (HOTPATH_TICK_STRUCTURES_MIN_INTERVAL_MS, max 10 s) instead of 10 times a second. Timers react up to that much later. Default: off.",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "tickStructuresThrottle"
+        ]
+      },
+      {
+        "id": "blueprintOwnerRead",
+        "label": "Fast blueprint list",
+        "description": "Opening the Industry blueprint list reads only the record of each listed blueprint instead of copying every blueprint record and every industry job on the server once per blueprint. Same data as the server; no cache. Turns itself off (server behavior) if the server code is not the expected version. Default: off.",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "blueprintOwnerRead"
+        ]
+      },
+      {
+        "id": "nativeWreckList",
+        "label": "Fast NPC wreck list",
+        "description": "Cleaning up expired dungeon sites in systems nobody is in no longer copies every NPC wreck in the universe per site, and wreck lists skip two module lookups per wreck. Same data as the server. Turns itself off (server behavior) if the server code is not the expected version. Default: off.",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "nativeWreckList"
+        ]
+      },
+      {
+        "id": "configSnapshotMemo",
+        "label": "Remember server config between logins",
+        "description": "Each login no longer reads and checks every server config file from disk 3-5 times; the config is kept in memory and read again when a config file changes (checked at most once per revalidation window). Same values as the server. Turns itself off (server behavior) if the server code is not the expected version. Default: off.",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "configSnapshotMemo"
+        ]
+      },
+      {
+        "id": "configSnapshotMemoRevalidateMs",
+        "label": "Config file check window (ms)",
+        "description": "How long a remembered server config is used before the config files are checked for changes. A change made in the config editor shows up at most this much later. 0 = check on every read. Default: 1000.",
+        "type": "integer",
+        "default": 1000,
+        "minimum": 0,
+        "maximum": 60000,
+        "step": 100,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "configSnapshotMemoRevalidateMs"
+        ]
+      },
+      {
+        "id": "schedulerMaxPending",
+        "label": "Scheduler queue limit",
+        "description": "How many requests to the durable scheduler process may wait at once. The server's own limit (256) is too small after a long downtime: hundreds of overdue jobs arrive at startup and the server stops with 'Authority queue is full (256)'. Only raises the limit; 0 = server default. Default: 4096.",
+        "type": "integer",
+        "default": 4096,
+        "minimum": 0,
+        "maximum": 65536,
+        "step": 256,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "schedulerMaxPending"
+        ]
+      },
+      {
+        "id": "schedulerRequestTimeoutMs",
+        "label": "Scheduler request timeout (ms)",
+        "description": "How long a request to the durable scheduler process may wait for its answer. The server's own 10 s is too short after a long downtime: startup checks keep the server busy for about 40 s and the server stops with 'Authority scheduler command schedule ... timed out after 10000 ms'. Only raises the timeout; 0 = server default. Default: 120000.",
+        "type": "integer",
+        "default": 120000,
+        "minimum": 0,
+        "maximum": 600000,
+        "step": 10000,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "schedulerRequestTimeoutMs"
+        ]
+      },
+      {
+        "id": "schedulerDueGate",
+        "label": "Hold overdue scheduler jobs during startup",
+        "description": "After a long downtime the server takes thousands of overdue jobs (ESS settlements, sovereignty ticks) at once and the start takes many minutes or fails. On: jobs of the listed types wait in memory until the server has started, then run a few at a time. Off = server behavior. Default: on.",
+        "type": "boolean",
+        "default": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "schedulerDueGate"
+        ]
+      },
+      {
+        "id": "schedulerDueGateTypes",
+        "label": "Held job types (comma-separated)",
+        "description": "Scheduler job types held during startup. Up to 16 types, no '*'. Empty = nothing is held. Default: ess.settlement,sovereignty.campaign-tick.",
+        "type": "string",
+        "default": "ess.settlement,sovereignty.campaign-tick",
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "schedulerDueGateTypes"
+        ],
+        "advanced": true
+      },
+      {
+        "id": "schedulerDueGateReleaseDelayMs",
+        "label": "Held jobs: delay after startup (ms)",
+        "description": "How long after the startup ends the held jobs start running. Default: 30000.",
+        "type": "integer",
+        "default": 30000,
+        "minimum": 0,
+        "maximum": 600000,
+        "step": 5000,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "schedulerDueGateReleaseDelayMs"
+        ],
+        "advanced": true
+      },
+      {
+        "id": "schedulerDueGateMaxHoldMs",
+        "label": "Held jobs: longest hold (ms)",
+        "description": "Safety limit: held jobs start running after this long even if the startup has not ended. Default: 300000.",
+        "type": "integer",
+        "default": 300000,
+        "minimum": 10000,
+        "maximum": 1800000,
+        "step": 10000,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "schedulerDueGateMaxHoldMs"
+        ],
+        "advanced": true
+      },
+      {
+        "id": "schedulerDueGatePumpIntervalMs",
+        "label": "Held jobs: release step (ms)",
+        "description": "Time between two release steps. Default: 100.",
+        "type": "integer",
+        "default": 100,
+        "minimum": 10,
+        "maximum": 5000,
+        "step": 10,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "schedulerDueGatePumpIntervalMs"
+        ],
+        "advanced": true
+      },
+      {
+        "id": "schedulerDueGateBatch",
+        "label": "Held jobs: per release step",
+        "description": "Most held jobs released in one step. Default: 8.",
+        "type": "integer",
+        "default": 8,
+        "minimum": 1,
+        "maximum": 256,
+        "step": 1,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "schedulerDueGateBatch"
+        ],
+        "advanced": true
+      },
+      {
+        "id": "schedulerDueGateMaxInFlight",
+        "label": "Held jobs: running at once",
+        "description": "Most released jobs running at the same time. Default: 2.",
+        "type": "integer",
+        "default": 2,
+        "minimum": 1,
+        "maximum": 64,
+        "step": 1,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "schedulerDueGateMaxInFlight"
+        ],
+        "advanced": true
+      },
+      {
+        "id": "schedulerDueGateMinLeaseLeftMs",
+        "label": "Held jobs: minimum lease left (ms)",
+        "description": "A held job is released only with at least this much of its 30 s lease left, else it waits for a new lease. Default: 10000.",
+        "type": "integer",
+        "default": 10000,
+        "minimum": 0,
+        "maximum": 29000,
+        "step": 1000,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "schedulerDueGateMinLeaseLeftMs"
+        ],
+        "advanced": true
+      },
+      {
+        "id": "schedulerDueGateStaleDropMs",
+        "label": "Held jobs: drop after lease expired (ms)",
+        "description": "A held job whose lease expired this long ago leaves the queue; the scheduler sends it again. Default: 120000.",
+        "type": "integer",
+        "default": 120000,
+        "minimum": 1000,
+        "maximum": 600000,
+        "step": 10000,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "schedulerDueGateStaleDropMs"
+        ],
+        "advanced": true
+      },
+      {
+        "id": "schedulerDueGateMaxHeld",
+        "label": "Held jobs: memory limit",
+        "description": "Most jobs held in memory; more go straight to the server. Default: 100000.",
+        "type": "integer",
+        "default": 100000,
+        "minimum": 1000,
+        "maximum": 1000000,
+        "step": 1000,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "schedulerDueGateMaxHeld"
+        ],
+        "advanced": true
+      },
+      {
+        "id": "schedulerDueGateUnseenReleaseMs",
+        "label": "Held jobs: free a stuck slot after (ms)",
+        "description": "A released job the server never started processing (shutdown, scheduler restart) frees its slot after this long. Default: 10000.",
+        "type": "integer",
+        "default": 10000,
+        "minimum": 1000,
+        "maximum": 600000,
+        "step": 1000,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "schedulerDueGateUnseenReleaseMs"
+        ],
+        "advanced": true
+      },
+      {
+        "id": "stallWatch",
+        "label": "Startup stall watcher",
+        "description": "When the server main thread is blocked for several seconds during startup, a small watcher thread logs the stall, the last scheduler step and where the code is stuck, while the stall is still going on. Off = no watcher thread. Default: on.",
+        "type": "boolean",
+        "default": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "stallWatch"
+        ]
+      },
+      {
+        "id": "stallWatchThresholdMs",
+        "label": "Stall watcher: threshold (ms)",
+        "description": "A main-thread gap this long counts as a stall. Default: 5000.",
+        "type": "integer",
+        "default": 5000,
+        "minimum": 500,
+        "maximum": 600000,
+        "step": 500,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "stallWatchThresholdMs"
+        ],
+        "advanced": true
+      },
+      {
+        "id": "stallWatchSampleEveryMs",
+        "label": "Stall watcher: stack sample every (ms)",
+        "description": "How often a stack sample is logged during one stall. Default: 20000.",
+        "type": "integer",
+        "default": 20000,
+        "minimum": 1000,
+        "maximum": 600000,
+        "step": 1000,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "stallWatchSampleEveryMs"
+        ],
+        "advanced": true
+      },
+      {
+        "id": "stallWatchMaxSamples",
+        "label": "Stall watcher: most stack samples per stall",
+        "description": "0 = log only stalls and the last scheduler step, no stack samples. Default: 40.",
+        "type": "integer",
+        "default": 40,
+        "minimum": 0,
+        "maximum": 1000,
+        "step": 1,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "stallWatchMaxSamples"
+        ],
+        "advanced": true
+      },
+      {
+        "id": "stallWatchFrames",
+        "label": "Stall watcher: stack frames per sample",
+        "description": "Default: 12.",
+        "type": "integer",
+        "default": 12,
+        "minimum": 1,
+        "maximum": 50,
+        "step": 1,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "stallWatchFrames"
+        ],
+        "advanced": true
+      },
+      {
+        "id": "stallWatchWindowMs",
+        "label": "Stall watcher: active after start (ms)",
+        "description": "The watcher stops this long after the server start. Default: 1800000 (30 min).",
+        "type": "integer",
+        "default": 1800000,
+        "minimum": 60000,
+        "maximum": 86400000,
+        "step": 60000,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "stallWatchWindowMs"
+        ],
+        "advanced": true
+      },
+      {
+        "id": "stallWatchHeartbeatMs",
+        "label": "Stall watcher: heartbeat (ms)",
+        "description": "How often the main thread reports it is alive. Default: 250.",
+        "type": "integer",
+        "default": 250,
+        "minimum": 50,
+        "maximum": 5000,
+        "step": 50,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "stallWatchHeartbeatMs"
+        ],
+        "advanced": true
+      },
+      {
+        "id": "schedulerOwnersSlowCallMs",
+        "label": "Scheduler: slow request line (ms)",
+        "description": "A scheduler request answered after this long is logged with its command and job type. 0 = no line. Default: 10000.",
+        "type": "integer",
+        "default": 10000,
+        "minimum": 0,
+        "maximum": 600000,
+        "step": 1000,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "schedulerOwnersSlowCallMs"
+        ],
+        "advanced": true
+      },
+      {
+        "id": "sovCaptureOwnedEchoSkip",
+        "label": "Skip owned sov hub echoes at startup",
+        "description": "At every server start the sovereignty capture check rewrote the sovereignty and structure tables once per owned Infrastructure Hub that a campaign had touched, for a capture it can never finish. This skips those hubs, so the server starts minutes faster. Hubs with a real pending capture are handled as before. Off = server behavior. Default: on.",
+        "type": "boolean",
+        "default": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "sovCaptureOwnedEchoSkip"
+        ]
+      },
+      {
+        "id": "cynoBroadcastSessionFilter",
+        "label": "Cyno jammer updates only where players are",
+        "description": "After every structure save the server checked the cyno jammer state of each changed solar system, rebuilding the sovereignty cache each time, only to tell the players in that system. This checks only systems with a player in them, which is the same result with much less work (campaign ticks and startup get faster). Off = server behavior. Default: on.",
+        "type": "boolean",
+        "default": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "cynoBroadcastSessionFilter"
+        ]
+      },
+      {
+        "id": "incursionTalesMemo",
+        "label": "Remember the incursion list between reads",
+        "description": "Every ship bonus, drone damage, bounty and cyno check copied the whole incursion table and re-verified every incursion, even in systems without one. This keeps one read-only copy and refreshes it only when the incursion table changes, which is the same result with much less work in fights. Off = server behavior. Default: off.",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "incursionTalesMemo"
+        ]
+      },
+      {
+        "id": "bountyPoolRead",
+        "label": "Fast bounty lookups for Local and overview",
+        "description": "When the client asks for bounties of the pilots in Local or on the overview, the server copied the whole bounty table and each pilot's full character record twice for every name. This reads the bounty table once per request and the character record without a copy. Same data as the server. Turns itself off (server behavior) if the server code is not the expected version. Default: off.",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "bountyPoolRead"
+        ]
+      },
+      {
+        "id": "careerStandingCorpMemo",
+        "label": "Faster career standing checks",
+        "description": "Each career sync checked every mission standing reward against its corporation, and every check re-read the whole corporation table, four times per sync. This looks each corporation up once per check, which is the same result with much less work after missions and reprocessing. Turns itself off (server behavior) if the server code is not the expected version. Off = server behavior. Default: off.",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "careerStandingCorpMemo"
+        ]
+      },
+      {
+        "id": "reprocessingReceiptRetireDefer",
+        "label": "Batch reprocessing receipt cleanup",
+        "description": "After every reprocessing the server deleted the finished job's receipts at once, which rewrote the whole item list and rebuilt the item index while the client waited. This collects the receipts and deletes them together a little later (30 s by default), so reprocessing returns faster. Leftovers after a crash are removed at the next start, as before. Turns itself off (server behavior) if the server code is not the expected version. Off = server behavior. Default: off.",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "reprocessingReceiptRetireDefer"
+        ]
+      },
+      {
+        "id": "templateReadOnlyCallers",
+        "label": "Read-only templates for guide texts and scanner",
+        "description": "Site guide approach texts and scanner site details read the server's shared read-only copy of the site template instead of a fresh copy each time. Same data as the server. Works only together with 'Read-only site templates'. Turns itself off for a caller if the server code is not the expected version. Default: off.",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "templateReadOnlyCallers"
+        ],
+        "advanced": true
+      },
+      {
+        "id": "dungeonInstanceRef",
+        "label": "Site behavior tick without instance copies",
+        "description": "Each second, for every site with a pilot nearby, the server copied the whole dungeon instance several times only to read a few fields. Selected read-only steps now read the stored instance directly. Same data as the server. Turns itself off (server behavior) if the server code is not the expected version. Default: off.",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "dungeonInstanceRef"
+        ],
+        "advanced": true
+      },
+      {
+        "id": "dungeonInstanceRefParityCheck",
+        "label": "Site behavior tick: compare with server copy",
+        "description": "Diagnostics: every direct read is compared with the server's copy (costs as much as the copy); a difference turns the feature off. Default: off.",
+        "type": "boolean",
+        "default": false,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "dungeonInstanceRefParityCheck"
+        ],
+        "advanced": true
+      }
+    ]
+  }
+}

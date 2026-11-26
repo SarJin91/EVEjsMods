@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Living New Eden - killboard</title>
+  <link rel="stylesheet" href="/killboard.css">
+</head>
+<body>
+  <header class="kb-top">
+    <h1>Killboard LNE</h1>
+    <nav class="kb-nav">
+      <a href="#/">Battles</a>
+      <a href="#/factions">Factions</a>
+      <a href="#/kills">Kills</a>
+      <a href="/">Observer</a>
+    </nav>
+    <button type="button" id="kb-refresh">Refresh</button>
+  </header>
+  <div class="kb-banner hidden" id="kb-banner" role="status" aria-live="polite"></div>
+  <main id="kb-main"><p class="kb-empty">Loading...</p></main>
+  <footer class="kb-foot">Read only: settled Living New Eden battles. Nothing here changes the game.</footer>
+  <script src="/killboard.js"></script>
+</body>
+</html>

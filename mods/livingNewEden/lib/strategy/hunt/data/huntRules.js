@@ -1,0 +1,41 @@
+"use strict";
+
+const TARGET_ROLES = Object.freeze(["invasion", "patrol", "scout", "reserve", "wormhole"]);
+
+const STRIKE_ROLES = Object.freeze(["invasion", "patrol"]);
+
+const HUNTER_STATES = Object.freeze({
+  IDLE: "IDLE",
+  PATROLLING: "PATROLLING",
+  SCANNING: "SCANNING",
+  PINNING: "PINNING",
+  STRIKING: "STRIKING",
+  DONE: "DONE",
+});
+
+const PIN_OUTCOMES = Object.freeze(["STRUCK", "ESCAPED", "BROKEN", "CANCELLED"]);
+
+const SCAN_REASONS = Object.freeze(["NO_TARGET", "NO_STRIKE", "STRIKE_TOO_SLOW", "PIN_CREATED", "ON_COOLDOWN", "LIMIT_EXCEEDED"]);
+
+const SCAN_OUTCOMES = Object.freeze(["PIN", "NO_HUNTER", "ALREADY_PINNING", "NO_TARGET", "NO_TACKLE", "LIMIT_EXCEEDED",
+  "NO_STRIKE", "ON_COOLDOWN", "SCAN_TRUNCATED"]);
+
+const EXPIRE_OUTCOMES = Object.freeze(["STRUCK", "ESCAPED", "BROKEN", "CANCELLED", "PIN_GONE", "ALREADY_CLOSED",
+  "STALE"]);
+
+const HOLD_STATES = Object.freeze(["IDLE", "STAGED"]);
+
+const RETRYABLE_REASONS = Object.freeze(["QUEUE_FULL", "ENQUEUE_FAILED", "SCHEDULER_UNAVAILABLE", "GRAPH_NOT_READY",
+  "TRAVEL_UNAVAILABLE", "TX_REQUIRED"]);
+
+module.exports = {
+  TARGET_ROLES,
+  STRIKE_ROLES,
+  HUNTER_STATES,
+  PIN_OUTCOMES,
+  SCAN_REASONS,
+  SCAN_OUTCOMES,
+  EXPIRE_OUTCOMES,
+  HOLD_STATES,
+  RETRYABLE_REASONS,
+};

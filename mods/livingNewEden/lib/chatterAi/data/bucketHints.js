@@ -1,0 +1,45 @@
+"use strict";
+
+const BUCKET_HINTS = Object.freeze({
+  "hs.bg.TRADE": "a pilot buying or selling a trade good on the market",
+  "hs.bg.GREETING": "a short hello or small talk to the channel",
+  "hs.bg.MISSION": "a pilot talking about agent missions, mission partners or mission rewards",
+  "hs.bg.ESCORT": "a hauler or miner asking for an escort or worrying about gankers on the way",
+
+  "hs.rumour.ATTACK_STARTED": "a rumour that a faction started an attack on a system",
+  "hs.rumour.SYSTEM_CAPTURED": "a rumour that a faction took a system from another faction",
+  "hs.rumour.SYSTEM_RELEASED": "a rumour that a faction lost or gave up its hold on a system",
+  "hs.rumour.ATTACK_REPELLED": "a rumour that the defenders beat back an attack on a system",
+  "hs.rumour.SIEGE_STARTED": "a rumour that a station siege began in a system",
+  "hs.rumour.SIEGE_ENDED": "a rumour that a station siege in a system is over",
+  "hs.rumour.HEAVY_EVENT_STARTED": "a rumour about a large pirate or NPC fleet showing up near a system",
+  "hs.rumour.BATTLE": "a rumour about a fleet battle in a system and the ships lost",
+  "hs.rumour.GANK": "a rumour about a hauler or miner ganked in high security space",
+  "hs.rumour.FC_LOST": "a rumour that a small player corporation lost ships",
+  "hs.rumour.FC_RICH": "a rumour that a small player corporation made a lot of isk",
+  "hs.rumour.SIT_RESCUED": "a rumour that pilots answered a call for help and saved NPC miners from pirates",
+  "hs.rumour.SIT_LOST": "a rumour that a call for help of NPC miners went unanswered and the miners were lost",
+
+  "fc.WORK_MINE": "a corp member mining asteroids right now",
+  "fc.WORK_HAUL": "a corp member hauling cargo between systems right now",
+  "fc.WORK_RAT": "a corp member hunting NPC pirates for bounties right now",
+  "fc.WORK_EXPLORE": "a corp member scanning signatures and hacking relic or data sites right now",
+  "fc.WORK_BUILD": "a corp member running industry jobs and building ships right now",
+  "fc.WORK_RUN": "a corp member running agent missions right now",
+  "fc.HELD": "a corp member stuck in a station or waiting because space outside is dangerous",
+  "fc.TRAVEL": "a corp member travelling through gates to a work site",
+  "fc.RETURN_FULL": "a corp member flying home with a full cargo hold",
+  "fc.RETURN_EMPTY": "a corp member flying home with nothing to show for the trip",
+  "fc.LAST_LOST": "a corp member upset after the corp lost ships on the last trip",
+  "fc.LAST_RICH": "a corp member happy after the last trip earned a lot of isk",
+  "fc.LAST_DONE": "a corp member who just finished a routine work trip",
+  "fc.IDLE_miner": "a docked miner planning the next mining trip",
+  "fc.IDLE_hauler": "a docked hauler looking for cargo contracts",
+  "fc.IDLE_ratter": "a docked ratter planning the next bounty hunt",
+  "fc.IDLE_explorer": "a docked explorer planning the next scanning trip",
+  "fc.IDLE_industrialist": "a docked industrialist planning production and buying materials",
+  "fc.IDLE_missioner": "a docked mission runner looking for a good agent",
+  "fc.GENERIC": "a member of a small player corporation chatting, recruiting or saying hello",
+});
+
+module.exports = { BUCKET_HINTS };

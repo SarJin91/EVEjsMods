@@ -1,0 +1,221 @@
+{
+  "packID": "mobile-sentries",
+  "version": 2,
+  "source": "TASK-20261106-sentry-turrets-stations-gates-sub1 (D7770-D7772, D7790-D7792). Mobile Sentry 340500-340503 = clones of the small starbase batteries without a group change (category 23, so EveJS serves shooting, ammunition and destruction): 340500 Projectile <- Small Artillery Battery 16631 (group 426), 340501 Hybrid <- Small Railgun Battery 16690 (group 449), 340502 Laser <- Small Beam Laser Battery 17167 (group 430), 340503 Missile <- Cruise Missile Battery 16696 (group 417). Blueprints 340510-340513 = clones of Spatial Attunement Unit Blueprint 33196 (like the PI and drill blueprints, D693/D700) with the battery blueprint group 854/855/853/871 (category 9). Copying, research and maxProductionLimit = vanilla Small Artillery/Small Railgun/Small Beam Laser/Cruise Missile Battery Blueprint 2816/2815/2826/2823 (SDE 3396210 blueprints.jsonl), no invention. iconID: the client tool needs one on every type (D7790); the batteries carry none, so the client keeps the battery look and only the server row gets the icon of the battery's weapon component (389/349/352/169); the blueprints keep 33196's own icon 2185. marketGroupID null: no market on the server. Client: re-run ApplyClientData. v2 (FEATURE-20261107-mobile-sentry-plain-materials, D8500-D8505): manufacturing = SDE T1 weapon minerals (Trit/Pye/Mex) + 5000 Trit/2500 Pye/600 Mex in place of the Power Core: 340510/340511 = 7729/2648/771, 340512 = 7200/3309/621, 340513 = 8258/5426/707; manufacturing time and skills unchanged.",
+  "types": [
+    {
+      "typeID": 340500,
+      "sourceTypeID": 16631,
+      "overrides": {
+        "name": "Mobile Sentry (Projectile)",
+        "iconID": 389,
+        "published": true,
+        "marketGroupID": null,
+        "description": "Self-contained sentry gun built from a starbase battery. Launch it from your cargo, then Anchor it 5-30 km from a stargate, an NPC station or your corporation's Upwell structure (low/null/wormhole space only). No control tower and no fuel. Load ammunition into it like a starbase battery: medium projectile ammunition, as the Small Artillery Battery. Shoots NPC ships of factions hostile to you; never shoots players. Destructible."
+      }
+    },
+    {
+      "typeID": 340501,
+      "sourceTypeID": 16690,
+      "overrides": {
+        "name": "Mobile Sentry (Hybrid)",
+        "iconID": 349,
+        "published": true,
+        "marketGroupID": null,
+        "description": "Self-contained sentry gun built from a starbase battery. Launch it from your cargo, then Anchor it 5-30 km from a stargate, an NPC station or your corporation's Upwell structure (low/null/wormhole space only). No control tower and no fuel. Load ammunition into it like a starbase battery: medium hybrid charges, as the Small Railgun Battery. Shoots NPC ships of factions hostile to you; never shoots players. Destructible."
+      }
+    },
+    {
+      "typeID": 340502,
+      "sourceTypeID": 17167,
+      "overrides": {
+        "name": "Mobile Sentry (Laser)",
+        "iconID": 352,
+        "published": true,
+        "marketGroupID": null,
+        "description": "Self-contained sentry gun built from a starbase battery. Launch it from your cargo, then Anchor it 5-30 km from a stargate, an NPC station or your corporation's Upwell structure (low/null/wormhole space only). No control tower and no fuel. Load ammunition into it like a starbase battery: medium frequency crystals, as the Small Beam Laser Battery. Shoots NPC ships of factions hostile to you; never shoots players. Destructible."
+      }
+    },
+    {
+      "typeID": 340503,
+      "sourceTypeID": 16696,
+      "overrides": {
+        "name": "Mobile Sentry (Missile)",
+        "iconID": 169,
+        "published": true,
+        "marketGroupID": null,
+        "description": "Self-contained sentry gun built from a starbase battery. Launch it from your cargo, then Anchor it 5-30 km from a stargate, an NPC station or your corporation's Upwell structure (low/null/wormhole space only). No control tower and no fuel. Load ammunition into it like a starbase battery: cruise missiles, as the Cruise Missile Battery. Shoots NPC ships of factions hostile to you; never shoots players. Destructible."
+      }
+    },
+    {
+      "typeID": 340510,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Mobile Sentry (Projectile) Blueprint",
+        "groupID": 854,
+        "iconID": 2185,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Mobile Sentry (Projectile), a self-contained sentry gun built from a Small Artillery Battery: 7729 Tritanium, 2648 Pyerite and 771 Mexallon, Industry V. See the item description."
+      }
+    },
+    {
+      "typeID": 340511,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Mobile Sentry (Hybrid) Blueprint",
+        "groupID": 855,
+        "iconID": 2185,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Mobile Sentry (Hybrid), a self-contained sentry gun built from a Small Railgun Battery: 7729 Tritanium, 2648 Pyerite and 771 Mexallon, Industry V. See the item description."
+      }
+    },
+    {
+      "typeID": 340512,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Mobile Sentry (Laser) Blueprint",
+        "groupID": 853,
+        "iconID": 2185,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Mobile Sentry (Laser), a self-contained sentry gun built from a Small Beam Laser Battery: 7200 Tritanium, 3309 Pyerite and 621 Mexallon, Industry V. See the item description."
+      }
+    },
+    {
+      "typeID": 340513,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Mobile Sentry (Missile) Blueprint",
+        "groupID": 871,
+        "iconID": 2185,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Mobile Sentry (Missile), a self-contained sentry gun built from a Cruise Missile Battery: 8258 Tritanium, 5426 Pyerite and 707 Mexallon, Industry V. See the item description."
+      }
+    }
+  ],
+  "blueprints": [
+    {
+      "blueprintTypeID": 340510,
+      "productTypeID": 340500,
+      "maxProductionLimit": 30,
+      "activities": {
+        "copying": {
+          "time": 4800
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 7729, "typeID": 34 },
+            { "quantity": 2648, "typeID": 35 },
+            { "quantity": 771, "typeID": 36 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340500 }
+          ],
+          "skills": [
+            { "level": 5, "typeID": 3380 }
+          ],
+          "time": 6000
+        },
+        "research_material": {
+          "time": 2100
+        },
+        "research_time": {
+          "time": 2100
+        }
+      }
+    },
+    {
+      "blueprintTypeID": 340511,
+      "productTypeID": 340501,
+      "maxProductionLimit": 30,
+      "activities": {
+        "copying": {
+          "time": 4800
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 7729, "typeID": 34 },
+            { "quantity": 2648, "typeID": 35 },
+            { "quantity": 771, "typeID": 36 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340501 }
+          ],
+          "skills": [
+            { "level": 5, "typeID": 3380 }
+          ],
+          "time": 6000
+        },
+        "research_material": {
+          "time": 2100
+        },
+        "research_time": {
+          "time": 2100
+        }
+      }
+    },
+    {
+      "blueprintTypeID": 340512,
+      "productTypeID": 340502,
+      "maxProductionLimit": 30,
+      "activities": {
+        "copying": {
+          "time": 4800
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 7200, "typeID": 34 },
+            { "quantity": 3309, "typeID": 35 },
+            { "quantity": 621, "typeID": 36 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340502 }
+          ],
+          "skills": [
+            { "level": 5, "typeID": 3380 }
+          ],
+          "time": 6000
+        },
+        "research_material": {
+          "time": 2100
+        },
+        "research_time": {
+          "time": 2100
+        }
+      }
+    },
+    {
+      "blueprintTypeID": 340513,
+      "productTypeID": 340503,
+      "maxProductionLimit": 10,
+      "activities": {
+        "copying": {
+          "time": 9600
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 8258, "typeID": 34 },
+            { "quantity": 5426, "typeID": 35 },
+            { "quantity": 707, "typeID": 36 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340503 }
+          ],
+          "skills": [
+            { "level": 5, "typeID": 3380 }
+          ],
+          "time": 12000
+        },
+        "research_material": {
+          "time": 4200
+        },
+        "research_time": {
+          "time": 4200
+        }
+      }
+    }
+  ]
+}

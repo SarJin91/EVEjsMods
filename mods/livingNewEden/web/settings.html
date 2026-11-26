@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Living New Eden - mod settings</title>
+  <link rel="stylesheet" href="/settings.css">
+</head>
+<body>
+  <header class="top">
+    <h1>Mod settings</h1>
+    <span class="who" id="who">-</span>
+    <button type="button" id="logout" class="hidden">Log out</button>
+  </header>
+  <div class="msg hidden" id="msg" role="status" aria-live="polite"></div>
+  <nav class="mods" id="mods"></nav>
+  <section class="tools hidden" id="tools">
+    <label>Group <select id="group"></select></label>
+    <label>Search <input type="search" id="q" maxlength="64"></label>
+    <button type="button" id="prev">Previous</button>
+    <span id="page">-</span>
+    <button type="button" id="next">Next</button>
+    <span class="file" id="file">-</span>
+  </section>
+  <main id="rows"></main>
+  <footer class="foot" id="restart">
+    A change marked "waits for restart" applies after the operator restarts the game server:
+    <code>docker compose restart server</code> (Docker) or StartServer.bat (local).
+    Reset removes the in-game override; the value from settings.json / .env comes back after the restart.
+  </footer>
+  <script src="/settings.js"></script>
+</body>
+</html>

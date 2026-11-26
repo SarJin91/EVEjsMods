@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 3,
+  "id": "dailyGoalsPersist",
+  "displayName": "Daily Goals Persist",
+  "version": "1.0.0",
+  "description": "Daily goal progress, claimed rewards and the Monthly Reward Track survive a server restart. Logs the goal UUID and error codes when claiming a daily goal fails with 404.",
+  "kind": "loader",
+  "supportedBackends": [
+    "native",
+    "docker"
+  ],
+  "activation": {
+    "strategy": "loader_rename"
+  },
+  "restart": "game_server",
+  "compatibility": {
+    "evejsVersions": [
+      "261115.2"
+    ]
+  },
+  "updates": {
+    "provider": "github",
+    "repository": "SarJin91/EVEjsMods",
+    "asset": "dailyGoalsPersist-{version}.zip",
+    "channel": "stable",
+    "tagPrefix": "dailyGoalsPersist-v",
+    "preserveFiles": []
+  }
+}

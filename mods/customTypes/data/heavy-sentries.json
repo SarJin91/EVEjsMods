@@ -1,0 +1,249 @@
+{
+  "packID": "heavy-sentries",
+  "version": 1,
+  "source": "FEATURE-20261119-heavy-sentry-citadel-look-sub1 (D14363-D14366, D14369). Heavy Sentry 340522-340525 = clones of the large starbase batteries without a group change (category 23, so EveJS serves shooting, ammunition and destruction): 340522 Projectile <- Large Artillery Battery 16689 (group 426), 340523 Hybrid <- Large Railgun Battery 16692 (group 449), 340524 Laser <- Large Beam Laser Battery 16694 (group 430), 340525 Missile <- XL Torpedo Battery 17773 (group 417). SDE 3396210 typeDogma: shield 100000, armor 1500000, hull 100000 (1.7 million HP), signature 18000, XL ammunition (chargeSize 4; torpedo battery charge group 476 XL Torpedo); no dogma override (D14364). Blueprints 340526-340529 = clones of Spatial Attunement Unit Blueprint 33196 (like the mobile-sentries pack) with the battery blueprint group 854/855/853/871 (category 9). Copying 9600 s, ME/TE 4200 s and max 10 runs = vanilla Large Artillery/Large Railgun/Large Beam Laser/XL Torpedo Battery Blueprint 2805/2804/2830/2822 (SDE 3396210 blueprints.jsonl); manufacturing 24000 s, Industry V, plain minerals (D14365): about 10x the Mobile Sentry + 5000 Isogen, 1000 Nocxium, 250 Zydrine. iconID = the weapon icons of the mobile-sentries pack (389/349/352/169); blueprints keep 33196's icon 2185. Names of the sources: public ESI (the local SDE has no types.jsonl). marketGroupID null: no market on the server. Shop 750 million ISK per blueprint. Client: re-run ApplyClientData.",
+  "types": [
+    {
+      "typeID": 340522,
+      "sourceTypeID": 16689,
+      "overrides": {
+        "name": "Heavy Sentry (Projectile)",
+        "iconID": 389,
+        "published": true,
+        "marketGroupID": null,
+        "description": "Heavy self-contained sentry gun built from a large starbase battery (1.7 million HP). Launch it from your cargo, then Anchor it 5-30 km from a stargate, an NPC station or your corporation's Upwell structure (low/null/wormhole space only by default). No control tower and no fuel. Load ammunition into it like a starbase battery: XL projectile ammunition, as the Large Artillery Battery. Shoots NPC ships of factions hostile to you; never shoots players. Max 2 heavy sentries per system (1 per corporation) by default. Destructible."
+      }
+    },
+    {
+      "typeID": 340523,
+      "sourceTypeID": 16692,
+      "overrides": {
+        "name": "Heavy Sentry (Hybrid)",
+        "iconID": 349,
+        "published": true,
+        "marketGroupID": null,
+        "description": "Heavy self-contained sentry gun built from a large starbase battery (1.7 million HP). Launch it from your cargo, then Anchor it 5-30 km from a stargate, an NPC station or your corporation's Upwell structure (low/null/wormhole space only by default). No control tower and no fuel. Load ammunition into it like a starbase battery: XL hybrid charges, as the Large Railgun Battery. Shoots NPC ships of factions hostile to you; never shoots players. Max 2 heavy sentries per system (1 per corporation) by default. Destructible."
+      }
+    },
+    {
+      "typeID": 340524,
+      "sourceTypeID": 16694,
+      "overrides": {
+        "name": "Heavy Sentry (Laser)",
+        "iconID": 352,
+        "published": true,
+        "marketGroupID": null,
+        "description": "Heavy self-contained sentry gun built from a large starbase battery (1.7 million HP). Launch it from your cargo, then Anchor it 5-30 km from a stargate, an NPC station or your corporation's Upwell structure (low/null/wormhole space only by default). No control tower and no fuel. Load ammunition into it like a starbase battery: XL frequency crystals, as the Large Beam Laser Battery. Shoots NPC ships of factions hostile to you; never shoots players. Max 2 heavy sentries per system (1 per corporation) by default. Destructible."
+      }
+    },
+    {
+      "typeID": 340525,
+      "sourceTypeID": 17773,
+      "overrides": {
+        "name": "Heavy Sentry (Missile)",
+        "iconID": 169,
+        "published": true,
+        "marketGroupID": null,
+        "description": "Heavy self-contained sentry gun built from a large starbase battery (1.7 million HP). Launch it from your cargo, then Anchor it 5-30 km from a stargate, an NPC station or your corporation's Upwell structure (low/null/wormhole space only by default). No control tower and no fuel. Load ammunition into it like a starbase battery: XL torpedoes, as the XL Torpedo Battery. Shoots NPC ships of factions hostile to you; never shoots players. Max 2 heavy sentries per system (1 per corporation) by default. Destructible."
+      }
+    },
+    {
+      "typeID": 340526,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Heavy Sentry (Projectile) Blueprint",
+        "groupID": 854,
+        "iconID": 2185,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Heavy Sentry (Projectile), a heavy self-contained sentry gun built from a Large Artillery Battery: 77290 Tritanium, 26480 Pyerite, 7710 Mexallon, 5000 Isogen, 1000 Nocxium and 250 Zydrine, Industry V. See the item description."
+      }
+    },
+    {
+      "typeID": 340527,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Heavy Sentry (Hybrid) Blueprint",
+        "groupID": 855,
+        "iconID": 2185,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Heavy Sentry (Hybrid), a heavy self-contained sentry gun built from a Large Railgun Battery: 77290 Tritanium, 26480 Pyerite, 7710 Mexallon, 5000 Isogen, 1000 Nocxium and 250 Zydrine, Industry V. See the item description."
+      }
+    },
+    {
+      "typeID": 340528,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Heavy Sentry (Laser) Blueprint",
+        "groupID": 853,
+        "iconID": 2185,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Heavy Sentry (Laser), a heavy self-contained sentry gun built from a Large Beam Laser Battery: 72000 Tritanium, 33090 Pyerite, 6210 Mexallon, 5000 Isogen, 1000 Nocxium and 250 Zydrine, Industry V. See the item description."
+      }
+    },
+    {
+      "typeID": 340529,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Heavy Sentry (Missile) Blueprint",
+        "groupID": 871,
+        "iconID": 2185,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Heavy Sentry (Missile), a heavy self-contained sentry gun built from an XL Torpedo Battery: 82580 Tritanium, 54260 Pyerite, 7070 Mexallon, 5000 Isogen, 1000 Nocxium and 250 Zydrine, Industry V. See the item description."
+      }
+    }
+  ],
+  "blueprints": [
+    {
+      "blueprintTypeID": 340526,
+      "productTypeID": 340522,
+      "maxProductionLimit": 10,
+      "activities": {
+        "copying": {
+          "time": 9600
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 77290, "typeID": 34 },
+            { "quantity": 26480, "typeID": 35 },
+            { "quantity": 7710, "typeID": 36 },
+            { "quantity": 5000, "typeID": 37 },
+            { "quantity": 1000, "typeID": 38 },
+            { "quantity": 250, "typeID": 39 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340522 }
+          ],
+          "skills": [
+            { "level": 5, "typeID": 3380 }
+          ],
+          "time": 24000
+        },
+        "research_material": {
+          "time": 4200
+        },
+        "research_time": {
+          "time": 4200
+        }
+      },
+      "shop": {
+        "listed": true,
+        "price": 750000000
+      }
+    },
+    {
+      "blueprintTypeID": 340527,
+      "productTypeID": 340523,
+      "maxProductionLimit": 10,
+      "activities": {
+        "copying": {
+          "time": 9600
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 77290, "typeID": 34 },
+            { "quantity": 26480, "typeID": 35 },
+            { "quantity": 7710, "typeID": 36 },
+            { "quantity": 5000, "typeID": 37 },
+            { "quantity": 1000, "typeID": 38 },
+            { "quantity": 250, "typeID": 39 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340523 }
+          ],
+          "skills": [
+            { "level": 5, "typeID": 3380 }
+          ],
+          "time": 24000
+        },
+        "research_material": {
+          "time": 4200
+        },
+        "research_time": {
+          "time": 4200
+        }
+      },
+      "shop": {
+        "listed": true,
+        "price": 750000000
+      }
+    },
+    {
+      "blueprintTypeID": 340528,
+      "productTypeID": 340524,
+      "maxProductionLimit": 10,
+      "activities": {
+        "copying": {
+          "time": 9600
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 72000, "typeID": 34 },
+            { "quantity": 33090, "typeID": 35 },
+            { "quantity": 6210, "typeID": 36 },
+            { "quantity": 5000, "typeID": 37 },
+            { "quantity": 1000, "typeID": 38 },
+            { "quantity": 250, "typeID": 39 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340524 }
+          ],
+          "skills": [
+            { "level": 5, "typeID": 3380 }
+          ],
+          "time": 24000
+        },
+        "research_material": {
+          "time": 4200
+        },
+        "research_time": {
+          "time": 4200
+        }
+      },
+      "shop": {
+        "listed": true,
+        "price": 750000000
+      }
+    },
+    {
+      "blueprintTypeID": 340529,
+      "productTypeID": 340525,
+      "maxProductionLimit": 10,
+      "activities": {
+        "copying": {
+          "time": 9600
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 82580, "typeID": 34 },
+            { "quantity": 54260, "typeID": 35 },
+            { "quantity": 7070, "typeID": 36 },
+            { "quantity": 5000, "typeID": 37 },
+            { "quantity": 1000, "typeID": 38 },
+            { "quantity": 250, "typeID": 39 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340525 }
+          ],
+          "skills": [
+            { "level": 5, "typeID": 3380 }
+          ],
+          "time": 24000
+        },
+        "research_material": {
+          "time": 4200
+        },
+        "research_time": {
+          "time": 4200
+        }
+      },
+      "shop": {
+        "listed": true,
+        "price": 750000000
+      }
+    }
+  ]
+}

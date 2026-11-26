@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Living New Eden - ship AI voice</title>
+  <link rel="stylesheet" href="/settings.css">
+</head>
+<body>
+  <header class="top">
+    <h1>Ship AI voice</h1>
+    <span class="who" id="who">-</span>
+  </header>
+  <div class="msg" id="msg" role="status" aria-live="polite">Type !ai voice in the game to get a link to this page.</div>
+  <section class="tools">
+    <button type="button" id="start" disabled>Start</button>
+    <button type="button" id="stop" disabled>Stop</button>
+    <button type="button" id="skip" disabled>Skip</button>
+    <button type="button" id="test" disabled>Test voice</button>
+    <button type="button" id="mute" disabled>Mute</button>
+    <span class="file" id="voice">-</span>
+  </section>
+  <section class="tools picker hidden" id="voicePanel">
+    <span class="label">Voice</span>
+    <select id="voiceSel" aria-label="Voice"></select>
+    <label for="rate">Rate <span class="file" id="rateVal">1.00x</span></label>
+    <input type="range" id="rate" min="0.5" max="2" step="0.05" value="1">
+    <label for="pitch">Pitch <span class="file" id="pitchVal">1.00</span></label>
+    <input type="range" id="pitch" min="0.5" max="2" step="0.05" value="1">
+    <label><input type="checkbox" id="radio"> Ship radio filter</label>
+    <button type="button" id="save">Save</button>
+    <button type="button" id="reset">Reset</button>
+    <span class="file" id="voiceNote"></span>
+  </section>
+  <section class="tools picker hidden" id="personaPanel">
+    <span class="label">Persona</span>
+    <select id="personaSel" aria-label="Persona"></select>
+    <textarea id="personaText" class="hidden" rows="3" cols="60" aria-label="Own persona"></textarea>
+    <button type="button" id="personaApply">Apply</button>
+    <button type="button" id="personaReset">Reset</button>
+  </section>
+  <section class="tools picker hidden" id="panelPanel">
+    <span class="label">Panel</span>
+    <button type="button" data-switch="autoRoom" aria-pressed="false">Auto invite</button>
+    <button type="button" data-switch="autoVoice" aria-pressed="false">Auto voice link</button>
+    <button type="button" data-switch="wingOpenAtLogin" aria-pressed="false">Wing window at login</button>
+    <button type="button" data-switch="boardOpenAtLogin" aria-pressed="false">Board window at login</button>
+    <button type="button" data-switch="alerts" aria-pressed="false">Alerts</button>
+    <button type="button" data-switch="scan" aria-pressed="false">Auto d-scan</button>
+    <button type="button" data-switch="quiet" aria-pressed="false">Quiet</button>
+    <span class="file">Mail</span>
+    <button type="button" data-mail="on" aria-pressed="false">on</button>
+    <button type="button" data-mail="quiet" aria-pressed="false">quiet</button>
+    <button type="button" data-mail="off" aria-pressed="false">off</button>
+    <button type="button" data-action="inviteRoom">Invite to AI chat now</button>
+    <button type="button" data-action="openWing">Open wing window now</button>
+    <button type="button" data-action="openBoard">Open board window now</button>
+    <span class="file" id="panelNote"></span>
+  </section>
+  <main id="lines"></main>
+  <footer class="foot">
+    The lines of your ship AI are spoken by this browser with a voice installed on this computer. No voice? Windows:
+    Settings - Time and language - Speech - add a voice (e.g. Polish), then reload this page.
+    Close the tab or type <code>!ai voice off</code> in the game to stop.
+  </footer>
+  <script src="/shipaiVoice.js"></script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 3,
+  "id": "industryOrphanCleanup",
+  "displayName": "Industry Orphan Cleanup",
+  "version": "1.0.0",
+  "description": "After a character is deleted, removes the industry blueprint state records of its destroyed blueprints, so the server stops warning INDUSTRY_BLUEPRINT_SETTLEMENT_POSTCONDITION_FAILED at every start.",
+  "kind": "loader",
+  "supportedBackends": [
+    "native",
+    "docker"
+  ],
+  "activation": {
+    "strategy": "loader_rename"
+  },
+  "restart": "game_server",
+  "compatibility": {
+    "evejsVersions": [
+      "261115.2"
+    ]
+  },
+  "updates": {
+    "provider": "github",
+    "repository": "SarJin91/EVEjsMods",
+    "asset": "industryOrphanCleanup-{version}.zip",
+    "channel": "stable",
+    "tagPrefix": "industryOrphanCleanup-v",
+    "preserveFiles": []
+  }
+}

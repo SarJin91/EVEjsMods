@@ -1,0 +1,55 @@
+{
+  "packID": "season-trophies",
+  "version": 1,
+  "source": "FEATURE-20261119-galactic-seasons-sub4 (D14207, D14134). The four season trophies of the Living New Eden galactic seasons, 341620 Champion, 341621 Hero, 341622 Veteran, 341623 Participant (341620-341623, D14134). Each is a clone of Manufacturing Tools 16686 without a group change (group 314 Miscellaneous, category 17 Commodity; SDE 3396210 typeDogma record present: hp 100, no weapon, no effect). Not a clone of the Replica Federation Trophies 48136/48137: they have no typeDogma record, so the client tool would refuse them (D700). Not a Security Tag (group 1206): CONCORD takes those for security status. iconID 21622 = res:/UI/Texture/Icons/Inventory/serpentisContainerGold_64.png (the icon of the award Republic Justice Department Gold Reward 48536). No blueprint, not in the shop: the season reward pump grants them (seasons.tierNItemTypeId, default 0 = off). Client: re-run ApplyClientData.",
+  "types": [
+    {
+      "typeID": 341620,
+      "sourceTypeID": 16686,
+      "overrides": {
+        "name": "Season Trophy: Champion",
+        "iconID": 21622,
+        "basePrice": 0,
+        "published": true,
+        "marketGroupID": null,
+        "description": "Awarded to the first pilot of a galactic season of New Eden for the defense against the crisis of that season. A keepsake without any other use."
+      }
+    },
+    {
+      "typeID": 341621,
+      "sourceTypeID": 16686,
+      "overrides": {
+        "name": "Season Trophy: Hero",
+        "iconID": 21622,
+        "basePrice": 0,
+        "published": true,
+        "marketGroupID": null,
+        "description": "Awarded to the top pilots of a galactic season of New Eden for the defense against the crisis of that season. A keepsake without any other use."
+      }
+    },
+    {
+      "typeID": 341622,
+      "sourceTypeID": 16686,
+      "overrides": {
+        "name": "Season Trophy: Veteran",
+        "iconID": 21622,
+        "basePrice": 0,
+        "published": true,
+        "marketGroupID": null,
+        "description": "Awarded to the veteran pilots of a galactic season of New Eden for the defense against the crisis of that season. A keepsake without any other use."
+      }
+    },
+    {
+      "typeID": 341623,
+      "sourceTypeID": 16686,
+      "overrides": {
+        "name": "Season Trophy: Participant",
+        "iconID": 21622,
+        "basePrice": 0,
+        "published": true,
+        "marketGroupID": null,
+        "description": "Awarded to the ranked pilots of a galactic season of New Eden for their part in the defense against the crisis of that season. A keepsake without any other use."
+      }
+    }
+  ]
+}

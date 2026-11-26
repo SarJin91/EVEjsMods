@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 3,
+  "id": "missionStructureRestore",
+  "displayName": "Mission Structure Restore",
+  "version": "1.0.0",
+  "description": "After a server restart, a mission whose objective is a destructible structure from an already spawned wave (for example the Habitation Module in Avenge A Fallen Comrade) gets that structure back when the site is materialized, so destroying it completes the mission. Workaround for an EveJS bug; remove once EveJS fixes it.",
+  "kind": "loader",
+  "supportedBackends": [
+    "native",
+    "docker"
+  ],
+  "activation": {
+    "strategy": "loader_rename"
+  },
+  "restart": "game_server",
+  "compatibility": {
+    "evejsVersions": [
+      "261115.2"
+    ]
+  },
+  "updates": {
+    "provider": "github",
+    "repository": "SarJin91/EVEjsMods",
+    "asset": "missionStructureRestore-{version}.zip",
+    "channel": "stable",
+    "tagPrefix": "missionStructureRestore-v",
+    "preserveFiles": []
+  }
+}

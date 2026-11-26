@@ -1,0 +1,51 @@
+:root {
+  --kb-bg: #0d1117;
+  --kb-panel: #161b22;
+  --kb-line: #30363d;
+  --kb-text: #d6dde6;
+  --kb-dim: #8b949e;
+  --kb-link: #6cb6ff;
+  --kb-win: #3fb950;
+  --kb-loss: #f85149;
+  --kb-draw: #d29922;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--kb-bg); color: var(--kb-text);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+a { color: var(--kb-link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.hidden { display: none !important; }
+.kb-top { display: flex; align-items: center; gap: 16px; padding: 10px 18px; background: var(--kb-panel);
+  border-bottom: 1px solid var(--kb-line); }
+.kb-top h1 { margin: 0; font-size: 18px; }
+.kb-nav { display: flex; gap: 14px; flex: 1; }
+button, select, input { background: var(--kb-bg); color: var(--kb-text); border: 1px solid var(--kb-line);
+  border-radius: 4px; padding: 4px 8px; font: inherit; }
+button { cursor: pointer; }
+.kb-banner { margin: 10px 18px 0; padding: 8px 12px; border: 1px solid var(--kb-draw); border-radius: 4px;
+  color: var(--kb-draw); }
+main { padding: 6px 18px 18px; }
+h2 { margin: 14px 0 8px; font-size: 17px; }
+h3 { margin: 12px 0 6px; font-size: 15px; }
+.kb-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 10px 0; }
+.kb-table { border-collapse: collapse; width: 100%; margin: 6px 0 12px; }
+.kb-table th, .kb-table td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--kb-line);
+  vertical-align: top; }
+.kb-table th { color: var(--kb-dim); font-weight: 600; }
+.kb-side { margin: 10px 0; padding: 8px 12px; background: var(--kb-panel); border: 1px solid var(--kb-line);
+  border-radius: 6px; }
+.kb-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.kb-chipwrap { display: inline-flex; gap: 4px; align-items: center; margin-right: 8px; }
+.kb-faction { border-left: 3px solid var(--kb-line); padding-left: 5px; }
+.kb-res { font-size: 12px; color: var(--kb-dim); }
+.kb-res-W { color: var(--kb-win); }
+.kb-res-L { color: var(--kb-loss); }
+.kb-res-D { color: var(--kb-draw); }
+.kb-empty, .kb-note { color: var(--kb-dim); }
+.kb-error { color: var(--kb-loss); }
+.kb-more { margin: 8px 0; }
+.kb-role { font-size: 12px; font-weight: 600; }
+.kb-role-V { color: var(--kb-loss); }
+.kb-role-A { color: var(--kb-win); }
+.kb-role-F { color: var(--kb-draw); }
+.kb-foot { padding: 10px 18px; color: var(--kb-dim); border-top: 1px solid var(--kb-line); font-size: 12px; }

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 3,
+  "id": "skyhookOrphanFix",
+  "displayName": "Skyhook Orphan Fix",
+  "version": "1.0.0",
+  "description": "An Orbital Skyhook deployed at a planet outside sovereignty null-sec becomes known to the sovereignty state (an empty planet definition, no reagents), so its window opens instead of failing with 404 SKYHOOK_NOT_FOUND. Workaround for an EveJS bug; remove once EveJS fixes it.",
+  "kind": "loader",
+  "supportedBackends": [
+    "native",
+    "docker"
+  ],
+  "activation": {
+    "strategy": "loader_rename"
+  },
+  "restart": "game_server",
+  "compatibility": {
+    "evejsVersions": [
+      "261115.2"
+    ]
+  },
+  "updates": {
+    "provider": "github",
+    "repository": "SarJin91/EVEjsMods",
+    "asset": "skyhookOrphanFix-{version}.zip",
+    "channel": "stable",
+    "tagPrefix": "skyhookOrphanFix-v",
+    "preserveFiles": []
+  }
+}

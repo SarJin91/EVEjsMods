@@ -1,0 +1,60 @@
+{
+  "packID": "trig-bridge",
+  "version": 1,
+  "source": "FEATURE-20261119-trig-long-range-bridge-sub3 (D14241, D14257, D14284-D14286). 341640 Triglavian Conduit Core = clone of Organic Mortar Applicators 2870 without a group change (group 1041 Advanced Commodities - Tier 4, category 43; SDE 3396210 typeDogma record present). Not 48121 Triglavian Survey Database: it has no typeDogma record, so the client tool would refuse it (D700). Not a fuel: group 1041 is not 1136 Fuel Block, so the structure fuel bay never takes it (D14257, W132); the Living New Eden mod consumes it on Cargo Deposit to an Ansiblex. iconID 21982 = res:/UI/Texture/Icons/Inventory/triglavianSurveyData.png (SDE icons). 341641 blueprint = clone of Spatial Attunement Unit Blueprint 33196 (group 447, category 9, D693/D700). Manufacturing: 200 Zero-Point Condensate 48112, 400 Crystalline Isogen-10 47975, 50 Triglavian Survey Database 48121 (Abyssal loot, all tiers); 259200 s; skill 3400 level 1 and max runs 2 as the Ansiblex blueprint 36961; copying 720000 s = 36961 (SDE 3396210 blueprints.jsonl); no research. 341642 is reserved (V2 look). Client: re-run ApplyClientData.",
+  "types": [
+    {
+      "typeID": 341640,
+      "sourceTypeID": 2870,
+      "overrides": {
+        "name": "Triglavian Conduit Core",
+        "iconID": 21982,
+        "published": true,
+        "marketGroupID": null,
+        "description": "Conduit core built from Triglavian technology recovered in Abyssal Deadspace. Deposit it into your alliance's Ansiblex with Cargo Deposit: the Living New Eden mod uses up the core and makes that Ansiblex a Triglavian long-range bridge. It is not fuel."
+      }
+    },
+    {
+      "typeID": 341641,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Triglavian Conduit Core Blueprint",
+        "groupID": 447,
+        "iconID": 21982,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Triglavian Conduit Core: 200 Zero-Point Condensate, 400 Crystalline Isogen-10 and 50 Triglavian Survey Database (Abyssal Deadspace loot), 3 days, the skill of the Ansiblex Jump Bridge Blueprint at level I. Maximum 2 runs per copy. See the item description."
+      }
+    }
+  ],
+  "blueprints": [
+    {
+      "blueprintTypeID": 341641,
+      "productTypeID": 341640,
+      "maxProductionLimit": 2,
+      "activities": {
+        "copying": {
+          "time": 720000
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 200, "typeID": 48112 },
+            { "quantity": 400, "typeID": 47975 },
+            { "quantity": 50, "typeID": 48121 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 341640 }
+          ],
+          "skills": [
+            { "level": 1, "typeID": 3400 }
+          ],
+          "time": 259200
+        }
+      },
+      "shop": {
+        "listed": true,
+        "price": 500000000
+      }
+    }
+  ]
+}

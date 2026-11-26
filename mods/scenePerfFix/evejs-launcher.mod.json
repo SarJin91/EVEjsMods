@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 3,
+  "id": "scenePerfFix",
+  "displayName": "Scene Performance Fix",
+  "version": "1.0.0",
+  "description": "Speeds up busy solar systems: wrecks that are not moving are left out of the per-tick movement planning (which otherwise grows with the square of the object count), and item-type lookups by name, done for every NPC wreck, are remembered. No gameplay change.",
+  "kind": "loader",
+  "supportedBackends": [
+    "native",
+    "docker"
+  ],
+  "activation": {
+    "strategy": "loader_rename"
+  },
+  "restart": "game_server",
+  "compatibility": {
+    "evejsVersions": [
+      "261115.2"
+    ]
+  },
+  "updates": {
+    "provider": "github",
+    "repository": "SarJin91/EVEjsMods",
+    "asset": "scenePerfFix-{version}.zip",
+    "channel": "stable",
+    "tagPrefix": "scenePerfFix-v",
+    "preserveFiles": []
+  },
+  "settings": {
+    "schemaVersion": 1,
+    "files": [
+      {
+        "id": "settings",
+        "base": "mod",
+        "path": "settings.json",
+        "format": "json"
+      }
+    ],
+    "fields": [
+      {
+        "id": "skipInertWrecks",
+        "label": "Skip resting wrecks",
+        "description": "Leave wrecks that are not moving out of the movement planning of the system's tick. A wreck being tractored or pushed is still moved normally. Default: on.",
+        "type": "boolean",
+        "default": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "skipInertWrecks"
+        ]
+      },
+      {
+        "id": "cacheItemNameLookups",
+        "label": "Remember item lookups by name",
+        "description": "Remember the result of looking up an item type by name (done for every destroyed NPC to pick its wreck). Default: on.",
+        "type": "boolean",
+        "default": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "cacheItemNameLookups"
+        ]
+      }
+    ]
+  }
+}

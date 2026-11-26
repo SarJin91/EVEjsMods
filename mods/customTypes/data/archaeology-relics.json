@@ -1,0 +1,153 @@
+{
+  "packID": "archaeology-relics",
+  "version": 1,
+  "source": "FEATURE-20261119-jove-drifter-archaeology-sub3 (D14862, D14134). The final reward of a Living New Eden archaeology trail (341600-341619, 341606-341619 reserved). 341600 Jovian Archive Analyzer = clone of Data Analyzer II 30834, 341602 Drifter Lattice Analyzer = clone of Relic Analyzer II 30832 (group of the source, no group change). SDE 3396210 typeDogma: virusStrength (attribute 1910) 30834 = 30, best vanilla data analyzer 3581 = 40 -> 30 + floor((40 - 30) / 2) = 35; 30832 = 30, best vanilla relic analyzer 85750 = 35 -> 30 + floor((35 - 30) / 2) = 32 (dev item 33375 and the combined analyzers excluded); virusCoherence 1909 = 60 and virusElementSlots 1911 = 3 as the T2. 341601 / 341603 blueprints = clones of 30835 / 30833 (category 9; manufacturing = the recipe of the source with the new product, copying 3744 s, no research, no invention), max 3 runs per copy. 341604 Jovian Archive Core / 341605 Drifter Lattice Core = trophies, clones of Manufacturing Tools 16686 (group 314, category 17), no blueprint. All sources have a typeDogma record (D700). iconID 21618 = res:/UI/Texture/Icons/Modules/multiUseAnalyzer_64.png, 21785 = res:/UI/Texture/Icons/Inventory/relicVault.png, 27336 = res:/UI/Texture/Icons/Inventory/Drifter_Data_64.png (SDE icons). No market group, not in the shop (blueprints shop.listed false): the archaeology trail puts the blueprint copy (3 runs) and the trophy into its last archive (archaeology.finalRewardJoveCsv / finalRewardDrifterCsv). Client: re-run ApplyClientData.",
+  "types": [
+    {
+      "typeID": 341600,
+      "sourceTypeID": 30834,
+      "overrides": {
+        "name": "Jovian Archive Analyzer",
+        "iconID": 21618,
+        "basePrice": 0,
+        "published": true,
+        "marketGroupID": null,
+        "description": "A data analyzer tuned on the decoded archives of a lost Jovian trail. Recovered from the last archive at the end of a Living New Eden archaeology trail. Virus strength above the Tech II analyzer."
+      },
+      "dogma": {
+        "attributes": {
+          "1910": 35
+        }
+      }
+    },
+    {
+      "typeID": 341601,
+      "sourceTypeID": 30835,
+      "overrides": {
+        "name": "Jovian Archive Analyzer Blueprint",
+        "iconID": 21618,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Jovian Archive Analyzer, the recipe of the Data Analyzer II Blueprint. Recovered from the last archive at the end of a Living New Eden archaeology trail. Maximum 3 runs per copy."
+      }
+    },
+    {
+      "typeID": 341602,
+      "sourceTypeID": 30832,
+      "overrides": {
+        "name": "Drifter Lattice Analyzer",
+        "iconID": 21618,
+        "basePrice": 0,
+        "published": true,
+        "marketGroupID": null,
+        "description": "A relic analyzer tuned on the decoded lattice of a Drifter trail. Recovered from the last archive at the end of a Living New Eden archaeology trail. Virus strength above the Tech II analyzer."
+      },
+      "dogma": {
+        "attributes": {
+          "1910": 32
+        }
+      }
+    },
+    {
+      "typeID": 341603,
+      "sourceTypeID": 30833,
+      "overrides": {
+        "name": "Drifter Lattice Analyzer Blueprint",
+        "iconID": 21618,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Drifter Lattice Analyzer, the recipe of the Relic Analyzer II Blueprint. Recovered from the last archive at the end of a Living New Eden archaeology trail. Maximum 3 runs per copy."
+      }
+    },
+    {
+      "typeID": 341604,
+      "sourceTypeID": 16686,
+      "overrides": {
+        "name": "Jovian Archive Core",
+        "iconID": 21785,
+        "basePrice": 0,
+        "published": true,
+        "marketGroupID": null,
+        "description": "The core of the last archive of a Jovian trail, decoded at the end of a Living New Eden archaeology trail. A keepsake without any other use."
+      }
+    },
+    {
+      "typeID": 341605,
+      "sourceTypeID": 16686,
+      "overrides": {
+        "name": "Drifter Lattice Core",
+        "iconID": 27336,
+        "basePrice": 0,
+        "published": true,
+        "marketGroupID": null,
+        "description": "The core of the last lattice of a Drifter trail, decoded at the end of a Living New Eden archaeology trail. A keepsake without any other use."
+      }
+    }
+  ],
+  "blueprints": [
+    {
+      "blueprintTypeID": 341601,
+      "productTypeID": 341600,
+      "maxProductionLimit": 3,
+      "shop": {
+        "listed": false
+      },
+      "activities": {
+        "copying": {
+          "time": 3744
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 5, "typeID": 11536 },
+            { "quantity": 12, "typeID": 9840 },
+            { "quantity": 9, "typeID": 9842 },
+            { "quantity": 5, "typeID": 11540 },
+            { "quantity": 1, "typeID": 11483 },
+            { "quantity": 1, "typeID": 22175 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 341600 }
+          ],
+          "skills": [
+            { "level": 5, "typeID": 3380 },
+            { "level": 1, "typeID": 11448 },
+            { "level": 1, "typeID": 11453 }
+          ],
+          "time": 4680
+        }
+      }
+    },
+    {
+      "blueprintTypeID": 341603,
+      "productTypeID": 341602,
+      "maxProductionLimit": 3,
+      "shop": {
+        "listed": false
+      },
+      "activities": {
+        "copying": {
+          "time": 3744
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 1, "typeID": 22177 },
+            { "quantity": 5, "typeID": 11536 },
+            { "quantity": 12, "typeID": 9840 },
+            { "quantity": 9, "typeID": 9842 },
+            { "quantity": 5, "typeID": 11539 },
+            { "quantity": 1, "typeID": 11483 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 341602 }
+          ],
+          "skills": [
+            { "level": 5, "typeID": 3380 },
+            { "level": 1, "typeID": 11448 },
+            { "level": 1, "typeID": 11453 }
+          ],
+          "time": 4680
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,905 @@
+{
+  "packID": "planetary-drill",
+  "version": 4,
+  "source": "TASK-20261029-mod-planetary-drill-sub1 (D672, D678, D679), BUG-20261030-customtypes-drill-pack-dogma (D700). Planetary Drill 340100 = clone of Orbital Skyhook 81080; Planetary Drill Blueprint 340101 = clone of Spatial Attunement Unit Blueprint 33196 (like the PI blueprints, D693) with groupID 1045 Sovereignty Structure Blueprint (category 9, the Orbital Skyhook Blueprint group): Orbital Skyhook Blueprint 81086 has no typeDogma record, so the client encoder cannot clone it (D700). Manufacturing materials, time, skill, limit, copying and research times = Vexor Blueprint 971 (SDE 3396210 blueprints.jsonl), no invention. iconID 26063 = skyhook category icon (the client tool needs one; 81080 carries no iconID, so the client keeps its look for the drill; 33196 does, so the blueprint gets 26063). marketGroupID null: no market on the server. v4: TASK-20261030-pdrill-pi-select-command (D839-D846): 15 Planetary Drill (<P0>) variants 340102-340116 (clones of 81080, the P0 is fixed by the launched item; the [PI:] name tag is gone from the descriptions) and their blueprints 340202-340216 (clones of 33196, group 1045, manufacturing, copying and research = 340101). Client: re-run ApplyClientData.",
+  "types": [
+    {
+      "typeID": 340100,
+      "sourceTypeID": 81080,
+      "overrides": {
+        "name": "Planetary Drill",
+        "iconID": 26063,
+        "marketGroupID": null,
+        "description": "Launch it for Corporation (Station Manager role) at a planet outside sovereignty nullsec: it becomes a Skyhook that mines the planet's highest-quality raw resource (P0) from that planet into its secured bay; Extract moves it to your ship. The mined resource cannot be changed after launch; scooping the Skyhook gives back a plain Orbital Skyhook. In sovereignty nullsec it is an ordinary Skyhook (vanilla reagents). For a specific P0 use a Planetary Drill variant, e.g. Planetary Drill (Aqueous Liquids)."
+      }
+    },
+    {
+      "typeID": 340101,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Planetary Drill Blueprint",
+        "groupID": 1045,
+        "iconID": 26063,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Planetary Drill (auto: the planet's highest-quality P0), a launchable Skyhook that mines a planet's raw resource (P0) outside sovereignty nullsec. See the item description."
+      }
+    },
+    {
+      "typeID": 340102,
+      "sourceTypeID": 81080,
+      "overrides": {
+        "name": "Planetary Drill (Microorganisms)",
+        "iconID": 26063,
+        "marketGroupID": null,
+        "description": "Launch it for Corporation (Station Manager role) at a planet outside sovereignty nullsec: it becomes a Skyhook that mines Microorganisms (raw planetary resource, P0) from that planet into its secured bay; Extract moves it to your ship. Microorganisms is found on Temperate, Ice, Oceanic and Barren planets. At a planet without Microorganisms the launch is refused and the drill stays in your cargo hold - check the planet type first. The mined resource cannot be changed after launch; scooping the Skyhook gives back a plain Orbital Skyhook. In sovereignty nullsec it is an ordinary Skyhook (vanilla reagents)."
+      }
+    },
+    {
+      "typeID": 340103,
+      "sourceTypeID": 81080,
+      "overrides": {
+        "name": "Planetary Drill (Base Metals)",
+        "iconID": 26063,
+        "marketGroupID": null,
+        "description": "Launch it for Corporation (Station Manager role) at a planet outside sovereignty nullsec: it becomes a Skyhook that mines Base Metals (raw planetary resource, P0) from that planet into its secured bay; Extract moves it to your ship. Base Metals is found on Gas, Lava, Barren, Storm and Plasma planets. At a planet without Base Metals the launch is refused and the drill stays in your cargo hold - check the planet type first. The mined resource cannot be changed after launch; scooping the Skyhook gives back a plain Orbital Skyhook. In sovereignty nullsec it is an ordinary Skyhook (vanilla reagents)."
+      }
+    },
+    {
+      "typeID": 340104,
+      "sourceTypeID": 81080,
+      "overrides": {
+        "name": "Planetary Drill (Aqueous Liquids)",
+        "iconID": 26063,
+        "marketGroupID": null,
+        "description": "Launch it for Corporation (Station Manager role) at a planet outside sovereignty nullsec: it becomes a Skyhook that mines Aqueous Liquids (raw planetary resource, P0) from that planet into its secured bay; Extract moves it to your ship. Aqueous Liquids is found on Temperate, Ice, Gas, Oceanic, Barren and Storm planets. At a planet without Aqueous Liquids the launch is refused and the drill stays in your cargo hold - check the planet type first. The mined resource cannot be changed after launch; scooping the Skyhook gives back a plain Orbital Skyhook. In sovereignty nullsec it is an ordinary Skyhook (vanilla reagents)."
+      }
+    },
+    {
+      "typeID": 340105,
+      "sourceTypeID": 81080,
+      "overrides": {
+        "name": "Planetary Drill (Noble Metals)",
+        "iconID": 26063,
+        "marketGroupID": null,
+        "description": "Launch it for Corporation (Station Manager role) at a planet outside sovereignty nullsec: it becomes a Skyhook that mines Noble Metals (raw planetary resource, P0) from that planet into its secured bay; Extract moves it to your ship. Noble Metals is found on Barren and Plasma planets. At a planet without Noble Metals the launch is refused and the drill stays in your cargo hold - check the planet type first. The mined resource cannot be changed after launch; scooping the Skyhook gives back a plain Orbital Skyhook. In sovereignty nullsec it is an ordinary Skyhook (vanilla reagents)."
+      }
+    },
+    {
+      "typeID": 340106,
+      "sourceTypeID": 81080,
+      "overrides": {
+        "name": "Planetary Drill (Heavy Metals)",
+        "iconID": 26063,
+        "marketGroupID": null,
+        "description": "Launch it for Corporation (Station Manager role) at a planet outside sovereignty nullsec: it becomes a Skyhook that mines Heavy Metals (raw planetary resource, P0) from that planet into its secured bay; Extract moves it to your ship. Heavy Metals is found on Ice, Lava and Plasma planets. At a planet without Heavy Metals the launch is refused and the drill stays in your cargo hold - check the planet type first. The mined resource cannot be changed after launch; scooping the Skyhook gives back a plain Orbital Skyhook. In sovereignty nullsec it is an ordinary Skyhook (vanilla reagents)."
+      }
+    },
+    {
+      "typeID": 340107,
+      "sourceTypeID": 81080,
+      "overrides": {
+        "name": "Planetary Drill (Planktic Colonies)",
+        "iconID": 26063,
+        "marketGroupID": null,
+        "description": "Launch it for Corporation (Station Manager role) at a planet outside sovereignty nullsec: it becomes a Skyhook that mines Planktic Colonies (raw planetary resource, P0) from that planet into its secured bay; Extract moves it to your ship. Planktic Colonies is found on Ice and Oceanic planets. At a planet without Planktic Colonies the launch is refused and the drill stays in your cargo hold - check the planet type first. The mined resource cannot be changed after launch; scooping the Skyhook gives back a plain Orbital Skyhook. In sovereignty nullsec it is an ordinary Skyhook (vanilla reagents)."
+      }
+    },
+    {
+      "typeID": 340108,
+      "sourceTypeID": 81080,
+      "overrides": {
+        "name": "Planetary Drill (Complex Organisms)",
+        "iconID": 26063,
+        "marketGroupID": null,
+        "description": "Launch it for Corporation (Station Manager role) at a planet outside sovereignty nullsec: it becomes a Skyhook that mines Complex Organisms (raw planetary resource, P0) from that planet into its secured bay; Extract moves it to your ship. Complex Organisms is found on Temperate and Oceanic planets. At a planet without Complex Organisms the launch is refused and the drill stays in your cargo hold - check the planet type first. The mined resource cannot be changed after launch; scooping the Skyhook gives back a plain Orbital Skyhook. In sovereignty nullsec it is an ordinary Skyhook (vanilla reagents)."
+      }
+    },
+    {
+      "typeID": 340109,
+      "sourceTypeID": 81080,
+      "overrides": {
+        "name": "Planetary Drill (Carbon Compounds)",
+        "iconID": 26063,
+        "marketGroupID": null,
+        "description": "Launch it for Corporation (Station Manager role) at a planet outside sovereignty nullsec: it becomes a Skyhook that mines Carbon Compounds (raw planetary resource, P0) from that planet into its secured bay; Extract moves it to your ship. Carbon Compounds is found on Temperate, Oceanic and Barren planets. At a planet without Carbon Compounds the launch is refused and the drill stays in your cargo hold - check the planet type first. The mined resource cannot be changed after launch; scooping the Skyhook gives back a plain Orbital Skyhook. In sovereignty nullsec it is an ordinary Skyhook (vanilla reagents)."
+      }
+    },
+    {
+      "typeID": 340110,
+      "sourceTypeID": 81080,
+      "overrides": {
+        "name": "Planetary Drill (Autotrophs)",
+        "iconID": 26063,
+        "marketGroupID": null,
+        "description": "Launch it for Corporation (Station Manager role) at a planet outside sovereignty nullsec: it becomes a Skyhook that mines Autotrophs (raw planetary resource, P0) from that planet into its secured bay; Extract moves it to your ship. Autotrophs is found on Temperate planets. At a planet without Autotrophs the launch is refused and the drill stays in your cargo hold - check the planet type first. The mined resource cannot be changed after launch; scooping the Skyhook gives back a plain Orbital Skyhook. In sovereignty nullsec it is an ordinary Skyhook (vanilla reagents)."
+      }
+    },
+    {
+      "typeID": 340111,
+      "sourceTypeID": 81080,
+      "overrides": {
+        "name": "Planetary Drill (Non-CS Crystals)",
+        "iconID": 26063,
+        "marketGroupID": null,
+        "description": "Launch it for Corporation (Station Manager role) at a planet outside sovereignty nullsec: it becomes a Skyhook that mines Non-CS Crystals (raw planetary resource, P0) from that planet into its secured bay; Extract moves it to your ship. Non-CS Crystals is found on Lava and Plasma planets. At a planet without Non-CS Crystals the launch is refused and the drill stays in your cargo hold - check the planet type first. The mined resource cannot be changed after launch; scooping the Skyhook gives back a plain Orbital Skyhook. In sovereignty nullsec it is an ordinary Skyhook (vanilla reagents)."
+      }
+    },
+    {
+      "typeID": 340112,
+      "sourceTypeID": 81080,
+      "overrides": {
+        "name": "Planetary Drill (Felsic Magma)",
+        "iconID": 26063,
+        "marketGroupID": null,
+        "description": "Launch it for Corporation (Station Manager role) at a planet outside sovereignty nullsec: it becomes a Skyhook that mines Felsic Magma (raw planetary resource, P0) from that planet into its secured bay; Extract moves it to your ship. Felsic Magma is found on Lava planets. At a planet without Felsic Magma the launch is refused and the drill stays in your cargo hold - check the planet type first. The mined resource cannot be changed after launch; scooping the Skyhook gives back a plain Orbital Skyhook. In sovereignty nullsec it is an ordinary Skyhook (vanilla reagents)."
+      }
+    },
+    {
+      "typeID": 340113,
+      "sourceTypeID": 81080,
+      "overrides": {
+        "name": "Planetary Drill (Suspended Plasma)",
+        "iconID": 26063,
+        "marketGroupID": null,
+        "description": "Launch it for Corporation (Station Manager role) at a planet outside sovereignty nullsec: it becomes a Skyhook that mines Suspended Plasma (raw planetary resource, P0) from that planet into its secured bay; Extract moves it to your ship. Suspended Plasma is found on Lava, Storm and Plasma planets. At a planet without Suspended Plasma the launch is refused and the drill stays in your cargo hold - check the planet type first. The mined resource cannot be changed after launch; scooping the Skyhook gives back a plain Orbital Skyhook. In sovereignty nullsec it is an ordinary Skyhook (vanilla reagents)."
+      }
+    },
+    {
+      "typeID": 340114,
+      "sourceTypeID": 81080,
+      "overrides": {
+        "name": "Planetary Drill (Ionic Solutions)",
+        "iconID": 26063,
+        "marketGroupID": null,
+        "description": "Launch it for Corporation (Station Manager role) at a planet outside sovereignty nullsec: it becomes a Skyhook that mines Ionic Solutions (raw planetary resource, P0) from that planet into its secured bay; Extract moves it to your ship. Ionic Solutions is found on Gas and Storm planets. At a planet without Ionic Solutions the launch is refused and the drill stays in your cargo hold - check the planet type first. The mined resource cannot be changed after launch; scooping the Skyhook gives back a plain Orbital Skyhook. In sovereignty nullsec it is an ordinary Skyhook (vanilla reagents)."
+      }
+    },
+    {
+      "typeID": 340115,
+      "sourceTypeID": 81080,
+      "overrides": {
+        "name": "Planetary Drill (Noble Gas)",
+        "iconID": 26063,
+        "marketGroupID": null,
+        "description": "Launch it for Corporation (Station Manager role) at a planet outside sovereignty nullsec: it becomes a Skyhook that mines Noble Gas (raw planetary resource, P0) from that planet into its secured bay; Extract moves it to your ship. Noble Gas is found on Ice, Gas and Storm planets. At a planet without Noble Gas the launch is refused and the drill stays in your cargo hold - check the planet type first. The mined resource cannot be changed after launch; scooping the Skyhook gives back a plain Orbital Skyhook. In sovereignty nullsec it is an ordinary Skyhook (vanilla reagents)."
+      }
+    },
+    {
+      "typeID": 340116,
+      "sourceTypeID": 81080,
+      "overrides": {
+        "name": "Planetary Drill (Reactive Gas)",
+        "iconID": 26063,
+        "marketGroupID": null,
+        "description": "Launch it for Corporation (Station Manager role) at a planet outside sovereignty nullsec: it becomes a Skyhook that mines Reactive Gas (raw planetary resource, P0) from that planet into its secured bay; Extract moves it to your ship. Reactive Gas is found on Gas planets. At a planet without Reactive Gas the launch is refused and the drill stays in your cargo hold - check the planet type first. The mined resource cannot be changed after launch; scooping the Skyhook gives back a plain Orbital Skyhook. In sovereignty nullsec it is an ordinary Skyhook (vanilla reagents)."
+      }
+    },
+    {
+      "typeID": 340202,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Planetary Drill (Microorganisms) Blueprint",
+        "groupID": 1045,
+        "iconID": 26063,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Planetary Drill (Microorganisms), a launchable Skyhook that mines Microorganisms (P0) from a planet outside sovereignty nullsec. See the item description."
+      }
+    },
+    {
+      "typeID": 340203,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Planetary Drill (Base Metals) Blueprint",
+        "groupID": 1045,
+        "iconID": 26063,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Planetary Drill (Base Metals), a launchable Skyhook that mines Base Metals (P0) from a planet outside sovereignty nullsec. See the item description."
+      }
+    },
+    {
+      "typeID": 340204,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Planetary Drill (Aqueous Liquids) Blueprint",
+        "groupID": 1045,
+        "iconID": 26063,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Planetary Drill (Aqueous Liquids), a launchable Skyhook that mines Aqueous Liquids (P0) from a planet outside sovereignty nullsec. See the item description."
+      }
+    },
+    {
+      "typeID": 340205,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Planetary Drill (Noble Metals) Blueprint",
+        "groupID": 1045,
+        "iconID": 26063,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Planetary Drill (Noble Metals), a launchable Skyhook that mines Noble Metals (P0) from a planet outside sovereignty nullsec. See the item description."
+      }
+    },
+    {
+      "typeID": 340206,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Planetary Drill (Heavy Metals) Blueprint",
+        "groupID": 1045,
+        "iconID": 26063,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Planetary Drill (Heavy Metals), a launchable Skyhook that mines Heavy Metals (P0) from a planet outside sovereignty nullsec. See the item description."
+      }
+    },
+    {
+      "typeID": 340207,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Planetary Drill (Planktic Colonies) Blueprint",
+        "groupID": 1045,
+        "iconID": 26063,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Planetary Drill (Planktic Colonies), a launchable Skyhook that mines Planktic Colonies (P0) from a planet outside sovereignty nullsec. See the item description."
+      }
+    },
+    {
+      "typeID": 340208,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Planetary Drill (Complex Organisms) Blueprint",
+        "groupID": 1045,
+        "iconID": 26063,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Planetary Drill (Complex Organisms), a launchable Skyhook that mines Complex Organisms (P0) from a planet outside sovereignty nullsec. See the item description."
+      }
+    },
+    {
+      "typeID": 340209,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Planetary Drill (Carbon Compounds) Blueprint",
+        "groupID": 1045,
+        "iconID": 26063,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Planetary Drill (Carbon Compounds), a launchable Skyhook that mines Carbon Compounds (P0) from a planet outside sovereignty nullsec. See the item description."
+      }
+    },
+    {
+      "typeID": 340210,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Planetary Drill (Autotrophs) Blueprint",
+        "groupID": 1045,
+        "iconID": 26063,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Planetary Drill (Autotrophs), a launchable Skyhook that mines Autotrophs (P0) from a planet outside sovereignty nullsec. See the item description."
+      }
+    },
+    {
+      "typeID": 340211,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Planetary Drill (Non-CS Crystals) Blueprint",
+        "groupID": 1045,
+        "iconID": 26063,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Planetary Drill (Non-CS Crystals), a launchable Skyhook that mines Non-CS Crystals (P0) from a planet outside sovereignty nullsec. See the item description."
+      }
+    },
+    {
+      "typeID": 340212,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Planetary Drill (Felsic Magma) Blueprint",
+        "groupID": 1045,
+        "iconID": 26063,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Planetary Drill (Felsic Magma), a launchable Skyhook that mines Felsic Magma (P0) from a planet outside sovereignty nullsec. See the item description."
+      }
+    },
+    {
+      "typeID": 340213,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Planetary Drill (Suspended Plasma) Blueprint",
+        "groupID": 1045,
+        "iconID": 26063,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Planetary Drill (Suspended Plasma), a launchable Skyhook that mines Suspended Plasma (P0) from a planet outside sovereignty nullsec. See the item description."
+      }
+    },
+    {
+      "typeID": 340214,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Planetary Drill (Ionic Solutions) Blueprint",
+        "groupID": 1045,
+        "iconID": 26063,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Planetary Drill (Ionic Solutions), a launchable Skyhook that mines Ionic Solutions (P0) from a planet outside sovereignty nullsec. See the item description."
+      }
+    },
+    {
+      "typeID": 340215,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Planetary Drill (Noble Gas) Blueprint",
+        "groupID": 1045,
+        "iconID": 26063,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Planetary Drill (Noble Gas), a launchable Skyhook that mines Noble Gas (P0) from a planet outside sovereignty nullsec. See the item description."
+      }
+    },
+    {
+      "typeID": 340216,
+      "sourceTypeID": 33196,
+      "overrides": {
+        "name": "Planetary Drill (Reactive Gas) Blueprint",
+        "groupID": 1045,
+        "iconID": 26063,
+        "basePrice": 0,
+        "marketGroupID": null,
+        "description": "Blueprint of the Planetary Drill (Reactive Gas), a launchable Skyhook that mines Reactive Gas (P0) from a planet outside sovereignty nullsec. See the item description."
+      }
+    }
+  ],
+  "blueprints": [
+    {
+      "blueprintTypeID": 340101,
+      "productTypeID": 340100,
+      "maxProductionLimit": 10,
+      "activities": {
+        "copying": {
+          "time": 9600
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 540000, "typeID": 34 },
+            { "quantity": 180000, "typeID": 35 },
+            { "quantity": 36000, "typeID": 36 },
+            { "quantity": 10000, "typeID": 37 },
+            { "quantity": 1500, "typeID": 38 },
+            { "quantity": 350, "typeID": 39 },
+            { "quantity": 140, "typeID": 40 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340100 }
+          ],
+          "skills": [
+            { "level": 1, "typeID": 3380 }
+          ],
+          "time": 12000
+        },
+        "research_material": {
+          "time": 4200
+        },
+        "research_time": {
+          "time": 4200
+        }
+      }
+    },
+    {
+      "blueprintTypeID": 340202,
+      "productTypeID": 340102,
+      "maxProductionLimit": 10,
+      "activities": {
+        "copying": {
+          "time": 9600
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 540000, "typeID": 34 },
+            { "quantity": 180000, "typeID": 35 },
+            { "quantity": 36000, "typeID": 36 },
+            { "quantity": 10000, "typeID": 37 },
+            { "quantity": 1500, "typeID": 38 },
+            { "quantity": 350, "typeID": 39 },
+            { "quantity": 140, "typeID": 40 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340102 }
+          ],
+          "skills": [
+            { "level": 1, "typeID": 3380 }
+          ],
+          "time": 12000
+        },
+        "research_material": {
+          "time": 4200
+        },
+        "research_time": {
+          "time": 4200
+        }
+      }
+    },
+    {
+      "blueprintTypeID": 340203,
+      "productTypeID": 340103,
+      "maxProductionLimit": 10,
+      "activities": {
+        "copying": {
+          "time": 9600
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 540000, "typeID": 34 },
+            { "quantity": 180000, "typeID": 35 },
+            { "quantity": 36000, "typeID": 36 },
+            { "quantity": 10000, "typeID": 37 },
+            { "quantity": 1500, "typeID": 38 },
+            { "quantity": 350, "typeID": 39 },
+            { "quantity": 140, "typeID": 40 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340103 }
+          ],
+          "skills": [
+            { "level": 1, "typeID": 3380 }
+          ],
+          "time": 12000
+        },
+        "research_material": {
+          "time": 4200
+        },
+        "research_time": {
+          "time": 4200
+        }
+      }
+    },
+    {
+      "blueprintTypeID": 340204,
+      "productTypeID": 340104,
+      "maxProductionLimit": 10,
+      "activities": {
+        "copying": {
+          "time": 9600
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 540000, "typeID": 34 },
+            { "quantity": 180000, "typeID": 35 },
+            { "quantity": 36000, "typeID": 36 },
+            { "quantity": 10000, "typeID": 37 },
+            { "quantity": 1500, "typeID": 38 },
+            { "quantity": 350, "typeID": 39 },
+            { "quantity": 140, "typeID": 40 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340104 }
+          ],
+          "skills": [
+            { "level": 1, "typeID": 3380 }
+          ],
+          "time": 12000
+        },
+        "research_material": {
+          "time": 4200
+        },
+        "research_time": {
+          "time": 4200
+        }
+      }
+    },
+    {
+      "blueprintTypeID": 340205,
+      "productTypeID": 340105,
+      "maxProductionLimit": 10,
+      "activities": {
+        "copying": {
+          "time": 9600
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 540000, "typeID": 34 },
+            { "quantity": 180000, "typeID": 35 },
+            { "quantity": 36000, "typeID": 36 },
+            { "quantity": 10000, "typeID": 37 },
+            { "quantity": 1500, "typeID": 38 },
+            { "quantity": 350, "typeID": 39 },
+            { "quantity": 140, "typeID": 40 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340105 }
+          ],
+          "skills": [
+            { "level": 1, "typeID": 3380 }
+          ],
+          "time": 12000
+        },
+        "research_material": {
+          "time": 4200
+        },
+        "research_time": {
+          "time": 4200
+        }
+      }
+    },
+    {
+      "blueprintTypeID": 340206,
+      "productTypeID": 340106,
+      "maxProductionLimit": 10,
+      "activities": {
+        "copying": {
+          "time": 9600
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 540000, "typeID": 34 },
+            { "quantity": 180000, "typeID": 35 },
+            { "quantity": 36000, "typeID": 36 },
+            { "quantity": 10000, "typeID": 37 },
+            { "quantity": 1500, "typeID": 38 },
+            { "quantity": 350, "typeID": 39 },
+            { "quantity": 140, "typeID": 40 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340106 }
+          ],
+          "skills": [
+            { "level": 1, "typeID": 3380 }
+          ],
+          "time": 12000
+        },
+        "research_material": {
+          "time": 4200
+        },
+        "research_time": {
+          "time": 4200
+        }
+      }
+    },
+    {
+      "blueprintTypeID": 340207,
+      "productTypeID": 340107,
+      "maxProductionLimit": 10,
+      "activities": {
+        "copying": {
+          "time": 9600
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 540000, "typeID": 34 },
+            { "quantity": 180000, "typeID": 35 },
+            { "quantity": 36000, "typeID": 36 },
+            { "quantity": 10000, "typeID": 37 },
+            { "quantity": 1500, "typeID": 38 },
+            { "quantity": 350, "typeID": 39 },
+            { "quantity": 140, "typeID": 40 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340107 }
+          ],
+          "skills": [
+            { "level": 1, "typeID": 3380 }
+          ],
+          "time": 12000
+        },
+        "research_material": {
+          "time": 4200
+        },
+        "research_time": {
+          "time": 4200
+        }
+      }
+    },
+    {
+      "blueprintTypeID": 340208,
+      "productTypeID": 340108,
+      "maxProductionLimit": 10,
+      "activities": {
+        "copying": {
+          "time": 9600
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 540000, "typeID": 34 },
+            { "quantity": 180000, "typeID": 35 },
+            { "quantity": 36000, "typeID": 36 },
+            { "quantity": 10000, "typeID": 37 },
+            { "quantity": 1500, "typeID": 38 },
+            { "quantity": 350, "typeID": 39 },
+            { "quantity": 140, "typeID": 40 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340108 }
+          ],
+          "skills": [
+            { "level": 1, "typeID": 3380 }
+          ],
+          "time": 12000
+        },
+        "research_material": {
+          "time": 4200
+        },
+        "research_time": {
+          "time": 4200
+        }
+      }
+    },
+    {
+      "blueprintTypeID": 340209,
+      "productTypeID": 340109,
+      "maxProductionLimit": 10,
+      "activities": {
+        "copying": {
+          "time": 9600
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 540000, "typeID": 34 },
+            { "quantity": 180000, "typeID": 35 },
+            { "quantity": 36000, "typeID": 36 },
+            { "quantity": 10000, "typeID": 37 },
+            { "quantity": 1500, "typeID": 38 },
+            { "quantity": 350, "typeID": 39 },
+            { "quantity": 140, "typeID": 40 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340109 }
+          ],
+          "skills": [
+            { "level": 1, "typeID": 3380 }
+          ],
+          "time": 12000
+        },
+        "research_material": {
+          "time": 4200
+        },
+        "research_time": {
+          "time": 4200
+        }
+      }
+    },
+    {
+      "blueprintTypeID": 340210,
+      "productTypeID": 340110,
+      "maxProductionLimit": 10,
+      "activities": {
+        "copying": {
+          "time": 9600
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 540000, "typeID": 34 },
+            { "quantity": 180000, "typeID": 35 },
+            { "quantity": 36000, "typeID": 36 },
+            { "quantity": 10000, "typeID": 37 },
+            { "quantity": 1500, "typeID": 38 },
+            { "quantity": 350, "typeID": 39 },
+            { "quantity": 140, "typeID": 40 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340110 }
+          ],
+          "skills": [
+            { "level": 1, "typeID": 3380 }
+          ],
+          "time": 12000
+        },
+        "research_material": {
+          "time": 4200
+        },
+        "research_time": {
+          "time": 4200
+        }
+      }
+    },
+    {
+      "blueprintTypeID": 340211,
+      "productTypeID": 340111,
+      "maxProductionLimit": 10,
+      "activities": {
+        "copying": {
+          "time": 9600
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 540000, "typeID": 34 },
+            { "quantity": 180000, "typeID": 35 },
+            { "quantity": 36000, "typeID": 36 },
+            { "quantity": 10000, "typeID": 37 },
+            { "quantity": 1500, "typeID": 38 },
+            { "quantity": 350, "typeID": 39 },
+            { "quantity": 140, "typeID": 40 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340111 }
+          ],
+          "skills": [
+            { "level": 1, "typeID": 3380 }
+          ],
+          "time": 12000
+        },
+        "research_material": {
+          "time": 4200
+        },
+        "research_time": {
+          "time": 4200
+        }
+      }
+    },
+    {
+      "blueprintTypeID": 340212,
+      "productTypeID": 340112,
+      "maxProductionLimit": 10,
+      "activities": {
+        "copying": {
+          "time": 9600
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 540000, "typeID": 34 },
+            { "quantity": 180000, "typeID": 35 },
+            { "quantity": 36000, "typeID": 36 },
+            { "quantity": 10000, "typeID": 37 },
+            { "quantity": 1500, "typeID": 38 },
+            { "quantity": 350, "typeID": 39 },
+            { "quantity": 140, "typeID": 40 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340112 }
+          ],
+          "skills": [
+            { "level": 1, "typeID": 3380 }
+          ],
+          "time": 12000
+        },
+        "research_material": {
+          "time": 4200
+        },
+        "research_time": {
+          "time": 4200
+        }
+      }
+    },
+    {
+      "blueprintTypeID": 340213,
+      "productTypeID": 340113,
+      "maxProductionLimit": 10,
+      "activities": {
+        "copying": {
+          "time": 9600
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 540000, "typeID": 34 },
+            { "quantity": 180000, "typeID": 35 },
+            { "quantity": 36000, "typeID": 36 },
+            { "quantity": 10000, "typeID": 37 },
+            { "quantity": 1500, "typeID": 38 },
+            { "quantity": 350, "typeID": 39 },
+            { "quantity": 140, "typeID": 40 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340113 }
+          ],
+          "skills": [
+            { "level": 1, "typeID": 3380 }
+          ],
+          "time": 12000
+        },
+        "research_material": {
+          "time": 4200
+        },
+        "research_time": {
+          "time": 4200
+        }
+      }
+    },
+    {
+      "blueprintTypeID": 340214,
+      "productTypeID": 340114,
+      "maxProductionLimit": 10,
+      "activities": {
+        "copying": {
+          "time": 9600
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 540000, "typeID": 34 },
+            { "quantity": 180000, "typeID": 35 },
+            { "quantity": 36000, "typeID": 36 },
+            { "quantity": 10000, "typeID": 37 },
+            { "quantity": 1500, "typeID": 38 },
+            { "quantity": 350, "typeID": 39 },
+            { "quantity": 140, "typeID": 40 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340114 }
+          ],
+          "skills": [
+            { "level": 1, "typeID": 3380 }
+          ],
+          "time": 12000
+        },
+        "research_material": {
+          "time": 4200
+        },
+        "research_time": {
+          "time": 4200
+        }
+      }
+    },
+    {
+      "blueprintTypeID": 340215,
+      "productTypeID": 340115,
+      "maxProductionLimit": 10,
+      "activities": {
+        "copying": {
+          "time": 9600
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 540000, "typeID": 34 },
+            { "quantity": 180000, "typeID": 35 },
+            { "quantity": 36000, "typeID": 36 },
+            { "quantity": 10000, "typeID": 37 },
+            { "quantity": 1500, "typeID": 38 },
+            { "quantity": 350, "typeID": 39 },
+            { "quantity": 140, "typeID": 40 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340115 }
+          ],
+          "skills": [
+            { "level": 1, "typeID": 3380 }
+          ],
+          "time": 12000
+        },
+        "research_material": {
+          "time": 4200
+        },
+        "research_time": {
+          "time": 4200
+        }
+      }
+    },
+    {
+      "blueprintTypeID": 340216,
+      "productTypeID": 340116,
+      "maxProductionLimit": 10,
+      "activities": {
+        "copying": {
+          "time": 9600
+        },
+        "manufacturing": {
+          "materials": [
+            { "quantity": 540000, "typeID": 34 },
+            { "quantity": 180000, "typeID": 35 },
+            { "quantity": 36000, "typeID": 36 },
+            { "quantity": 10000, "typeID": 37 },
+            { "quantity": 1500, "typeID": 38 },
+            { "quantity": 350, "typeID": 39 },
+            { "quantity": 140, "typeID": 40 }
+          ],
+          "products": [
+            { "quantity": 1, "typeID": 340116 }
+          ],
+          "skills": [
+            { "level": 1, "typeID": 3380 }
+          ],
+          "time": 12000
+        },
+        "research_material": {
+          "time": 4200
+        },
+        "research_time": {
+          "time": 4200
+        }
+      }
+    }
+  ]
+}

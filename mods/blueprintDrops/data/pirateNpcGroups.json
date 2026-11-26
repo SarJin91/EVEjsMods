@@ -1,0 +1,1002 @@
+{
+  "schemaVersion": 1,
+  "sdeBuild": "3396210",
+  "factions": {
+    "500010": {
+      "resonatorTypeID": 83469,
+      "label": "Guristas Pirates"
+    },
+    "500011": {
+      "resonatorTypeID": 83467,
+      "label": "Angel Cartel"
+    },
+    "500012": {
+      "resonatorTypeID": 83468,
+      "label": "Blood Raider Covenant"
+    },
+    "500016": {
+      "resonatorTypeID": 83473,
+      "label": "Sisters of EVE"
+    },
+    "500018": {
+      "resonatorTypeID": 83470,
+      "label": "Mordu's Legion"
+    },
+    "500019": {
+      "resonatorTypeID": 83471,
+      "label": "Sansha's Nation"
+    },
+    "500020": {
+      "resonatorTypeID": 83472,
+      "label": "Serpentis"
+    }
+  },
+  "groups": [
+    {
+      "groupID": 550,
+      "factionID": 500011,
+      "band": "frigate",
+      "tier": "normal",
+      "name": "Asteroid Angel Cartel Frigate"
+    },
+    {
+      "groupID": 551,
+      "factionID": 500011,
+      "band": "cruiser",
+      "tier": "normal",
+      "name": "Asteroid Angel Cartel Cruiser"
+    },
+    {
+      "groupID": 552,
+      "factionID": 500011,
+      "band": "battleship",
+      "tier": "normal",
+      "name": "Asteroid Angel Cartel Battleship"
+    },
+    {
+      "groupID": 553,
+      "factionID": 500011,
+      "band": "battleship",
+      "tier": "elite",
+      "name": "Asteroid Angel Cartel Officer"
+    },
+    {
+      "groupID": 554,
+      "factionID": 500011,
+      "band": "hauler",
+      "tier": "normal",
+      "name": "Asteroid Angel Cartel Hauler"
+    },
+    {
+      "groupID": 555,
+      "factionID": 500012,
+      "band": "cruiser",
+      "tier": "normal",
+      "name": "Asteroid Blood Raiders Cruiser"
+    },
+    {
+      "groupID": 556,
+      "factionID": 500012,
+      "band": "battleship",
+      "tier": "normal",
+      "name": "Asteroid Blood Raiders Battleship"
+    },
+    {
+      "groupID": 557,
+      "factionID": 500012,
+      "band": "frigate",
+      "tier": "normal",
+      "name": "Asteroid Blood Raiders Frigate"
+    },
+    {
+      "groupID": 558,
+      "factionID": 500012,
+      "band": "hauler",
+      "tier": "normal",
+      "name": "Asteroid Blood Raiders Hauler"
+    },
+    {
+      "groupID": 559,
+      "factionID": 500012,
+      "band": "battleship",
+      "tier": "elite",
+      "name": "Asteroid Blood Raiders Officer"
+    },
+    {
+      "groupID": 560,
+      "factionID": 500010,
+      "band": "battleship",
+      "tier": "normal",
+      "name": "Asteroid Guristas Battleship"
+    },
+    {
+      "groupID": 561,
+      "factionID": 500010,
+      "band": "cruiser",
+      "tier": "normal",
+      "name": "Asteroid Guristas Cruiser"
+    },
+    {
+      "groupID": 562,
+      "factionID": 500010,
+      "band": "frigate",
+      "tier": "normal",
+      "name": "Asteroid Guristas Frigate"
+    },
+    {
+      "groupID": 563,
+      "factionID": 500010,
+      "band": "hauler",
+      "tier": "normal",
+      "name": "Asteroid Guristas Hauler"
+    },
+    {
+      "groupID": 564,
+      "factionID": 500010,
+      "band": "battleship",
+      "tier": "elite",
+      "name": "Asteroid Guristas Officer"
+    },
+    {
+      "groupID": 565,
+      "factionID": 500019,
+      "band": "battleship",
+      "tier": "normal",
+      "name": "Asteroid Sansha's Nation Battleship"
+    },
+    {
+      "groupID": 566,
+      "factionID": 500019,
+      "band": "cruiser",
+      "tier": "normal",
+      "name": "Asteroid Sansha's Nation Cruiser"
+    },
+    {
+      "groupID": 567,
+      "factionID": 500019,
+      "band": "frigate",
+      "tier": "normal",
+      "name": "Asteroid Sansha's Nation Frigate"
+    },
+    {
+      "groupID": 568,
+      "factionID": 500019,
+      "band": "hauler",
+      "tier": "normal",
+      "name": "Asteroid Sansha's Nation Hauler"
+    },
+    {
+      "groupID": 569,
+      "factionID": 500019,
+      "band": "battleship",
+      "tier": "elite",
+      "name": "Asteroid Sansha's Nation Officer"
+    },
+    {
+      "groupID": 570,
+      "factionID": 500020,
+      "band": "battleship",
+      "tier": "normal",
+      "name": "Asteroid Serpentis Battleship"
+    },
+    {
+      "groupID": 571,
+      "factionID": 500020,
+      "band": "cruiser",
+      "tier": "normal",
+      "name": "Asteroid Serpentis Cruiser"
+    },
+    {
+      "groupID": 572,
+      "factionID": 500020,
+      "band": "frigate",
+      "tier": "normal",
+      "name": "Asteroid Serpentis Frigate"
+    },
+    {
+      "groupID": 573,
+      "factionID": 500020,
+      "band": "hauler",
+      "tier": "normal",
+      "name": "Asteroid Serpentis Hauler"
+    },
+    {
+      "groupID": 574,
+      "factionID": 500020,
+      "band": "battleship",
+      "tier": "elite",
+      "name": "Asteroid Serpentis Officer"
+    },
+    {
+      "groupID": 575,
+      "factionID": 500011,
+      "band": "destroyer",
+      "tier": "normal",
+      "name": "Asteroid Angel Cartel Destroyer"
+    },
+    {
+      "groupID": 576,
+      "factionID": 500011,
+      "band": "battlecruiser",
+      "tier": "normal",
+      "name": "Asteroid Angel Cartel BattleCruiser"
+    },
+    {
+      "groupID": 577,
+      "factionID": 500012,
+      "band": "destroyer",
+      "tier": "normal",
+      "name": "Asteroid Blood Raiders Destroyer"
+    },
+    {
+      "groupID": 578,
+      "factionID": 500012,
+      "band": "battlecruiser",
+      "tier": "normal",
+      "name": "Asteroid Blood Raiders BattleCruiser"
+    },
+    {
+      "groupID": 579,
+      "factionID": 500010,
+      "band": "destroyer",
+      "tier": "normal",
+      "name": "Asteroid Guristas Destroyer"
+    },
+    {
+      "groupID": 580,
+      "factionID": 500010,
+      "band": "battlecruiser",
+      "tier": "normal",
+      "name": "Asteroid Guristas BattleCruiser"
+    },
+    {
+      "groupID": 581,
+      "factionID": 500019,
+      "band": "destroyer",
+      "tier": "normal",
+      "name": "Asteroid Sansha's Nation Destroyer"
+    },
+    {
+      "groupID": 582,
+      "factionID": 500019,
+      "band": "battlecruiser",
+      "tier": "normal",
+      "name": "Asteroid Sansha's Nation BattleCruiser"
+    },
+    {
+      "groupID": 583,
+      "factionID": 500020,
+      "band": "destroyer",
+      "tier": "normal",
+      "name": "Asteroid Serpentis Destroyer"
+    },
+    {
+      "groupID": 584,
+      "factionID": 500020,
+      "band": "battlecruiser",
+      "tier": "normal",
+      "name": "Asteroid Serpentis BattleCruiser"
+    },
+    {
+      "groupID": 593,
+      "factionID": 500011,
+      "band": "battlecruiser",
+      "tier": "normal",
+      "name": "Deadspace Angel Cartel BattleCruiser"
+    },
+    {
+      "groupID": 594,
+      "factionID": 500011,
+      "band": "battleship",
+      "tier": "normal",
+      "name": "Deadspace Angel Cartel Battleship"
+    },
+    {
+      "groupID": 595,
+      "factionID": 500011,
+      "band": "cruiser",
+      "tier": "normal",
+      "name": "Deadspace Angel Cartel Cruiser"
+    },
+    {
+      "groupID": 596,
+      "factionID": 500011,
+      "band": "destroyer",
+      "tier": "normal",
+      "name": "Deadspace Angel Cartel Destroyer"
+    },
+    {
+      "groupID": 597,
+      "factionID": 500011,
+      "band": "frigate",
+      "tier": "normal",
+      "name": "Deadspace Angel Cartel Frigate"
+    },
+    {
+      "groupID": 602,
+      "factionID": 500012,
+      "band": "battlecruiser",
+      "tier": "normal",
+      "name": "Deadspace Blood Raiders BattleCruiser"
+    },
+    {
+      "groupID": 603,
+      "factionID": 500012,
+      "band": "battleship",
+      "tier": "normal",
+      "name": "Deadspace Blood Raiders Battleship"
+    },
+    {
+      "groupID": 604,
+      "factionID": 500012,
+      "band": "cruiser",
+      "tier": "normal",
+      "name": "Deadspace Blood Raiders Cruiser"
+    },
+    {
+      "groupID": 605,
+      "factionID": 500012,
+      "band": "destroyer",
+      "tier": "normal",
+      "name": "Deadspace Blood Raiders Destroyer"
+    },
+    {
+      "groupID": 606,
+      "factionID": 500012,
+      "band": "frigate",
+      "tier": "normal",
+      "name": "Deadspace Blood Raiders Frigate"
+    },
+    {
+      "groupID": 611,
+      "factionID": 500010,
+      "band": "battlecruiser",
+      "tier": "normal",
+      "name": "Deadspace Guristas BattleCruiser"
+    },
+    {
+      "groupID": 612,
+      "factionID": 500010,
+      "band": "battleship",
+      "tier": "normal",
+      "name": "Deadspace Guristas Battleship"
+    },
+    {
+      "groupID": 613,
+      "factionID": 500010,
+      "band": "cruiser",
+      "tier": "normal",
+      "name": "Deadspace Guristas Cruiser"
+    },
+    {
+      "groupID": 614,
+      "factionID": 500010,
+      "band": "destroyer",
+      "tier": "normal",
+      "name": "Deadspace Guristas Destroyer"
+    },
+    {
+      "groupID": 615,
+      "factionID": 500010,
+      "band": "frigate",
+      "tier": "normal",
+      "name": "Deadspace Guristas Frigate"
+    },
+    {
+      "groupID": 620,
+      "factionID": 500019,
+      "band": "battlecruiser",
+      "tier": "normal",
+      "name": "Deadspace Sansha's Nation BattleCruiser"
+    },
+    {
+      "groupID": 621,
+      "factionID": 500019,
+      "band": "battleship",
+      "tier": "normal",
+      "name": "Deadspace Sansha's Nation Battleship"
+    },
+    {
+      "groupID": 622,
+      "factionID": 500019,
+      "band": "cruiser",
+      "tier": "normal",
+      "name": "Deadspace Sansha's Nation Cruiser"
+    },
+    {
+      "groupID": 623,
+      "factionID": 500019,
+      "band": "destroyer",
+      "tier": "normal",
+      "name": "Deadspace Sansha's Nation Destroyer"
+    },
+    {
+      "groupID": 624,
+      "factionID": 500019,
+      "band": "frigate",
+      "tier": "normal",
+      "name": "Deadspace Sansha's Nation Frigate"
+    },
+    {
+      "groupID": 629,
+      "factionID": 500020,
+      "band": "battlecruiser",
+      "tier": "normal",
+      "name": "Deadspace Serpentis BattleCruiser"
+    },
+    {
+      "groupID": 630,
+      "factionID": 500020,
+      "band": "battleship",
+      "tier": "normal",
+      "name": "Deadspace Serpentis Battleship"
+    },
+    {
+      "groupID": 631,
+      "factionID": 500020,
+      "band": "cruiser",
+      "tier": "normal",
+      "name": "Deadspace Serpentis Cruiser"
+    },
+    {
+      "groupID": 632,
+      "factionID": 500020,
+      "band": "destroyer",
+      "tier": "normal",
+      "name": "Deadspace Serpentis Destroyer"
+    },
+    {
+      "groupID": 633,
+      "factionID": 500020,
+      "band": "frigate",
+      "tier": "normal",
+      "name": "Deadspace Serpentis Frigate"
+    },
+    {
+      "groupID": 699,
+      "factionID": 500018,
+      "band": "frigate",
+      "tier": "normal",
+      "name": "Mission Mordu Frigate"
+    },
+    {
+      "groupID": 700,
+      "factionID": 500018,
+      "band": "destroyer",
+      "tier": "normal",
+      "name": "Mission Mordu Destroyer"
+    },
+    {
+      "groupID": 701,
+      "factionID": 500018,
+      "band": "cruiser",
+      "tier": "normal",
+      "name": "Mission Mordu Cruiser"
+    },
+    {
+      "groupID": 702,
+      "factionID": 500018,
+      "band": "battlecruiser",
+      "tier": "normal",
+      "name": "Mission Mordu Battlecruiser"
+    },
+    {
+      "groupID": 703,
+      "factionID": 500018,
+      "band": "battleship",
+      "tier": "normal",
+      "name": "Mission Mordu Battleship"
+    },
+    {
+      "groupID": 789,
+      "factionID": 500011,
+      "band": "frigate",
+      "tier": "elite",
+      "name": "Asteroid Angel Cartel Commander Frigate"
+    },
+    {
+      "groupID": 790,
+      "factionID": 500011,
+      "band": "cruiser",
+      "tier": "elite",
+      "name": "Asteroid Angel Cartel Commander Cruiser"
+    },
+    {
+      "groupID": 791,
+      "factionID": 500012,
+      "band": "cruiser",
+      "tier": "elite",
+      "name": "Asteroid Blood Raiders Commander Cruiser"
+    },
+    {
+      "groupID": 792,
+      "factionID": 500012,
+      "band": "frigate",
+      "tier": "elite",
+      "name": "Asteroid Blood Raiders Commander Frigate"
+    },
+    {
+      "groupID": 793,
+      "factionID": 500011,
+      "band": "battlecruiser",
+      "tier": "elite",
+      "name": "Asteroid Angel Cartel Commander BattleCruiser"
+    },
+    {
+      "groupID": 794,
+      "factionID": 500011,
+      "band": "destroyer",
+      "tier": "elite",
+      "name": "Asteroid Angel Cartel Commander Destroyer"
+    },
+    {
+      "groupID": 795,
+      "factionID": 500012,
+      "band": "battlecruiser",
+      "tier": "elite",
+      "name": "Asteroid Blood Raiders Commander BattleCruiser"
+    },
+    {
+      "groupID": 796,
+      "factionID": 500012,
+      "band": "destroyer",
+      "tier": "elite",
+      "name": "Asteroid Blood Raiders Commander Destroyer"
+    },
+    {
+      "groupID": 797,
+      "factionID": 500010,
+      "band": "battlecruiser",
+      "tier": "elite",
+      "name": "Asteroid Guristas Commander BattleCruiser"
+    },
+    {
+      "groupID": 798,
+      "factionID": 500010,
+      "band": "cruiser",
+      "tier": "elite",
+      "name": "Asteroid Guristas Commander Cruiser"
+    },
+    {
+      "groupID": 799,
+      "factionID": 500010,
+      "band": "destroyer",
+      "tier": "elite",
+      "name": "Asteroid Guristas Commander Destroyer"
+    },
+    {
+      "groupID": 800,
+      "factionID": 500010,
+      "band": "frigate",
+      "tier": "elite",
+      "name": "Asteroid Guristas Commander Frigate"
+    },
+    {
+      "groupID": 807,
+      "factionID": 500019,
+      "band": "battlecruiser",
+      "tier": "elite",
+      "name": "Asteroid Sansha's Nation Commander BattleCruiser"
+    },
+    {
+      "groupID": 808,
+      "factionID": 500019,
+      "band": "cruiser",
+      "tier": "elite",
+      "name": "Asteroid Sansha's Nation Commander Cruiser"
+    },
+    {
+      "groupID": 809,
+      "factionID": 500019,
+      "band": "destroyer",
+      "tier": "elite",
+      "name": "Asteroid Sansha's Nation Commander Destroyer"
+    },
+    {
+      "groupID": 810,
+      "factionID": 500019,
+      "band": "frigate",
+      "tier": "elite",
+      "name": "Asteroid Sansha's Nation Commander Frigate"
+    },
+    {
+      "groupID": 811,
+      "factionID": 500020,
+      "band": "battlecruiser",
+      "tier": "elite",
+      "name": "Asteroid Serpentis Commander BattleCruiser"
+    },
+    {
+      "groupID": 812,
+      "factionID": 500020,
+      "band": "cruiser",
+      "tier": "elite",
+      "name": "Asteroid Serpentis Commander Cruiser"
+    },
+    {
+      "groupID": 813,
+      "factionID": 500020,
+      "band": "destroyer",
+      "tier": "elite",
+      "name": "Asteroid Serpentis Commander Destroyer"
+    },
+    {
+      "groupID": 814,
+      "factionID": 500020,
+      "band": "frigate",
+      "tier": "elite",
+      "name": "Asteroid Serpentis Commander Frigate"
+    },
+    {
+      "groupID": 848,
+      "factionID": 500011,
+      "band": "battleship",
+      "tier": "elite",
+      "name": "Asteroid Angel Cartel Commander Battleship"
+    },
+    {
+      "groupID": 849,
+      "factionID": 500012,
+      "band": "battleship",
+      "tier": "elite",
+      "name": "Asteroid Blood Raiders Commander Battleship"
+    },
+    {
+      "groupID": 850,
+      "factionID": 500010,
+      "band": "battleship",
+      "tier": "elite",
+      "name": "Asteroid Guristas Commander Battleship"
+    },
+    {
+      "groupID": 851,
+      "factionID": 500019,
+      "band": "battleship",
+      "tier": "elite",
+      "name": "Asteroid Sansha's Nation Commander Battleship"
+    },
+    {
+      "groupID": 852,
+      "factionID": 500020,
+      "band": "battleship",
+      "tier": "elite",
+      "name": "Asteroid Serpentis Commander Battleship"
+    },
+    {
+      "groupID": 1051,
+      "factionID": 500019,
+      "band": "hauler",
+      "tier": "normal",
+      "name": "Incursion Sansha's Nation Industrial"
+    },
+    {
+      "groupID": 1052,
+      "factionID": 500019,
+      "band": "capital",
+      "tier": "normal",
+      "name": "Incursion Sansha's Nation Capital"
+    },
+    {
+      "groupID": 1053,
+      "factionID": 500019,
+      "band": "frigate",
+      "tier": "normal",
+      "name": "Incursion Sansha's Nation Frigate"
+    },
+    {
+      "groupID": 1054,
+      "factionID": 500019,
+      "band": "cruiser",
+      "tier": "normal",
+      "name": "Incursion Sansha's Nation Cruiser"
+    },
+    {
+      "groupID": 1056,
+      "factionID": 500019,
+      "band": "battleship",
+      "tier": "normal",
+      "name": "Incursion Sansha's Nation Battleship"
+    },
+    {
+      "groupID": 1252,
+      "factionID": 500011,
+      "band": "cruiser",
+      "tier": "normal",
+      "name": "Ghost Sites Angel Cartel Cruiser"
+    },
+    {
+      "groupID": 1255,
+      "factionID": 500012,
+      "band": "cruiser",
+      "tier": "normal",
+      "name": "Ghost Sites Blood Raiders Cruiser"
+    },
+    {
+      "groupID": 1259,
+      "factionID": 500010,
+      "band": "cruiser",
+      "tier": "normal",
+      "name": "Ghost Sites Guristas Cruiser"
+    },
+    {
+      "groupID": 1262,
+      "factionID": 500020,
+      "band": "cruiser",
+      "tier": "normal",
+      "name": "Ghost Sites Serpentis Cruiser"
+    },
+    {
+      "groupID": 1265,
+      "factionID": 500019,
+      "band": "cruiser",
+      "tier": "normal",
+      "name": "Ghost Sites Sanshas Cruiser"
+    },
+    {
+      "groupID": 1285,
+      "factionID": 500018,
+      "band": "frigate",
+      "tier": "elite",
+      "name": "Asteroid Mordus Legion Commander Frigate"
+    },
+    {
+      "groupID": 1286,
+      "factionID": 500018,
+      "band": "cruiser",
+      "tier": "elite",
+      "name": "Asteroid Mordus Legion Commander Cruiser"
+    },
+    {
+      "groupID": 1287,
+      "factionID": 500018,
+      "band": "battleship",
+      "tier": "elite",
+      "name": "Asteroid Mordus Legion Commander Battleship"
+    },
+    {
+      "groupID": 1681,
+      "factionID": 500011,
+      "band": "capital",
+      "tier": "normal",
+      "name": "Asteroid Angel Cartel Dreadnought"
+    },
+    {
+      "groupID": 1682,
+      "factionID": 500011,
+      "band": "capital",
+      "tier": "normal",
+      "name": "Asteroid Angel Cartel Titan"
+    },
+    {
+      "groupID": 1683,
+      "factionID": 500012,
+      "band": "capital",
+      "tier": "normal",
+      "name": "Asteroid Blood Raider Dreadnought"
+    },
+    {
+      "groupID": 1684,
+      "factionID": 500012,
+      "band": "capital",
+      "tier": "normal",
+      "name": "Asteroid Blood Raider Titan"
+    },
+    {
+      "groupID": 1685,
+      "factionID": 500010,
+      "band": "capital",
+      "tier": "normal",
+      "name": "Asteroid Guristas Dreadnought"
+    },
+    {
+      "groupID": 1686,
+      "factionID": 500010,
+      "band": "capital",
+      "tier": "normal",
+      "name": "Asteroid Guristas Titan"
+    },
+    {
+      "groupID": 1687,
+      "factionID": 500019,
+      "band": "capital",
+      "tier": "normal",
+      "name": "Asteroid Sansha's Nation Dreadnought"
+    },
+    {
+      "groupID": 1688,
+      "factionID": 500019,
+      "band": "capital",
+      "tier": "normal",
+      "name": "Asteroid Sansha's Nation Supercarrier"
+    },
+    {
+      "groupID": 1689,
+      "factionID": 500020,
+      "band": "capital",
+      "tier": "normal",
+      "name": "Asteroid Serpentis Dreadnought"
+    },
+    {
+      "groupID": 1690,
+      "factionID": 500020,
+      "band": "capital",
+      "tier": "normal",
+      "name": "Asteroid Serpentis Titan"
+    },
+    {
+      "groupID": 1720,
+      "factionID": 500020,
+      "band": "battleship",
+      "tier": "normal",
+      "name": "Roaming Serpentis Battleship"
+    },
+    {
+      "groupID": 1721,
+      "factionID": 500020,
+      "band": "cruiser",
+      "tier": "normal",
+      "name": "Roaming Serpentis Cruiser"
+    },
+    {
+      "groupID": 1722,
+      "factionID": 500020,
+      "band": "frigate",
+      "tier": "normal",
+      "name": "Roaming Serpentis Frigate"
+    },
+    {
+      "groupID": 1727,
+      "factionID": 500011,
+      "band": "battleship",
+      "tier": "normal",
+      "name": "Roaming Angel Cartel Battleship"
+    },
+    {
+      "groupID": 1728,
+      "factionID": 500011,
+      "band": "cruiser",
+      "tier": "normal",
+      "name": "Roaming Angel Cartel Cruiser"
+    },
+    {
+      "groupID": 1729,
+      "factionID": 500011,
+      "band": "frigate",
+      "tier": "normal",
+      "name": "Roaming Angel Cartel Frigate"
+    },
+    {
+      "groupID": 1734,
+      "factionID": 500012,
+      "band": "frigate",
+      "tier": "normal",
+      "name": "Roaming Blood Raider Frigate"
+    },
+    {
+      "groupID": 1735,
+      "factionID": 500012,
+      "band": "cruiser",
+      "tier": "normal",
+      "name": "Roaming Blood Raider Cruiser"
+    },
+    {
+      "groupID": 1736,
+      "factionID": 500012,
+      "band": "battlecruiser",
+      "tier": "normal",
+      "name": "Roaming Blood Raider Battlecruiser"
+    },
+    {
+      "groupID": 1737,
+      "factionID": 500012,
+      "band": "battleship",
+      "tier": "normal",
+      "name": "Roaming Blood Raider Battleship"
+    },
+    {
+      "groupID": 4652,
+      "factionID": 500018,
+      "band": "frigate",
+      "tier": "normal",
+      "name": "Insurgency Mordu Frigate"
+    },
+    {
+      "groupID": 4653,
+      "factionID": 500018,
+      "band": "destroyer",
+      "tier": "normal",
+      "name": "Insurgency Mordu Destroyer"
+    },
+    {
+      "groupID": 4654,
+      "factionID": 500018,
+      "band": "cruiser",
+      "tier": "normal",
+      "name": "Insurgency Mordu Cruiser"
+    },
+    {
+      "groupID": 4655,
+      "factionID": 500018,
+      "band": "battlecruiser",
+      "tier": "normal",
+      "name": "Insurgency Mordu Battlecruiser"
+    },
+    {
+      "groupID": 4656,
+      "factionID": 500018,
+      "band": "battleship",
+      "tier": "normal",
+      "name": "Insurgency Mordu Battleship"
+    },
+    {
+      "groupID": 4795,
+      "factionID": 500011,
+      "band": "cruiser",
+      "tier": "elite",
+      "name": "Asteroid Angel Cartel Officer Cruiser"
+    },
+    {
+      "groupID": 4796,
+      "factionID": 500011,
+      "band": "frigate",
+      "tier": "elite",
+      "name": "Asteroid Angel Cartel Officer Frigate"
+    },
+    {
+      "groupID": 4797,
+      "factionID": 500012,
+      "band": "cruiser",
+      "tier": "elite",
+      "name": "Asteroid Blood Raiders Officer Cruiser"
+    },
+    {
+      "groupID": 4798,
+      "factionID": 500012,
+      "band": "frigate",
+      "tier": "elite",
+      "name": "Asteroid Blood Raiders Officer Frigate"
+    },
+    {
+      "groupID": 4799,
+      "factionID": 500010,
+      "band": "cruiser",
+      "tier": "elite",
+      "name": "Asteroid Guristas Officer Cruiser"
+    },
+    {
+      "groupID": 4800,
+      "factionID": 500010,
+      "band": "frigate",
+      "tier": "elite",
+      "name": "Asteroid Guristas Officer Frigate"
+    },
+    {
+      "groupID": 4801,
+      "factionID": 500019,
+      "band": "cruiser",
+      "tier": "elite",
+      "name": "Asteroid Sansha's Nation Officer Cruiser"
+    },
+    {
+      "groupID": 4802,
+      "factionID": 500019,
+      "band": "frigate",
+      "tier": "elite",
+      "name": "Asteroid Sansha's Nation Officer Frigate"
+    },
+    {
+      "groupID": 4803,
+      "factionID": 500020,
+      "band": "cruiser",
+      "tier": "elite",
+      "name": "Asteroid Serpentis Officer Cruiser"
+    },
+    {
+      "groupID": 4804,
+      "factionID": 500020,
+      "band": "frigate",
+      "tier": "elite",
+      "name": "Asteroid Serpentis Officer Frigate"
+    }
+  ]
+}
