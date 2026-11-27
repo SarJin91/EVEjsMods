@@ -1,4 +1,4 @@
-# Industry Orphan Cleanup (EveJS loader mod)
+# Industry Orphan Cleanup (EveJS 0.12.9 loader mod)
 
 EveJS 0.12.9 `characterDeletionRuntime.deleteCharacter` destroys the items of a
 deleted character (NPC corporation member) but leaves the
@@ -52,3 +52,7 @@ Counters: `globalThis[Symbol.for("evejs.industryOrphanCleanup")].stats()`.
 
 `docker/entrypoint.sh` has `--require /app/mods/industryOrphanCleanup/loader.js`
 in both server blocks.
+
+## Tests
+
+`node mods/industryOrphanCleanup/test/run.js` (or `RunTests.bat`).

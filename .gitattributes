@@ -1,0 +1,6 @@
+# Files whose bytes are compared or hashed keep LF endings on Windows checkouts too.
+*.sh text eol=lf
+mods/customTypes/data/*.json text eol=lf
+mods/livingNewEden/lib/economy/data/capitalRecipes.js text eol=lf
+mods/shipWing/client/*.py text eol=lf
+mods/livingNewEden/client/*.py text eol=lf

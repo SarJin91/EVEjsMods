@@ -35,7 +35,8 @@ const COUNTER_NAMES = Object.freeze(["deferred.GOVERNOR", "deferred.ROUTE_BUDGET
   "lifecycle.away", "lifecycle.awayCapped", "lifecycle.returned", "lifecycle.returnedHome", "lifecycle.quit",
   "lifecycle.reborn", "lifecycle.rookieFallback", "lifecycle.wakeFailed",
   "lifecycle.promoted", "lifecycle.homeMoved", "lifecycle.careerSeeded",
-  "corps.dissolvedInactive", "corps.skippedInactive"]);
+  "corps.dissolvedInactive", "corps.skippedInactive",
+  "near.activityEvents", "near.activitySkipped", "live.activityCandidates"]);
 const LIVE_OUTCOMES = Object.freeze(["JUMPED", "DOCKED", "LEFT", "EXPIRED", "STUCK", "REFUSED", "KILLED"]);
 const TRAFFIC_MODES = Object.freeze(["replace", "mix"]);
 

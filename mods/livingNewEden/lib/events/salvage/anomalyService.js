@@ -2,6 +2,7 @@
 
 const { performance } = require("node:perf_hooks");
 const { deriveSeed } = require("../../util/rng");
+const { isThenable } = require("../../adapter/maybeAsync");
 const { effectivePool } = require("../../world/wreckPool");
 const { WRECK_ACTIVE } = require("../../world/wreckSchema");
 const { STATE: SITE_STATE } = require("../sites/schema");
@@ -473,7 +474,8 @@ function createSalvageAnomalyService(deps) {
 
   function flushQuietly(seam) {
     try {
-      seam.flush();
+      const flushed = seam.flush();
+      if (isThenable(flushed)) Promise.resolve(flushed).catch(() => undefined);
     } catch (_err) {
     }
   }

@@ -79,6 +79,7 @@ const MODULE_CHANNELS = Object.freeze(["scheduler", "economy", "battleResolver",
   "seasons",
   "population",
   "extraction",
+  "capsuleFx",
   "perf"]);
 
 const ALARMS = Object.freeze([

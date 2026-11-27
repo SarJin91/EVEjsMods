@@ -378,9 +378,6 @@ The `EVEJS_CUSTOMTYPES_SHOP_*` keys are in "Blueprint shop" below.
 
 ## Blueprint shop (public NPC contracts in the trade hubs)
 
-> **On EveJS 261115.2 keep the shop off** (`EVEJS_CUSTOMTYPES_SHOP_ENABLED=0`)
-> until a fix is released. Custom types and blueprints work without it.
-
 With `EVEJS_CUSTOMTYPES_SHOP_ENABLED=1` (the mod default is `0`; the Docker
 `compose.yaml` of this project sets it to `1`) the world process keeps
 **public item exchange contracts** of the NPC corporation **Outer Ring
@@ -654,3 +651,17 @@ changed).
   keeps it). `blueprintDrops` builds its drop pool from published category-9
   `itemTypes` rows, so custom blueprints never drop. Industry does not read
   `published`; `/createitem 340431` works and reports "[unpublished]".
+
+## Tests
+
+`RunTests.bat` or `node mods/customTypes/test/run.js` (about 1 s, no server).
+The tests build the PI pack from a 3-schematic fixture through the generator;
+T6 checks the shipped pack against `planetSchematics.jsonl` when the local SDE
+is present. Byte equality with the full SDE is `genPiBlueprints.js --check`.
+T10 checks the README table against the shipped pack (after a regeneration
+run `genPiBlueprints.js --readme-table --sde ...` too). OB1-OB3 run the officer
+generator on an in-memory SDE fixture; OB4/OB5 check the shipped officer pack
+(range, allocations, `buildPlan` together with the other packs). Byte equality
+with the full SDE is `genOfficerBlueprints.js --check`. CS1-CS6 cover pack v2
+(dogma overrides, guards, the three ship tables, shop hints, ship table probe,
+icons).

@@ -2,6 +2,10 @@
 
 const data = require("./data/liveProfiles");
 const { factionResolverOf } = require("./huntScene");
+const { GATE_EVENT, jumpInOptionsOf, broadcastJumpIn, broadcastJumpOut, broadcastGateEvent } = require("./gateJumpFx");
+const { presentBeams, motionOf } = require("./miningBeams");
+const explorerSites = require("./explorerSites");
+const { queueRotation } = require("./ballUpdates");
 
 const MAX_DETAIL = 120;
 const UNDOCK_SELECTION = "first";
@@ -36,6 +40,12 @@ const AGGRO_FUNCTIONS = Object.freeze({
 });
 const AGGRO_METHODS = Object.freeze(["readThreats", "armPilotTarget", "disarmPilotTarget"]);
 const RAT_AGGRO_METHODS = Object.freeze(["armPilotRatTarget", "releaseEngagedRats"]);
+const MOTION_PATHS = Object.freeze({ npc: "space/npc/npcService" });
+const FX_METHODS = Object.freeze(["presentGateJumpOut", "presentMiningBeams", "presentGateDeparture"]);
+const PATROL_METHODS = Object.freeze(["presentPatrolOrbit", "releasePatrolMotion"]);
+const EXPLORER_METHODS = Object.freeze(["readExplorerSites"]);
+const PATROL_MARKER = "lnePatrol";
+const ORBIT_OPTIONS = Object.freeze({ queueHistorySafeContract: true, suppressFreshAcquireReplay: true });
 const ALLOW_FRIENDLY_KEY = "allowFriendlyNpcTargets";
 
 function messageOf(err) {
@@ -57,6 +67,14 @@ function pointOf(value) {
   const y = Number(value.y);
   const z = Number(value.z);
   return Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z) ? { x, y, z } : null;
+}
+
+function arrivalPoseFrom(raw) {
+  if (!raw || typeof raw !== "object" || typeof raw.rotate !== "boolean") return null;
+  const position = pointOf(raw.position);
+  const direction = pointOf(raw.direction);
+  if (position === null || direction === null || !(Math.hypot(direction.x, direction.y, direction.z) > 0)) return null;
+  return { position, direction, rotate: raw.rotate };
 }
 
 function isIdList(list) {
@@ -216,7 +234,14 @@ function createHighsecTrafficScene(deps) {
     const slimName = spec && given(spec.slimName) ? spec.slimName : null;
     const offset = spec ? spec.spawnOffsetMeters : NaN;
     const shipTypeId = spec && given(spec.shipTypeId) ? spec.shipTypeId : undefined;
+    const jumpInMs = spec && given(spec.jumpInMs) ? spec.jumpInMs : undefined;
+    const gateEventsRaw = spec ? spec.gateEvents : undefined;
+    const poseRaw = spec ? spec.arrivalPose : undefined;
+    const pose = given(poseRaw) ? arrivalPoseFrom(poseRaw) : null;
     if (!isPositiveInt(systemId) || profileId === ""
+      || (given(poseRaw) && (pose === null || !given(gateId) || undock))
+      || (jumpInMs !== undefined && (!isPositiveInt(jumpInMs) || !given(gateId)))
+      || (given(gateEventsRaw) && (typeof gateEventsRaw !== "boolean" || jumpInMs === undefined))
       || (shipTypeId !== undefined && (!undock || !isPositiveInt(shipTypeId)))
       || given(gateId) === given(stationId)
       || (given(gateId) && !isPositiveInt(gateId)) || (given(stationId) && !isPositiveInt(stationId))
@@ -246,6 +271,10 @@ function createHighsecTrafficScene(deps) {
             z: u.point.z + u.direction.z * run },
           mode: "GOTO", speedFraction: 1 };
       }
+      if (pose !== null) {
+        spawnState = { position: pose.position, direction: pose.direction, targetPoint: pose.position, mode: "STOP",
+          speedFraction: 0 };
+      }
       const grid = given(gateId) ? { kind: "gate", id: gateId } : { kind: "station", id: stationId };
       const anchor = spawn.pickGridAnchor(systemId, grid);
       if (!anchor || anchor.ok !== true || !anchor.anchorDescriptor) {
@@ -267,35 +296,82 @@ function createHighsecTrafficScene(deps) {
       const pub = spawn.publish(systemId, [entityId]);
       if (!pub || pub.ok !== true) return refuseSpawned(spawn, systemId, entityId, "PUBLISH_FAILED");
       if (!(pub.published >= 1)) return refuseSpawned(spawn, systemId, entityId, "PUBLISH_PARTIAL");
-      return { ok: true, entityId };
+      let posed = {};
+      if (pose !== null) {
+        const rot = pose.rotate ? queueRotation(requireGame, sc.scene, entityId, pose.direction) : null;
+        posed = { posed: true, rotated: rot !== null && rot.ok === true && rot.sent === true };
+      }
+      if (jumpInMs === undefined) return { ok: true, entityId, ...posed };
+      const fx = broadcastJumpIn(sc.scene, entityId, jumpInOptionsOf(requireGame, jumpInMs));
+      const jumpIn = fx.ok === true && fx.sent === true;
+      if (gateEventsRaw !== true) return { ok: true, entityId, jumpIn, ...posed };
+      const ev = broadcastGateEvent(sc.scene, gateId, entityId, GATE_EVENT.ARRIVAL);
+      return { ok: true, entityId, jumpIn, arrival: ev.ok === true && ev.sent === true, ...posed };
     } catch (err) {
       return spawn ? refuseSpawned(spawn, systemId, entityId, messageOf(err))
         : { ok: false, reason: "SPAWN_FAILED", detail: messageOf(err) };
     }
   };
 
-  const warpTo = (systemId, entityId, point) => {
+  const warpTo = (systemId, entityId, point, opts) => {
     const target = pointOf(point);
-    if (!isPositiveInt(systemId) || !isPositiveInt(entityId) || target === null) {
+    const align = opts ? opts.align : undefined;
+    const clearAlignOrder = opts ? opts.clearAlignOrder : undefined;
+    const warpFx = opts ? opts.warpFx : undefined;
+    const flagOk = (value) => value === undefined || typeof value === "boolean";
+    if (!isPositiveInt(systemId) || !isPositiveInt(entityId) || target === null
+      || (opts !== undefined && (!opts || typeof opts !== "object")) || !flagOk(align) || !flagOk(clearAlignOrder)
+      || !flagOk(warpFx) || (align === true && clearAlignOrder === true)) {
       return { ok: false, reason: "INVALID_INPUT" };
     }
     try {
       const hunt = facade(getHuntScene, ["warpShips"]);
       if (!hunt) return { ok: false, reason: "SEAM_UNAVAILABLE" };
-      const r = hunt.warpShips(systemId, [entityId], target, { spreadMeters: 0 });
+      const r = hunt.warpShips(systemId, [entityId], target, { spreadMeters: 0,
+        ...(align === true ? { align: true } : {}), ...(clearAlignOrder === true ? { clearAlignOrder: true } : {}),
+        ...(warpFx === true ? { warpFx: true } : {}) });
       if (!r || r.ok !== true) {
         return { ok: false, reason: String((r && r.reason) || "WARP_FAILED"),
           ...(r && r.detail ? { detail: String(r.detail).slice(0, MAX_DETAIL) } : {}) };
       }
       const warped = Number(r.warped) >= 1;
-      return r.detail ? { ok: true, warped, detail: String(r.detail).slice(0, MAX_DETAIL) } : { ok: true, warped };
+      const out = align === true ? { ok: true, warped, aligned: Number(r.aligned) >= 1 } : { ok: true, warped };
+      if (warpFx === true) out.warpFx = Number(r.warpFx) >= 1;
+      if (r.detail) out.detail = String(r.detail).slice(0, MAX_DETAIL);
+      return out;
     } catch (err) {
       return { ok: false, reason: "WARP_FAILED", detail: messageOf(err) };
     }
   };
 
-  const readShips = (systemId, entityIds) => {
-    if (!isPositiveInt(systemId) || !isIdList(entityIds)) return { ok: false, reason: "INVALID_INPUT" };
+  const playerAggressedAtOf = (npc, scene, entityId) => {
+    if (!npc) return 0;
+    try {
+      const controller = npc.getControllerByEntityID(entityId);
+      const aggressorId = controller && typeof controller === "object" ? toPositiveInt(controller.lastAggressorID) : 0;
+      if (!aggressorId) return 0;
+      const aggressor = scene.getEntityByID(aggressorId);
+      if (!aggressor || typeof aggressor !== "object") return 0;
+      if (!aggressor.session) {
+        const controllerId = toPositiveInt(aggressor.controllerID);
+        const owner = controllerId ? scene.getEntityByID(controllerId) : null;
+        if (!owner || typeof owner !== "object" || !owner.session) return 0;
+      }
+      const at = Number(controller.lastAggressedAtMs);
+      return Number.isFinite(at) && at > 0 ? at : 0;
+    } catch (_err) {
+      return 0;
+    }
+  };
+
+  const readShips = (systemId, entityIds, opts) => {
+    const aggressionRaw = opts && typeof opts === "object" ? opts.aggression : undefined;
+    if (!isPositiveInt(systemId) || !isIdList(entityIds)
+      || (opts !== undefined && (!opts || typeof opts !== "object"))
+      || (aggressionRaw !== undefined && typeof aggressionRaw !== "boolean")) {
+      return { ok: false, reason: "INVALID_INPUT" };
+    }
+    const aggression = aggressionRaw === true;
     try {
       const hunt = facade(getHuntScene, ["readShips"]);
       if (!hunt) return { ok: false, reason: "SEAM_UNAVAILABLE" };
@@ -306,6 +382,14 @@ function createHighsecTrafficScene(deps) {
       if (!r || r.ok !== true || !Array.isArray(r.ships)) {
         return { ok: false, reason: (r && r.reason === "SEAM_UNAVAILABLE") ? "SEAM_UNAVAILABLE" : "READ_FAILED" };
       }
+      let npc = null;
+      if (aggression) {
+        try {
+          npc = aggroNpcOf();
+        } catch (_err) {
+          npc = null;
+        }
+      }
       const live = [];
       const seen = new Set();
       for (const ship of r.ships) {
@@ -313,7 +397,9 @@ function createHighsecTrafficScene(deps) {
         const position = pointOf(ship && ship.position);
         if (!entityId || position === null || seen.has(entityId)) continue;
         seen.add(entityId);
-        live.push({ entityId, position, inWarp: ship.inWarp === true });
+        live.push(aggression ? { entityId, position, inWarp: ship.inWarp === true,
+          playerAggressedAt: playerAggressedAtOf(npc, sc.scene, entityId) }
+          : { entityId, position, inWarp: ship.inWarp === true });
       }
       return { ok: true, sceneLoaded: true, live, gone: entityIds.filter((id) => !seen.has(id)) };
     } catch (err) {
@@ -749,9 +835,114 @@ function createHighsecTrafficScene(deps) {
     }
   };
 
+  const presentGateJumpOut = (systemId, entityId, gateId) => {
+    if (!isPositiveInt(systemId) || !isPositiveInt(entityId) || !isPositiveInt(gateId)) {
+      return { ok: false, reason: "INVALID_INPUT" };
+    }
+    try {
+      const sc = sceneOf(systemId);
+      if (!sc.ok) return sc;
+      return broadcastJumpOut(sc.scene, entityId, gateId);
+    } catch (err) {
+      return { ok: false, reason: "FX_FAILED", detail: messageOf(err) };
+    }
+  };
+
+  const presentGateDeparture = (systemId, entityId, gateId) => {
+    if (!isPositiveInt(systemId) || !isPositiveInt(entityId) || !isPositiveInt(gateId)) {
+      return { ok: false, reason: "INVALID_INPUT" };
+    }
+    try {
+      const sc = sceneOf(systemId);
+      if (!sc.ok) return sc;
+      return broadcastGateEvent(sc.scene, gateId, entityId, GATE_EVENT.DEPARTURE);
+    } catch (err) {
+      return { ok: false, reason: "FX_FAILED", detail: messageOf(err) };
+    }
+  };
+
+  const motionNpcOf = () => {
+    if (typeof requireGame !== "function") return null;
+    const read = requireGame(MOTION_PATHS.npc);
+    return motionOf(read && read.ok === true && read.exports ? read.exports : null);
+  };
+
+  const presentMiningBeams = (systemId, req) => {
+    if (!isPositiveInt(systemId)) return { ok: false, reason: "INVALID_INPUT" };
+    try {
+      const sc = sceneOf(systemId);
+      if (!sc.ok) return sc;
+      return presentBeams(sc.scene, req, req && req.approach ? motionNpcOf() : null);
+    } catch (err) {
+      return { ok: false, reason: "FX_FAILED", detail: messageOf(err) };
+    }
+  };
+
+  const patrolMotionOf = () => {
+    if (typeof requireGame !== "function") return null;
+    const read = requireGame(MOTION_PATHS.npc);
+    return motionOf(read && read.ok === true && read.exports ? read.exports : null, PATROL_MARKER);
+  };
+
+  const validOrbit = (opts) => Boolean(opts) && typeof opts === "object" && Number.isFinite(opts.meters)
+    && opts.meters > 0 && Number.isFinite(opts.speedFraction) && opts.speedFraction > 0 && opts.speedFraction <= 1;
+
+  const presentPatrolOrbit = (systemId, entityId, targetId, opts) => {
+    if (!isPositiveInt(systemId) || !isPositiveInt(entityId) || !isPositiveInt(targetId) || !validOrbit(opts)) {
+      return { ok: false, reason: "INVALID_INPUT" };
+    }
+    let motion = null;
+    try {
+      const sc = sceneOf(systemId);
+      if (!sc.ok) return sc;
+      const scene = sc.scene;
+      motion = typeof scene.orbitShipEntity === "function" ? patrolMotionOf() : null;
+      if (!motion) return { ok: false, reason: "SEAM_UNAVAILABLE" };
+      const ship = scene.getEntityByID(entityId);
+      if (!ship || !scene.getEntityByID(targetId)) return { ok: true, orbiting: false, reason: "FAILED" };
+      const scripted = motion.script(entityId);
+      if (scripted.ok !== true) return { ok: true, orbiting: false, reason: scripted.reason };
+      const accepted = scene.orbitShipEntity(ship, targetId, opts.meters,
+        { speedFraction: opts.speedFraction, ...ORBIT_OPTIONS }) === true;
+      if (accepted) return { ok: true, orbiting: true };
+      motion.release(entityId);
+      return { ok: true, orbiting: false, reason: "REFUSED" };
+    } catch (_err) {
+      if (motion) motion.release(entityId);
+      return { ok: true, orbiting: false, reason: "FAILED" };
+    }
+  };
+
+  const releasePatrolMotion = (systemId, entityId) => {
+    if (!isPositiveInt(systemId) || !isPositiveInt(entityId)) return { ok: false, reason: "INVALID_INPUT" };
+    try {
+      const motion = patrolMotionOf();
+      if (!motion) return { ok: false, reason: "SEAM_UNAVAILABLE" };
+      return { ok: true, released: motion.release(entityId) };
+    } catch (err) {
+      return { ok: false, reason: "FX_FAILED", detail: messageOf(err) };
+    }
+  };
+
+  const readExplorerSites = (systemId, opts) => {
+    if (!isPositiveInt(systemId)) return { ok: false, reason: "INVALID_INPUT" };
+    try {
+      const sc = sceneOf(systemId);
+      if (!sc.ok) return sc;
+      const read = requireGame(explorerSites.SIGNATURE_RUNTIME_PATH);
+      return explorerSites.readExplorerSites(read && read.ok === true ? read.exports : null, sc.scene, systemId, opts);
+    } catch (err) {
+      return { ok: false, reason: "READ_FAILED", detail: messageOf(err) };
+    }
+  };
+
   return Object.freeze({ readNodes, readPlayers, spawnCivilian, warpTo, readShips, despawn, listTrafficIds,
-    dockPointOf, readThreats, armPilotTarget, disarmPilotTarget, armPilotRatTarget, releaseEngagedRats });
+    dockPointOf, readThreats, armPilotTarget, disarmPilotTarget, armPilotRatTarget, releaseEngagedRats,
+    presentGateJumpOut, presentMiningBeams, presentGateDeparture, presentPatrolOrbit, releasePatrolMotion,
+    readExplorerSites });
 }
 
 module.exports = { PATHS, FUNCTIONS, UNDOCK_PATHS, UNDOCK_FUNCTIONS, SEAM_METHODS, AGGRO_PATHS, AGGRO_FUNCTIONS,
-  AGGRO_METHODS, RAT_AGGRO_METHODS, isTrafficVictim, createHighsecTrafficScene, checkHighsecTrafficSceneFrom };
+  AGGRO_METHODS, RAT_AGGRO_METHODS, FX_METHODS, PATROL_METHODS, EXPLORER_METHODS, isTrafficVictim,
+  createHighsecTrafficScene,
+  checkHighsecTrafficSceneFrom };

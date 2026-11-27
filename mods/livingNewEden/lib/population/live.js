@@ -5,14 +5,36 @@ const rules = require("./rules");
 
 const { STATE, INTENT, LIVE_OUTCOMES } = S_;
 const EMPTY = Object.freeze([]);
+const NO_INTENTS = Object.freeze(new Set());
+const ACTIVITY_ROLES = Object.freeze({ [INTENT.RAT]: "RATTER", [INTENT.EXPLORE]: "EXPLORER" });
 
 let tokenSeq = 0;
 
-function candidateOf(p, event, rs, systemId) {
+function activityIntentCodes(names) {
+  if (!Array.isArray(names)) return EMPTY;
+  const out = [];
+  for (const name of names) {
+    const code = typeof name === "string" ? INTENT[name] : undefined;
+    if (Number.isInteger(code) && ACTIVITY_ROLES[code] && !out.includes(code)) out.push(code);
+  }
+  return out.length > 0 ? Object.freeze(out.sort((a, b) => a - b)) : EMPTY;
+}
+
+function activityCandidate(base, p, fromSystemId) {
+  return { ok: true, candidate: Object.freeze({ ...base, role: ACTIVITY_ROLES[p.intent], exit: "NONE", fromSystemId,
+    toSystemId: 0 }) };
+}
+
+function candidateOf(p, event, rs, systemId, intents) {
   if (!p) return { ok: false, reason: "NO_PILOT" };
   if (p.systemId !== systemId) return { ok: false, reason: "MOVED" };
   if (p.state === STATE.POD) return { ok: false, reason: "POD" };
+  const acts = intents instanceof Set ? intents : NO_INTENTS;
   const base = { pilotId: p.pilotId, kind: event.kind, shipTypeId: p.shipTypeId, at: event.at };
+  const isActivity = p.state === STATE.ACTIVE && acts.has(p.intent) && Boolean(ACTIVITY_ROLES[p.intent]);
+  if (event.kind === "ACTIVITY") {
+    return isActivity && p.intent === event.intent ? activityCandidate(base, p, 0) : { ok: false, reason: "LOCAL_ONLY" };
+  }
   const onRoute = Boolean(rs && rs.route && rs.route[rs.at] === systemId);
   if (event.kind === "DEPART") {
     if (p.state !== STATE.TRAVEL) return { ok: false, reason: "LOCAL_ONLY" };
@@ -33,6 +55,7 @@ function candidateOf(p, event, rs, systemId) {
     return { ok: true, candidate: Object.freeze({ ...base, role: "MINER", exit: "NONE", fromSystemId: p.prevId,
       toSystemId: 0 }) };
   }
+  if (isActivity && event.kind === "ARRIVE") return activityCandidate(base, p, p.prevId);
   return { ok: false, reason: "LOCAL_ONLY" };
 }
 
@@ -42,8 +65,25 @@ function createLiveOwnership(deps) {
   const isLiveHull = typeof deps.isLiveHull === "function" ? deps.isLiveHull : () => true;
   const L = S.live;
   const maxOwned = deps.maxOwned;
+  const intents = deps.activityIntents instanceof Set ? deps.activityIntents : NO_INTENTS;
   const owned = new Map();
   const used = new Map();
+
+  function considered(event, sys, accept) {
+    if (owned.has(event.pilotId) || isGroupMember(event.pilotId)) return null;
+    const usedAt = used.get(event.pilotId);
+    if (usedAt !== undefined && event.at <= usedAt) return null;
+    const p = pilots.get(event.pilotId);
+    if (p && !isLiveHull(p.shipTypeId)) {
+      bump("hulls.noLiveProfile");
+      return null;
+    }
+    if (p && accept && !accept(p.shipTypeId)) return null;
+    const c = candidateOf(p, event, pilots.route(event.pilotId), sys, intents);
+    if (c.ok) return c.candidate;
+    if (c.reason === "NO_ROUTE") bump("live.noRoute");
+    return null;
+  }
 
   function candidatesIn(systemId, sinceMs, limit, acceptHull) {
     const sys = Number(systemId);
@@ -52,18 +92,20 @@ function createLiveOwnership(deps) {
     const out = [];
     for (const event of near.eventsInto(sys, sinceMs, near.ringSize)) {
       if (out.length >= n) break;
-      if (owned.has(event.pilotId) || isGroupMember(event.pilotId)) continue;
-      const usedAt = used.get(event.pilotId);
-      if (usedAt !== undefined && event.at <= usedAt) continue;
-      const p = pilots.get(event.pilotId);
-      if (p && !isLiveHull(p.shipTypeId)) {
-        bump("hulls.noLiveProfile");
-        continue;
+      const c = considered(event, sys, accept);
+      if (c) out.push(c);
+    }
+    if (intents.size > 0 && out.length < n) {
+      const taken = new Set(out.map((c) => c.pilotId));
+      for (const event of near.activitiesInto(sys, sinceMs, near.activityRingSize)) {
+        if (out.length >= n) break;
+        if (taken.has(event.pilotId)) continue;
+        const c = considered(event, sys, accept);
+        if (!c) continue;
+        out.push(c);
+        taken.add(c.pilotId);
+        bump("live.activityCandidates");
       }
-      if (p && accept && !accept(p.shipTypeId)) continue;
-      const c = candidateOf(p, event, pilots.route(event.pilotId), sys);
-      if (c.ok) out.push(c.candidate);
-      else if (c.reason === "NO_ROUTE") bump("live.noRoute");
     }
     return out.length > 0 ? Object.freeze(out) : EMPTY;
   }
@@ -170,4 +212,4 @@ function createLiveOwnership(deps) {
     isOwned: (id) => owned.has(Number(id)) });
 }
 
-module.exports = { createLiveOwnership, candidateOf };
+module.exports = { createLiveOwnership, candidateOf, activityIntentCodes };

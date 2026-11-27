@@ -1,0 +1,9 @@
+{"_key": 30000001, "constellationID": 20000001, "regionID": 10000001, "securityStatus": 0.9}
+{"_key": 30000002, "constellationID": 20000001, "regionID": 10000001, "securityStatus": 0.5}
+{"_key": 30000003, "constellationID": 20000001, "regionID": 10000001, "securityStatus": 0.3}
+{"_key": 30000004, "constellationID": 20000001, "regionID": 10000001, "securityStatus": 0.03}
+{"_key": 30000005, "constellationID": 20000001, "regionID": 10000001, "securityStatus": -0.04}
+{"_key": 30000006, "constellationID": 20000003, "regionID": 10000001, "securityStatus": 0.7}
+{"_key": 30000020, "constellationID": 20000002, "regionID": 10000002, "securityStatus": -0.5}
+{"_key": 30000021, "constellationID": 20000002, "regionID": 10000002, "securityStatus": -0.3}
+{"_key": 30000022, "constellationID": 20000002, "regionID": 10000002, "securityStatus": -0.2}

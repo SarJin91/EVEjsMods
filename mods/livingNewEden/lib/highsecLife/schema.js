@@ -1,5 +1,7 @@
 "use strict";
 
+const { followMetersOf } = require("../util/miningBeamPlan");
+
 const CIVILIAN_POOL_ID = 1;
 
 const CIVILIAN_POOL_KEY = "civ";
@@ -57,7 +59,18 @@ const TRAFFIC_COUNTER_NAMES = Object.freeze(["passes", "spawned", "arrived", "ex
   "miners", "failed.names",
   "pilotSpawned", "pilotCapRefused", "pilotHullFallback", "pilotNoGate", "pilotBackoff", "pilotKilled",
   "pilotNoLiveProfile", "pilotHullsUnverified", "pilotHullLookRejected",
-  "groupMemberSpawned", "groupMembersCapped", "groupMemberNoProfile", "groupMembersReclaimed", "groupMembersDropped"]);
+  "groupMemberSpawned", "groupMembersCapped", "groupMemberNoProfile", "groupMembersReclaimed", "groupMembersDropped",
+  "jumpInFx", "jumpOutFx", "jumpFxFailed", "alignWarps", "alignFellBack", "alignTimeouts",
+  "visibleWarpFx", "visibleWarpFxCut",
+  "miningBeamRefresh", "miningBeamFx", "miningBeamBudgetCut", "miningBeamNoRock", "failed.beams",
+  "miningBeamApproachOrders", "miningBeamApproaching", "miningBeamApproachBusy", "miningBeamApproachRefused",
+  "miningBeamApproachReleased",
+  "fleeTriggered", "fleeWarps", "fleeRetry", "fleeNoTarget", "fleeAlarmed", "fleeAlarmBudgetCut", "fleeAlarmVictims",
+  "gateArrivalEvents", "gateDepartureEvents", "gateEventFailed", "gateEventBudgetCut",
+  "gateArrivalPoses", "gateArrivalRotations", "gateArrivalPoseFailed", "gateArrivalNoHeading",
+  "ratters", "ratterCapped", "ratterBelts", "ratterOrbits", "ratterOrbitRefused", "patrolReleased",
+  "explorers", "explorerCapped", "explorerScans", "explorerSites", "explorerNoSite", "explorerSiteGone",
+  "explorerNpcBlocked", "explorerReadBudget", "explorerNoSafeSpot", "failed.sites"]);
 
 const TRAFFIC_STATE = Object.freeze({ OFF: "off", RUNNING: "running", STOPPED: "stopped" });
 
@@ -187,11 +200,47 @@ const TRAFFIC_INTS = Object.freeze(["pollMs", "spawnIntervalMs", "maxLifetimeMs"
   "civiliansPerShip", "pairCivilians", "minCivilians", "maxSystemsPerPass", "departDelayMs", "spawnOffsetMeters",
   "landingOffsetMeters", "arrivalMeters", "dockDelayMs", "exitGraceMs", "stationTargetPermille", "maxWarpAttempts",
   "undockPermille", "undockRunMeters", "gateIdlePermille", "gateIdleMinMs", "gateIdleMaxMs",
-  "minerPermille", "minerStayMinMs", "minerStayMaxMs", "minerAsteroidMeters"]);
+  "minerPermille", "minerStayMinMs", "minerStayMaxMs", "minerAsteroidMeters", "gateJumpInDurationMs",
+  "gateJumpOutDespawnMs", "alignTimeoutMs", "miningBeamViewMeters", "miningBeamRockMeters", "miningBeamRefreshMs",
+  "miningBeamMaxFxPerPass", "fleeWindowMs", "fleeRetryMs", "fleeMinMeters", "gateControllerEventMaxPerPass",
+  "miningBeamStartMeters", "miningBeamApproachMeters", "miningBeamRetryMs",
+  "ratterPermille", "ratterMaxPerSystem", "ratterBeltsMin", "ratterBeltsMax", "ratterDwellMinMs", "ratterDwellMaxMs",
+  "ratterLandingMeters", "ratterOrbitMeters", "ratterOrbitSpeedPermille", "ratterLegMs",
+  "explorerPermille", "explorerMaxPerSystem", "explorerMaxSites", "explorerScanMs", "explorerSiteDwellMs",
+  "explorerSiteOffsetMeters", "explorerNpcClearMeters", "explorerSafeSpotOffsetMeters", "explorerSafeSpotMinMeters",
+  "explorerSafeSpotTries", "explorerSiteReadsPerPass", "explorerLegMs", "fleeAlarmMeters", "fleeAlarmMaxPerPass",
+  "visibleWarpMaxFxPerPass", "gateArrivalTurnMinDeg", "gateArrivalTurnMaxDeg"]);
 const TRAFFIC_POSITIVE = Object.freeze(["pollMs", "spawnIntervalMs", "maxLifetimeMs", "civiliansPerShip",
-  "maxSystemsPerPass", "arrivalMeters", "maxWarpAttempts"]);
+  "maxSystemsPerPass", "arrivalMeters", "maxWarpAttempts", "gateJumpInDurationMs", "gateJumpOutDespawnMs",
+  "alignTimeoutMs", "miningBeamViewMeters", "miningBeamRockMeters", "miningBeamRefreshMs", "fleeWindowMs",
+  "fleeRetryMs", "miningBeamStartMeters", "miningBeamApproachMeters", "miningBeamRetryMs",
+  "ratterBeltsMin", "ratterBeltsMax", "ratterDwellMinMs", "ratterOrbitMeters", "ratterOrbitSpeedPermille",
+  "ratterLegMs", "explorerMaxSites", "explorerScanMs", "explorerSiteDwellMs", "explorerNpcClearMeters",
+  "explorerSafeSpotTries", "explorerLegMs", "fleeAlarmMeters"]);
 const TRAFFIC_BOOLEANS = Object.freeze(["undockEnabled", "dockToPointEnabled", "gateIdleEnabled", "namesEnabled",
-  "minerEnabled"]);
+  "minerEnabled", "gateJumpFxEnabled", "alignBeforeWarpEnabled", "miningBeamsEnabled", "fleeEnabled",
+  "gateControllerEventsEnabled", "miningBeamApproachEnabled", "ratterEnabled", "explorerEnabled", "fleeAlarmEnabled",
+  "visibleWarpEnabled", "gateArrivalPoseEnabled"]);
+const NO_ACTIVITY_INTENTS = Object.freeze([]);
+const EXPLORER_FAMILIES = Object.freeze(["data", "relic"]);
+
+function parseExplorerFamilies(value) {
+  const parts = splitList(value);
+  if (!parts || parts.some((p) => !EXPLORER_FAMILIES.includes(p)) || new Set(parts).size !== parts.length) return null;
+  return Object.freeze(parts);
+}
+
+function trafficActivityIntentsOf(config) {
+  const H = config && typeof config === "object" ? config.highsecLife : null;
+  const T = H && typeof H === "object" ? H.traffic : null;
+  if (!T || typeof T !== "object" || H.enabled !== true || T.enabled !== true || H.civilianHullsEnabled !== true) {
+    return NO_ACTIVITY_INTENTS;
+  }
+  const out = [];
+  if (T.ratterEnabled === true) out.push("RAT");
+  if (T.explorerEnabled === true) out.push("EXPLORE");
+  return out.length > 0 ? Object.freeze(out) : NO_ACTIVITY_INTENTS;
+}
 
 function trafficSettingsOf(config) {
   const T = config && config.highsecLife && config.highsecLife.traffic;
@@ -205,6 +254,8 @@ function trafficSettingsOf(config) {
   }
   const bands = parseBands(T.bands);
   if (!bands) return { ok: false, reason: "INVALID_SETTINGS", detail: "traffic.bands" };
+  const explorerFamilies = parseExplorerFamilies(T.explorerFamilies);
+  if (!explorerFamilies) return { ok: false, reason: "INVALID_SETTINGS", detail: "traffic.explorerFamilies" };
   for (const k of TRAFFIC_BOOLEANS) {
     if (typeof T[k] !== "boolean") return { ok: false, reason: "INVALID_SETTINGS", detail: `traffic.${k}` };
   }
@@ -214,11 +265,20 @@ function trafficSettingsOf(config) {
   if (T.minerStayMinMs > T.minerStayMaxMs) {
     return { ok: false, reason: "INVALID_SETTINGS", detail: "traffic.minerStayMinMs>minerStayMaxMs" };
   }
+  if (T.ratterBeltsMin > T.ratterBeltsMax) {
+    return { ok: false, reason: "INVALID_SETTINGS", detail: "traffic.ratterBeltsMin>ratterBeltsMax" };
+  }
+  if (T.ratterDwellMinMs > T.ratterDwellMaxMs) {
+    return { ok: false, reason: "INVALID_SETTINGS", detail: "traffic.ratterDwellMinMs>ratterDwellMaxMs" };
+  }
+  if (T.gateArrivalTurnMinDeg > T.gateArrivalTurnMaxDeg) {
+    return { ok: false, reason: "INVALID_SETTINGS", detail: "traffic.gateArrivalTurnMinDeg>gateArrivalTurnMaxDeg" };
+  }
   const hulls = config.highsecLife.civilianHullsEnabled;
   if (hulls !== undefined && typeof hulls !== "boolean") {
     return { ok: false, reason: "INVALID_SETTINGS", detail: "highsecLife.civilianHullsEnabled" };
   }
-  const settings = { enabled: T.enabled, bands };
+  const settings = { enabled: T.enabled, bands, explorerFamilies };
   for (const k of TRAFFIC_INTS) settings[k] = T[k];
   for (const k of TRAFFIC_BOOLEANS) settings[k] = T[k];
   settings.civilianHullsEnabled = hulls === true;
@@ -226,6 +286,10 @@ function trafficSettingsOf(config) {
   settings.undockPermille = Math.min(T.undockPermille, MAX_PERMILLE);
   settings.gateIdlePermille = Math.min(T.gateIdlePermille, MAX_PERMILLE);
   settings.minerPermille = Math.min(T.minerPermille, MAX_PERMILLE);
+  settings.ratterPermille = Math.min(T.ratterPermille, MAX_PERMILLE);
+  settings.ratterOrbitSpeedPermille = Math.min(T.ratterOrbitSpeedPermille, MAX_PERMILLE);
+  settings.explorerPermille = Math.min(T.explorerPermille, MAX_PERMILLE);
+  settings.miningBeamApproachMeters = followMetersOf(T.miningBeamApproachMeters, T.miningBeamStartMeters);
   return { ok: true, settings: Object.freeze(settings) };
 }
 
@@ -335,9 +399,11 @@ module.exports = {
   parseHourCurve,
   parseHubSystemIds,
   parseGankSystemIds,
+  parseExplorerFamilies,
   settingsOf,
   chatterSettingsOf,
   freeChatterSettingsOf,
   trafficSettingsOf,
+  trafficActivityIntentsOf,
   gankSettingsOf,
 };

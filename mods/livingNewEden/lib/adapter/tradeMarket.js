@@ -1,6 +1,7 @@
 "use strict";
 
 const { isId } = require("./tradeContracts");
+const { ESCROW_OFFER } = require("./vendorTagFields");
 
 const SEED_ORDER_ID_MIN = 4000000000000000000n;
 
@@ -349,7 +350,7 @@ function attachBuyEscrowFrom(escrowState, spec) {
       pendingFill: null,
       createdAt: iso,
       updatedAt: iso,
-      lneOfferId: s.lneOfferId,
+      [ESCROW_OFFER]: s.lneOfferId,
     };
     const result = escrowState.putEscrowRecordDurable(record);
     if (!result || result.success !== true) {
@@ -678,7 +679,7 @@ function attachSellEscrowFrom(escrowState, spec) {
       updatedAt: iso,
       escrowType: "sell",
       escrowState: ESCROW_STATE_PLACING,
-      lneOfferId: s.lneOfferId,
+      [ESCROW_OFFER]: s.lneOfferId,
     };
     const result = escrowState.putEscrowRecordDurable(record);
     if (!result || result.success !== true) {
@@ -930,6 +931,7 @@ function parseMarketFillRule(marketText, corpText) {
 
 module.exports = {
   SEED_ORDER_ID_MIN,
+  orderIdKey,
   parseMarketFillRule,
   MARKET_FILL_IMPORT_RE,
   MARKET_FILL_RULE_RE,

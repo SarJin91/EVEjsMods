@@ -20,7 +20,8 @@ const LIVE_COUNTER_NAMES = Object.freeze(["live", "escaped", "killed", "despawne
   "liveEndFailed", "liveDisabled", "killRetry", "lootItems", "lootSkipped", "smugglerSpawned", "claimJournalFailed", "killGaveUp",
   "liveSceneRefused",
   "liveWoken", "liveWakeFailed",
-  "fleeGate", "fleeNoGate", "fleeRetry", "fleeApproach", "gateJump", "arrivalSpawn"]);
+  "fleeGate", "fleeNoGate", "fleeRetry", "fleeApproach", "gateJump", "arrivalSpawn",
+  "gateArrivalEvents", "gateDepartureEvents"]);
 const FLEE_FALLBACK_REASONS = Object.freeze(["NO_GATE", "SEAM_UNAVAILABLE", "INVALID_INPUT"]);
 
 const messageOf = (err) => String((err && err.message) || err).slice(0, MAX_DETAIL);
@@ -182,6 +183,10 @@ function createLiveStep(deps) {
 
   function escapeViaGate(seam, g, row, now) {
     const to = g.escape.systemId;
+    if (P.gateControllerEventsEnabled === true && isId(g.gateId) && typeof seam.presentGateDeparture === "function") {
+      const r = safeCall(() => seam.presentGateDeparture(g.systemId, g.bossId, g.gateId), null);
+      if (r && r.ok === true && r.sent === true) bump("gateDepartureEvents");
+    }
     end(seam, g, row, { systemId: to, nextMoveAt: g.escape.nextMoveAt }, now, "escaped", false);
     bump("gateJump");
     if (P.followSpawnWindowMs > 0) {
@@ -370,7 +375,8 @@ function createLiveStep(deps) {
       ? { kind: "gateTo", systemId: arrival.fromSystemId, index: belt.index, gateFallback: belt.gateFallback } : belt;
     const r = boss ? safeCall(() => seam.spawnGroup({ systemId: live.systemId, anchor,
       factionId: live.factionId, boss, escorts: archetype === AMBUSH ? [] : escorts, slimName: name, archetype,
-      seedKey: live.wantedId, ...(cargo.length > 0 ? { cargo } : {}) }), null)
+      seedKey: live.wantedId, ...(cargo.length > 0 ? { cargo } : {}),
+      ...(anchor.kind === "gateTo" && P.gateControllerEventsEnabled === true ? { gateEvents: true } : {}) }), null)
       : { ok: false, reason: "NO_PROFILE", detail: "level" };
     if (!r || r.ok !== true || !isId(r.bossId)) {
       const reason = String((r && r.reason) || "no_result");
@@ -389,6 +395,7 @@ function createLiveStep(deps) {
     }
     if (smuggler) bump("smugglerSpawned");
     if (anchor.kind === "gateTo" && r.arrivalGate === true) bump("arrivalSpawn");
+    if (Number.isSafeInteger(r.arrivals) && r.arrivals > 0) bump("gateArrivalEvents", r.arrivals);
     noteWake(r, live.wantedId, archetype);
     safeCall(() => seam.markShips([r.bossId], { wantedId: live.wantedId, version: live.version, role: "boss",
       cap: P.victimRegisterCap }), null);

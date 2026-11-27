@@ -5,3 +5,5 @@ node_modules/
 __pycache__/
 *.log
 _local/
+.claude/
+mods/livingNewEden/**/*.txt

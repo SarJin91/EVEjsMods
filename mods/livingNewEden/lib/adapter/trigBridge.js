@@ -12,7 +12,7 @@ const MARKER_KEY = "lneTrigBridge";
 const VENDOR_RANGE_LY = 5;
 const VENDOR_MAX_MASS_KG = 1480000000;
 const LIGHT_YEAR_METERS = 9460730472580800;
-const METHOD_SHA1 = "a3d2f3e2dccc582a5d31ac22ed855259dd022e67";
+const METHOD_SHA1 = "ca11d24c424b7eaaba5c6ff0a1b07f25cb839176";
 const FUNCTION_SHA1 = Object.freeze({
   getSolarSystemDistanceLy: "08308f00434f7458bf255cb044f9299415931cc9",
   calculateLiquidOzoneRequired: "1af788ee89dee90b0c9136de8f921779ad0da060",
@@ -200,7 +200,8 @@ function createJumpScope(deps) {
     const shipId = toPositiveInt(activeShip && activeShip.itemID);
     const ship = shipId ? d.runtime.getEntity(session, shipId) : null;
     const realMass = ship ? realMassOf(ship, activeShip) : 0;
-    return { kind: "scope", characterId, at: verdict.at, systemId: destination.systemId, position,
+    return { kind: "scope", characterId, at: verdict.at, sourceSystemId: source.systemId,
+      systemId: destination.systemId, position,
       ship: ship && typeof ship === "object" ? ship : null, realMass };
   };
 
@@ -209,10 +210,15 @@ function createJumpScope(deps) {
     st.hadOwnGetter = hasOwn(wd, SYSTEM_GETTER);
     st.prevGetter = wd[SYSTEM_GETTER];
     const prev = st.prevGetter;
-    const { systemId, position } = plan;
+    const { sourceSystemId, systemId, position } = plan;
+    // Only the source-then-destination lookup of the range check sees the moved destination; the capacitor zone reads the real one.
+    let lastId = 0;
     const scoped = function getSolarSystemByID(solarSystemID) {
       const row = prev.apply(this, arguments);
-      return row && Number(solarSystemID) === systemId ? { ...row, position: { ...position } } : row;
+      const id = Number(solarSystemID);
+      const pairLookup = lastId === sourceSystemId && id === systemId;
+      lastId = id;
+      return row && pairLookup ? { ...row, position: { ...position } } : row;
     };
     st.getterSet = true;
     wd[SYSTEM_GETTER] = scoped;

@@ -1,6 +1,7 @@
 "use strict";
 
 const { createPoller } = require("../../presence/poller");
+const { afterValue, isThenable } = require("../../adapter/maybeAsync");
 const { CONDITION_FULL, CONDITION_ARMOR_STAGE } = require("../../stations/structures/schema");
 const S = require("./schema");
 
@@ -24,6 +25,8 @@ const READ_FACTOR = 2;
 const isId = (v) => Number.isSafeInteger(v) && v > 0;
 const detailOf = (err) => String((err && err.message) || err).slice(0, MAX_DETAIL);
 const reasonOf = (r) => String((r && r.reason) || "NO_RESULT");
+const FLUSH_SKIPPED = Object.freeze({ ok: true });
+const flushThrew = (err) => ({ ok: false, reason: "FLUSH_FAILED", detail: detailOf(err) });
 const inStates = (names, states, state) => names.some((n) => Number.isSafeInteger(states[n]) && states[n] === state);
 
 class Rollback {
@@ -69,6 +72,7 @@ function createSovPhysicalPump(deps) {
   let poller = null;
   let stopped = false;
   let passes = 0;
+  let inFlight = null;
   let physical = null;
   let lastRefusal = null;
   let lastPassAt = null;
@@ -351,13 +355,20 @@ function createSovPhysicalPump(deps) {
       if (ctx.records.length > before) count += 1;
     }
     count -= ctx.records.filter((r) => r.itemId === null).length;
+    const settle = (flushed) => settlePass(flushed, read, observedList, ctx, count, now);
     if (ctx.vendorWrites > 0) {
-      const flushed = seam.flushStructures();
-      if (!flushed || !flushed.ok) {
-        refused("FLUSH", flushed);
-        ctx.records = ctx.records.filter((r) => !r.vendor);
-        ctx.created = 0;
-      }
+      return afterValue(seam.flushStructures(), settle, (err) => settle(flushThrew(err)));
+    }
+    return settle(FLUSH_SKIPPED);
+  }
+
+  function settlePass(flushed, read, observedList, ctx, countBefore, now) {
+    if (stopped) return;
+    let count = countBefore;
+    if (!flushed || !flushed.ok) {
+      refused("FLUSH", flushed);
+      ctx.records = ctx.records.filter((r) => !r.vendor);
+      ctx.created = 0;
     }
     recordAll(ctx.records, now);
     bump("physicalCreated", ctx.created);
@@ -389,28 +400,44 @@ function createSovPhysicalPump(deps) {
       writes += 1;
       if (removeTcu(view.structureId, view.tag, now)) gone += 1;
     }
-    if (gone > 0) {
-      const flushed = seam.flushStructures();
-      if (!flushed || !flushed.ok) refused("FLUSH", flushed);
-    }
     physical = live.length - gone;
     metric("gauge", METRIC_PHYSICAL_GAUGE, physical);
+    if (gone === 0) return undefined;
+    const settle = (flushed) => {
+      if (!stopped && (!flushed || !flushed.ok)) refused("FLUSH", flushed);
+    };
+    return afterValue(seam.flushStructures(), settle, (err) => settle(flushThrew(err)));
+  }
+
+  function passFailed(err) {
+    bump("physicalRefused");
+    lastRefusal = `THREW:${detailOf(err)}`;
+    log(`sovStructures: physical pass failed - ${detailOf(err)}`);
+  }
+
+  function endPass() {
+    passes += 1;
+    lastPassAt = clock.now();
   }
 
   function runPass() {
-    if (stopped) return;
+    if (stopped) return undefined;
+    if (inFlight !== null) return inFlight;
+    let pending;
     try {
-      if (!admitted()) return;
-      if (mode === MODE.CLEANUP) cleanupPass();
-      else onPass();
+      if (admitted()) pending = mode === MODE.CLEANUP ? cleanupPass() : onPass();
     } catch (err) {
-      bump("physicalRefused");
-      lastRefusal = `THREW:${detailOf(err)}`;
-      log(`sovStructures: physical pass failed - ${detailOf(err)}`);
-    } finally {
-      passes += 1;
-      lastPassAt = clock.now();
+      passFailed(err);
     }
+    if (!isThenable(pending)) {
+      endPass();
+      return undefined;
+    }
+    inFlight = Promise.resolve(pending).then(() => undefined, passFailed).then(() => {
+      inFlight = null;
+      endPass();
+    });
+    return inFlight;
   }
 
   function start() {

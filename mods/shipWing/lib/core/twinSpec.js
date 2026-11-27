@@ -135,6 +135,7 @@ function buildTwinSpec(input) {
     nativeCargoItems,
     skillMap: new Map(src.skillMap instanceof Map ? src.skillMap : []),
     conditionState: isObj(ship.conditionState) ? { ...ship.conditionState } : {},
+    ...(Number(ship.structureDamageBasisHP) > 0 ? { structureDamageBasisHP: Number(ship.structureDamageBasisHP) } : {}),
     position,
     velocity: { x: 0, y: 0, z: 0 },
     direction: normalize(src.direction),

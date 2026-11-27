@@ -761,7 +761,7 @@ function createSentrySeam(deps) {
     },
     readCorporationName: (corpId) => withVendor((v) => readCorporationNameFrom(v, corpId)),
     checkFactionAmmo: (pairs) => withFaction((v) => faction.checkFactionAmmoFrom(v, pairs)),
-    deployFactionSentry: (spec) => withFaction((v) => faction.deployFactionSentryFrom(v, spec)),
+    deployFactionSentry: (spec, measure) => withFaction((v) => faction.deployFactionSentryFrom(v, spec, measure)),
     topUpAmmo: (spec) => withFaction((v) => faction.topUpAmmoFrom(v, spec)),
     readAmmo: (itemId, chargeTypeId) => withFaction((v) => faction.readAmmoFrom(v, itemId, chargeTypeId)),
     pruneReceipts: (isDead, maxRemove) => withFaction((v) => faction.pruneReceiptsFrom(v, isDead, maxRemove)),

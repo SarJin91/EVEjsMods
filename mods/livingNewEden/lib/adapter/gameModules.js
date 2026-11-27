@@ -97,6 +97,7 @@ const AMBIENT_RATS = "ambientRats";
 const AMBIENT_RATS_HIGHSEC = "ambientRatsHighsec";
 const HEAVY_EVENTS = "heavyEvents";
 const HIGHSEC_TRAFFIC = "highsecTraffic";
+const HIGHSEC_TRAFFIC_EXPLORER = "highsecTraffic.explorer";
 const SITUATIONS = "situations";
 const SEASON_REWARDS = "seasonRewards";
 const GRID_ANCHORS = "gridAnchors";
@@ -113,6 +114,7 @@ const HARVEST_RAID_SKYHOOK = "harvestRaidSkyhook";
 const EXTRACTION = "extraction";
 const POP_STANDING_AGGRO = "populationStandingAggro";
 const BOOKMARK_SITE_WARP = "bookmarkSiteWarp";
+const CAPSULE_FX = "capsuleFx";
 
 const GAME_MODULES = Object.freeze([
   mod("services/ship/beyonceService", [
@@ -261,9 +263,11 @@ const GAME_MODULES = Object.freeze([
   ]),
   mod("space/runtime", [
     sym("scenes", "property", [MATERIALIZATION, SALVAGE, AMBIENT_RATS, HEAVY_EVENTS, HIGHSEC_TRAFFIC, SHIP_AI_WING,
-      OFFICER_SPAWNS, BOUNTY, TRIG_BRIDGE, SITUATIONS, FACTION_INCURSION_EFFECTS], "scene read without loading"
-      + " readGrid; ambient rats; heavy events; highsec traffic; ship-ai wing; officer spawns; bounty scene; trig"
-      + " bridge look; situation anchors; faction incursion effects refresh"),
+      OFFICER_SPAWNS, BOUNTY, TRIG_BRIDGE, SITUATIONS, FACTION_INCURSION_EFFECTS, CAPSULE_FX], "scene read without"
+      + " loading readGrid; ambient rats; heavy events; highsec traffic; ship-ai wing; officer spawns; bounty scene;"
+      + " trig bridge look; situation anchors; faction incursion effects refresh; capsule effect scene fallback"),
+    ...["spawnDynamicShip", "getSceneByDescriptor"].map((name) => sym(name, "prototypeMethod", [CAPSULE_FX],
+      "capsule effect spawn; scene by descriptor without loading")),
     sym("droneInterop", "export", [CAPITAL_FIGHTERS, CAPITAL_FAX], "fighter strike; FAX repair",
       { valueType: "object" }),
     ...PRESENCE_NUDGE.map((name) => sym(name, "prototypeMethod", [], "nudge (optional, poll-only on DRIFT)")),
@@ -295,6 +299,8 @@ const GAME_MODULES = Object.freeze([
     sym("SolarSystemScene", "export", [TRIG_BRIDGE], "trig bridge look: the scene class"),
     sym("addStaticEntity", "classPrototypeMethod", [TRIG_BRIDGE], "trig bridge look (slimTypeID of a marked Ansiblex)",
       { wrap: true, classExport: "SolarSystemScene" }),
+    sym("queueBubbleHistory", "classPrototypeMethod", [HIGHSEC_TRAFFIC],
+      "highsec traffic warping effect to the bubble of the ball", { classExport: "SolarSystemScene" }),
   ], { factDir: "space/runtime/scene" }),
   mod("gameStore/index", [
     sym("registerShutdownHook", "export", ["persistence"], "persistence shutdown hook"),
@@ -304,6 +310,7 @@ const GAME_MODULES = Object.freeze([
       FC_STRUCTURES],
       "wreck tables (DRIFT = no flush); ISK durability; player siege; "
         + "TCU flush; flush"),
+    sym("flushTableDurable", "export", [], "persistence worker flush (optional, flushTableSync without it)"),
     sym("read", "export", ["virtualCorps", CONTRACT_LIST_LIVE, SHIP_AI_DB, NATIVE_INCURSIONS, FACTION_INCURSION_HUD],
       "read game store for scan/adopt; contract list live read; missions; "
         + "incursion tale list version"),
@@ -337,8 +344,8 @@ const GAME_MODULES = Object.freeze([
     sym("isCombatDormantControllerRecord", "export", [], "vendor fact; operatorKind qualifies for dormancy"),
   ]),
   mod("space/npc/nativeNpcStore", [
-    ...["allocateEntityID", "listNativeControllers"]
-      .map((name) => sym(name, "export", [], "vendor fact; not used")),
+    sym("allocateEntityID", "export", [CAPSULE_FX], "capsule effect transient entity id"),
+    sym("listNativeControllers", "export", [], "vendor fact; not used"),
     sym("getNativeEntity", "export", [HIGHSEC_TRAFFIC, CONVOY_CARGO, BOUNTY],
       "highsec traffic hauler bounty 0 in the store record; cargo owner; bounty loot"),
     sym("upsertNativeEntity", "export", [HIGHSEC_TRAFFIC], "highsec traffic hauler bounty 0 in the store record"),
@@ -376,7 +383,8 @@ const GAME_MODULES = Object.freeze([
     sym("listItemTypes", "export", [SHIP_AI_TOOLS], "ship-ai fuzzy item search by name fragments"),
   ]),
   mod("space/combat/killmailTracker", ["enqueueKillmailFromDestruction", "recordKillmailFromDestruction"]
-    .map((name) => sym(name, "export", ["materialization"], "killmail of a live kill", { firstLoad: true }))),
+    .map((name) => sym(name, "export", ["materialization", CAPSULE_FX], "killmail of a live kill; capsule effect",
+      { firstLoad: true }))),
   mod("services/dungeon/dungeonRuntime", [
     sym("createInstance", "export", ["sites"], "site instance create"),
     sym("findInstanceBySiteKey", "export", ["sites", SALVAGE, ARCHAEOLOGY],
@@ -384,7 +392,7 @@ const GAME_MODULES = Object.freeze([
     sym("setLifecycleState", "export", ["sites"], "site lifecycle"),
     sym("purgeInstance", "export", ["sites"], "site purge"),
     sym("peekNextInstanceID", "export", ["sites"], "site instance id"),
-    sym("getInstanceSummary", "export", [SITE_NAVY], "site family, origin, flags"),
+    sym("getInstanceSummary", "export", [SITE_NAVY, CAPSULE_FX], "site family, origin, flags; capsule mission source"),
     sym("getInstanceRef", "export", [SITE_NAVY, SHIP_AI_CALLOUT, ARCHAEOLOGY],
       "decision after a restart; ship-ai callout site faction of a dungeon NPC; "
         + "hack receipts of an archive site"),
@@ -410,6 +418,7 @@ const GAME_MODULES = Object.freeze([
   ]),
   mod("services/exploration/signatures/signatureRuntime", [
     sym("listSystemAnomalySites", "export", [HUNT_ANOMALIES], "hunt sweep anomalies"),
+    sym("listSystemSignatureSites", "export", [HIGHSEC_TRAFFIC_EXPLORER], "civilian explorer site read"),
   ]),
   mod("services/exploration/scanMgrService", [
     sym("notifyAnomalyDeltaForSystem", "method", [SITE_SCANNER], "Scanner delta after a hide"),
@@ -573,8 +582,12 @@ const GAME_MODULES = Object.freeze([
     sym("isWarping", "export", [CAPITAL_FIGHTERS], "movement"),
   ]),
   mod("space/destiny/identity/interactionScope", [
-    sym("canEntitiesInteractLocally", "export", [CAPITAL_FIGHTERS, CAPITAL_FAX],
-      "scope (dungeon, abyss, AIR); FAX repair"),
+    sym("canEntitiesInteractLocally", "export", [CAPITAL_FIGHTERS, CAPITAL_FAX, CAPSULE_FX],
+      "scope (dungeon, abyss, AIR); FAX repair; capsule effect player sees the victim scope"),
+    sym("buildChildEntityScopeMetadata", "export", [CAPSULE_FX], "capsule effect inherits the victim scope"),
+  ]),
+  mod("space/FireShow/showIdentity", [
+    sym("isFireShowShip", "export", [CAPSULE_FX], "capsule effect identity self check (no wreck, no killmail)"),
   ]),
   mod("space/npc/capitals/capitalNpcState", [
     sym("listControlledNpcFighters", "export", [CAPITAL_FIGHTERS], "fighters of a controller"),
@@ -979,6 +992,8 @@ const GAME_MODULES = Object.freeze([
   ]),
   mod("space/destiny/stream/actions", [
     sym("buildRemoveBallsPayload", "export", [CAPSULE_SWEEP], "capsule sweep RemoveBalls resend"),
+    sym("buildOnSpecialFXPayload", "export", [HIGHSEC_TRAFFIC], "highsec traffic warping effect on an instant warp"),
+    sym("buildSetBallRotationPayload", "export", [HIGHSEC_TRAFFIC], "highsec traffic arrival rotation at a gate"),
   ]),
   mod("contentPacks/autoInstallContentPacks", [
     sym("DROP_DIRECTORY", "export", [BUILD_INPUTS], "build inputs: content pack folder", { valueType: "string" }),

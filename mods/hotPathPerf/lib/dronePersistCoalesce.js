@@ -10,6 +10,26 @@ const MOTION_SET = new Set(MOTION_KEYS);
 const CAS_KEYS = Object.freeze(["locationID", "flagID", "ownerID", "typeID", "singleton", "launcherID", "customInfo"]);
 const FLUSH_REASONS = Object.freeze(["timer", "foreign", "dispose", "shutdown", "limit", "disable"]);
 const COALESCED = Object.freeze({ success: true, coalesced: true });
+const UPSTREAM_MARKERS = Object.freeze([
+  "\nfunction checkpointDroneMotion(scene, entity, now, force = false) {\n",
+  "\n      checkpoint.dueAt = now + DRONE_MOTION_CHECKPOINT_INTERVAL_MS;\n",
+  "\nfunction flushSceneDroneMotion(scenes) {\n",
+  "\n      checkpointDroneMotion(scene, droneEntity, checkpointTime);\n",
+]);
+
+function functionBody(text, name) {
+  const start = text.indexOf(`\nfunction ${name}(`);
+  if (start < 0) return "";
+  const end = text.indexOf("\n}\n", start);
+  return text.slice(start, end < 0 ? text.length : end);
+}
+
+function fixedUpstream(droneRuntimeSource) {
+  const text = String(droneRuntimeSource || "").replace(/\r\n/g, "\n");
+  if (!UPSTREAM_MARKERS.every((marker) => text.includes(marker))) return false;
+  const mining = functionBody(text, "tickDroneMining");
+  return mining !== "" && !mining.includes("persistDroneEntityState(") && !mining.includes("persistAndNotifyDroneState(");
+}
 
 function fit(text) {
   const s = String(text);
@@ -432,5 +452,5 @@ function createDronePersistCoalesce(options) {
 }
 
 module.exports = {
-  createDronePersistCoalesce, sameExceptMotion, casEqual, MOTION_KEYS, CAS_KEYS, HOOK_NAME, FLUSH_REASONS, COALESCED,
+  createDronePersistCoalesce, sameExceptMotion, casEqual, fixedUpstream, MOTION_KEYS, CAS_KEYS, HOOK_NAME, FLUSH_REASONS, COALESCED,
 };

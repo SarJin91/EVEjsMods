@@ -32,6 +32,12 @@ const BOARD_SCOPE_MODULES = Object.freeze({
   tags: "space/runtime/entityScopeTags",
 });
 const BOARD_ABYSSAL_ACTION = "board_space_ship";
+const BOARD_PURSUIT_MODULE = "services/security/shipPursuit";
+const BOARD_PURSUIT_OPERATION = "board";
+const BOARD_PURSUIT_REFUSAL = Object.freeze({
+  CONCORD_PURSUIT_ACTIVE: "CONCORD_PURSUIT",
+  FACTION_POLICE_PURSUIT_ACTIVE: "FACTION_POLICE_PURSUIT",
+});
 const BOARD_SERVER_MODULE = "space/transitions";
 
 const BOARD_GHOST_MODULE = "space/destiny/stream/actions";
@@ -94,6 +100,20 @@ function createWingAdapterCore(game, hooks = {}) {
 
   function loadedScene(sceneKey, scene) {
     return isObj(scene) && typeof sceneKey === "string" && sceneKey !== "" && runtime.scenes.get(sceneKey) === scene;
+  }
+
+  function pursuitRefusal(session, shipId) {
+    if (!board || typeof board.pursuit !== "function" || toPosInt(shipId) === 0) return null;
+    try {
+      const scene = runtime.getSceneForSession(session);
+      const ship = isObj(scene) ? scene.getEntityByID(toPosInt(shipId)) : null;
+      if (!isObj(ship)) return null;
+      const error = board.pursuit(scene, ship, BOARD_PURSUIT_OPERATION);
+      const code = isObj(error) ? error.errorMsg : null;
+      return Object.prototype.hasOwnProperty.call(BOARD_PURSUIT_REFUSAL, code) ? BOARD_PURSUIT_REFUSAL[code] : null;
+    } catch (_err) {
+      return null;
+    }
   }
 
   function hullState(item, ownerCharacterId) {
@@ -163,10 +183,13 @@ function createWingAdapterCore(game, hooks = {}) {
         if (!Number.isFinite(n)) return null;
         out[key] = n;
       }
+      const structureHP = Number(entity.structureHP);
+      if (Number.isFinite(structureHP) && structureHP > 0) out.structureHP = structureHP;
       return out;
     },
     writeCondition(shipItemId, condition) {
       if (!loss) return { ok: false, reason: "NO_LOSS_MODULES" };
+      const basisHP = Number(condition.structureHP);
       const result = itemStore.updateShipItem(shipItemId, (current) => ({
         ...current,
         conditionState: itemStore.normalizeShipConditionState({
@@ -174,6 +197,7 @@ function createWingAdapterCore(game, hooks = {}) {
           damage: condition.damage, charge: condition.charge,
           armorDamage: condition.armorDamage, shieldCharge: condition.shieldCharge,
         }),
+        structureDamageBasisHP: condition.damage > 0 && Number.isFinite(basisHP) && basisHP > 0 ? basisHP : null,
       }));
       if (!isObj(result) || result.success !== true) {
         return { ok: false, reason: String((result && result.errorMsg) || "UPDATE_FAILED") };
@@ -304,7 +328,8 @@ function createWingAdapterCore(game, hooks = {}) {
     core.boardVendorRefusal = (session) => {
       if (board.abyssal(session, BOARD_ABYSSAL_ACTION) != null) return "ABYSSAL";
       const shipId = isObj(session) ? ((isObj(session._space) && session._space.shipID) || session.shipID) : null;
-      return board.death.isShipDeathPending(shipId) === true ? "SHIP_DEATH_PENDING" : null;
+      if (board.death.isShipDeathPending(shipId) === true) return "SHIP_DEATH_PENDING";
+      return pursuitRefusal(session, shipId);
     };
     core.isDestroying = (entity) => isObj(entity)
       && board.destruction.isRuntimeEntityDestroyingOrDestroyed(entity) === true;
@@ -329,7 +354,7 @@ function createWingAdapterCore(game, hooks = {}) {
     if (isObj(game.boardServer)) {
       const transitions = game.boardServer;
       core.boardFromServer = (session, shipItemId) => {
-        const result = transitions.boardSpaceShip(session, shipItemId);
+        const result = transitions.boardSpaceShip(session, shipItemId, { abandonCurrentHull: true });
         if (isObj(result) && result.success === true) return { ok: true };
         return { ok: false, reason: String((isObj(result) && result.errorMsg) || "BOARD_FAILED") };
       };
@@ -445,6 +470,11 @@ function createLiveAdapter(adapter, hooks = {}) {
         if (r && r.ok && isObj(r.exports)) scopeLoaded[key] = r.exports;
       }
       if (isBoardScopeGame(scopeLoaded)) game.board.launchScope = scopeLoaded;
+      const pursuit = adapter.requireGame(BOARD_PURSUIT_MODULE);
+      if (pursuit && pursuit.ok && isObj(pursuit.exports)
+        && typeof pursuit.exports.getShipChangePursuitError === "function") {
+        game.board.pursuit = pursuit.exports.getShipChangePursuitError;
+      }
     }
   } else {
     boardReason = "probe_board_unavailable";

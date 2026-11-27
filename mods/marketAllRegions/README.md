@@ -1,4 +1,4 @@
-# Market All Regions (EveJS loader mod)
+# Market All Regions (EveJS 0.12.9 loader mod)
 
 The market window's order list for a type (`marketProxy.GetOrders`) shows sell
 and buy orders from **every region**, not only the session region. Jump counts
@@ -67,3 +67,10 @@ modules load, `wrapped daemon (...)` and `wrapped proxy (...)`. `active`
 without both `wrapped` lines means the wraps are still pending (target not
 loaded or at another path); `stats()` on `Symbol.for("evejs.marketAllRegions")`
 reports `proxyWrapped` / `daemonWrapped`.
+
+## Tests
+
+`node mods/marketAllRegions/test/run.js` (or `RunTests.bat`).
+
+Loader, config and test layout follow the local `mods/autopilotJumpZero/` mod;
+`exportHas` follows `mods/npcKillsGiveSp/loader.js`. No third-party code.

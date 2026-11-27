@@ -1,0 +1,10 @@
+{"_key": 60000001, "ownerID": 910001, "solarSystemID": 30000001, "typeID": 1}
+{"_key": 60000002, "ownerID": 910002, "solarSystemID": 30000002, "typeID": 1}
+{"_key": 60000003, "ownerID": 910001, "solarSystemID": 30000002, "typeID": 1}
+{"_key": 60000004, "ownerID": 910002, "solarSystemID": 30000004, "typeID": 1}
+{"_key": 60000005, "ownerID": 910001, "solarSystemID": 30000005, "typeID": 1}
+{"_key": 60000006, "ownerID": 910002, "solarSystemID": 30000006, "typeID": 1}
+{"_key": 60000021, "ownerID": 920002, "solarSystemID": 30000021, "typeID": 1}
+{"_key": 60000022, "ownerID": 920001, "solarSystemID": 30000021, "typeID": 1}
+{"_key": 60000023, "ownerID": 920002, "solarSystemID": 30000022, "typeID": 1}
+{"_key": 60000099, "ownerID": 990001, "solarSystemID": 30000001, "typeID": 1}

@@ -3,7 +3,7 @@
 const Module = require("module");
 const { isMainThread } = require("worker_threads");
 
-const MOD_VERSION = "0.24.1";
+const MOD_VERSION = "0.24.2";
 const LOG_PREFIX = "[hotPathPerf]";
 const INSTALL_FLAG = "__hotPathPerfLoaderInstalled";
 const NO_INSTALL_ENV = "HOTPATH_NO_INSTALL";
@@ -1140,7 +1140,20 @@ function patchDronePoint(point, exportsValue, drone) {
   return true;
 }
 
-function patchDroneTarget(key, exportsValue, state) {
+function checkDroneObsolete(state, filename) {
+  if (state.droneSourceChecked) return;
+  const rootInfo = serverSrcRootOf(filename);
+  if (!rootInfo) return;
+  state.droneSourceChecked = true;
+  const file = require("path").join(rootInfo.root, "services", "drone", "droneRuntime.js");
+  if (require("./lib/dronePersistCoalesce").fixedUpstream(readSourceText(file))) {
+    state.drone.disable("obsolete", "EveJS checkpoints it itself: droneRuntime.checkpointDroneMotion");
+  }
+}
+
+function patchDroneTarget(key, exportsValue, state, filename) {
+  if (droneDisabledReason(state)) return 0;
+  if (DRONE_POINTS.some((point) => point.target === key)) checkDroneObsolete(state, filename);
   if (droneDisabledReason(state)) return 0;
   if (key === "droneRuntime" && !(state.patched.has(DRONE_COALESCE_SYMBOL) && state.patched.has(DRONE_COALESCE_SO_SYMBOL))) {
     state.drone.disable("order", "droneRuntime loaded before itemStore.updateInventoryItem/updateInventoryItemSuccessOnly was wrapped");
@@ -1789,7 +1802,7 @@ function patchTarget(key, exportsValue, state, filename, via) {
   if (state.template) count += patchTemplateTarget(key, exportsValue, state, filename);
   if (state.rock) count += patchRockTarget(key, exportsValue, state);
   if (state.structures) count += patchStructuresTarget(key, exportsValue, state);
-  if (state.drone) count += patchDroneTarget(key, exportsValue, state);
+  if (state.drone) count += patchDroneTarget(key, exportsValue, state, filename);
   if (state.tickStruct) count += patchTickStructTarget(key, exportsValue, state);
   if (state.bpRead) count += patchBpReadTarget(key, exportsValue, state, filename);
   if (state.wreck) count += patchWreckTarget(key, exportsValue, state, filename);

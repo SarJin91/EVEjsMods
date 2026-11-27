@@ -1,0 +1,7 @@
+{"_key": 910002, "ceoID": 3910002, "deleted": false, "factionID": 900001, "name": {"en": "Empire Industry"}, "tickerName": "EI"}
+{"_key": 910001, "ceoID": 3910001, "deleted": false, "factionID": 900001, "name": {"en": "Empire Navy"}, "tickerName": "EN"}
+{"_key": 910003, "deleted": false, "factionID": 900001, "name": {"en": "Empire Militia"}, "tickerName": "EM"}
+{"_key": 920001, "ceoID": 3920001, "deleted": false, "factionID": 900002, "name": {"en": "Pirate Command"}, "tickerName": "PC"}
+{"_key": 920002, "ceoID": 3920002, "deleted": false, "factionID": 900002, "name": {"en": "Pirate Works"}, "tickerName": "PW"}
+{"_key": 990001, "ceoID": 3990001, "deleted": false, "name": {"en": "Free Traders"}, "tickerName": "FT"}
+{"_key": 990002, "deleted": true, "factionID": 900003, "name": {"en": "Gone Corp"}, "tickerName": "GC"}

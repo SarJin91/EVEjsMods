@@ -10,10 +10,10 @@ function deepFreeze(value) {
 
 const HEADER = {
   "recipesVersion": 1,
-  "sdeBuild": 3396210,
-  "sdeReleaseDate": "2026-06-16T12:43:42Z",
-  "strengthSourceHash": "7c855fe952a8df1bf08272d98ac77dd2c4af40ea3104cad7c98f56ef995736e5",
-  "sourceHash": "e7d46c549a827617f8333191cd7cc0f790a910b2d7a933c318b6c1d4ba07eee0",
+  "sdeBuild": 3724492,
+  "sdeReleaseDate": "2026-11-19T11:07:08Z",
+  "strengthSourceHash": "e7fc65e3eac3abee70433e5b131d78a1e8cddd0878c0d946b5deb2ac89bc7c95",
+  "sourceHash": "2e1d3408acab975aeca5d113b231ddedfbe5767fae98917279727f81b674a9e8",
   "maxDepth": 4,
   "missingBlueprints": 0,
   "ignoredMaterialTypes": 53

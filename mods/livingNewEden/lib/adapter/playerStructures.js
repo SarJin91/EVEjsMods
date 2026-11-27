@@ -1,5 +1,6 @@
 "use strict";
 
+const { flushTableThen } = require("./gameStoreFlush");
 const { tagOfRow, fcTagOfRow, timeOrNull } = require("./structures");
 
 const PATHS = Object.freeze({
@@ -225,13 +226,8 @@ function applySiegeHitFrom(vendor, structureId, layer) {
     return refuse(REASONS.VENDOR_REFUSED, String((result && result.errorMsg) || "UNKNOWN").slice(0, MAX_DETAIL));
   }
   const destroyed = Boolean(result.data && result.data.destroy === true);
-  let flushed = false;
-  try {
-    const flush = vendor.gameStore.flushTableSync(vendor.state.STRUCTURES_TABLE);
-    flushed = Boolean(flush && flush.success === true);
-  } catch (err) {
-    flushed = false;
-  }
+  const flushed = flushTableThen(vendor.gameStore, vendor.state.STRUCTURES_TABLE,
+    (flush) => Boolean(flush && flush.success === true), () => false);
   const after = readStructureFrom(vendor, structureId);
   return { ok: true, view: after.ok ? after.view : null, destroyed, flushed };
 }

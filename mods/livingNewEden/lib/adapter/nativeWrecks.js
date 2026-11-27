@@ -4,6 +4,7 @@
 
 const { isOwnSummary, validateSiteKey, ACTIVE_STATES } = require("./dungeonSites");
 const { buildRewardLootTable, isFactionRewardName } = require("./rewardLoot");
+const { flushTableThen } = require("./gameStoreFlush");
 
 const MAX_DETAIL = 120;
 
@@ -24,8 +25,7 @@ const DEFAULT_DIRECTION = Object.freeze({ x: 1, y: 0, z: 0 });
 const FIXED_ITEMS_MAX = 8;
 const FIXED_ITEM_MAX_QUANTITY = 1000000;
 
-const TAG_ANOMALY = "lneAnomalyId";
-const TAG_SLOT = "lneSlot";
+const { WRECK_ANOMALY: TAG_ANOMALY, WRECK_SLOT: TAG_SLOT } = require("./vendorTagFields");
 
 const FACADE_METHODS = Object.freeze(["listOwn", "getOwn", "place", "remove", "flush", "checkLootTables",
   "checkWreckNames", "readGrid"]);
@@ -362,9 +362,16 @@ function cascadeQuietly(mods, wreckId) {
 }
 
 function removeRecord(mods, record, wreckId, systemId) {
-  return isSceneLoaded(mods, toPositiveInt(record.systemID, systemId))
-    ? mods.wreckService.destroyNativeWreck(wreckId, { broadcast: true })
-    : mods.store.removeNativeWreckCascade(wreckId);
+  if (!isSceneLoaded(mods, toPositiveInt(record.systemID, systemId))) return mods.store.removeNativeWreckCascade(wreckId);
+  const result = mods.wreckService.destroyNativeWreck(wreckId, { broadcast: true });
+  if (result && (result.success === true || result.errorMsg === "WRECK_NOT_FOUND")
+    && typeof mods.store.forgetTag === "function") {
+    try {
+      mods.store.forgetTag(wreckId);
+    } catch (_err) {
+    }
+  }
+  return result;
 }
 
 function placeWreckFrom(mods, spec) {
@@ -534,10 +541,11 @@ function flushWrecksFrom(mods) {
   const gameStore = mods && mods.gameStore;
   const table = mods && mods.store && mods.store.TABLE;
   if (!gameStore || typeof gameStore.flushTableSync !== "function" || !table) return { ok: true, durable: null };
+  const lost = () => ({ ok: true, durable: false });
   try {
-    const wrecks = gameStore.flushTableSync(table.WRECKS);
-    const items = gameStore.flushTableSync(table.WRECK_ITEMS);
-    return { ok: true, durable: Boolean(wrecks && wrecks.success === true && items && items.success === true) };
+    return flushTableThen(gameStore, table.WRECKS, (wrecks) => flushTableThen(gameStore, table.WRECK_ITEMS,
+      (items) => ({ ok: true, durable: Boolean(wrecks && wrecks.success === true && items && items.success === true) }),
+      lost), lost);
   } catch (_err) {
     return { ok: true, durable: false };
   }

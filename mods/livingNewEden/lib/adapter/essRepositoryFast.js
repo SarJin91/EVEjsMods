@@ -5,6 +5,8 @@
 const crypto = require("node:crypto");
 const nodePath = require("node:path");
 const { isDeepStrictEqual } = require("node:util");
+const { flushTable } = require("./gameStoreFlush");
+const { afterValue, isThenable } = require("./maybeAsync");
 
 const TABLE_NAME = "dynamicResourceRuntime";
 const GROUPS = Object.freeze(["systems", "funding", "settlements", "unlocks", "losses"]);
@@ -21,8 +23,8 @@ const WRAPPED = Symbol.for("livingNewEden.essRepositoryFast");
 const WRAPPED_JOB = Symbol.for("livingNewEden.essSettlementJobs");
 
 const FILE_FINGERPRINTS = Object.freeze({
-  "services/dynamic/essRepository.js": "fa37d697795626059e6c9f433206725f78a5f344",
-  "services/dynamic/dynamicResourceState.js": "45276a72b65403dafbcb107e9e830b9a26147aea",
+  "services/dynamic/essRepository.js": "f35723ec3e29277e428240cfe9b942932f17b35e",
+  "services/dynamic/dynamicResourceState.js": "48fe655d5646c305da83a9a9ae20fd036da94f9e",
   "services/dynamic/essSettlementRuntime.js": "109f87490090b3260b906ad37cfd9ed9cb16d7d8",
   "services/dynamic/essReserveRuntime.js": "520c3e6d3933b3cc663b94ad5e643076549ffab2",
   "services/dynamic/dynamicBountyRuntime.js": "20ab6b313c678b8c9d7d079512edabb308e20f83",
@@ -35,7 +37,7 @@ const FUNCTION_FINGERPRINTS = Object.freeze({
     getKnownRootWriteSegments: "dc03ead4c5aaa6a5cb37b07a47ea677991bf9907",
     markRootWriteDirty: "c9db4bef52967cc86d1ac5ce95123cde673139a2",
     markRowDirty: "df32ca6ba9e9ac6edee5ce330ae37f5151f5d916",
-    flushTableSync: "05c06cd72e54acde8e761745aa9941f5636d1d2e",
+    flushTableSync: "095009139b47ee6512f9f3027bd29f1410938537",
     readPersisted: "300422729ed0bacb51c2be5709eba43150459440",
   }),
   "gameStore/tableRepository.js": Object.freeze({
@@ -439,11 +441,19 @@ function createEssRepositoryFast(o) {
       const current = repo.read(table, "/");
       if (current && current.success === true && current.data) {
         repo.write(table, "/", current.data, { force: true });
-        repo.flushTableSync(table);
+        const raw = typeof o.flushRepair === "function" ? o.flushRepair(table) : repo.flushTableSync(table);
+        const settled = afterValue(raw, (r) => {
+          if (!r || r.success !== true) repairFailed(r && r.errorMsg);
+        }, (err) => repairFailed(err && err.message));
+        if (isThenable(settled)) settled.catch(() => undefined);
       }
     } catch (err) {
-      log(`WARN essRepositoryFast parity repair flush failed (${fit(err && err.message)})`);
+      repairFailed(err && err.message);
     }
+  }
+
+  function repairFailed(detail) {
+    log(`WARN essRepositoryFast parity repair flush failed (${fit(detail)})`);
   }
 
   function runParity() {
@@ -484,10 +494,15 @@ function createEssRepositoryFast(o) {
     if (out.reason === "partial") onCount("commitPartial");
     else if (out.reason !== "empty") onCount("commitFull");
     originals.check(repo.write(table, "/", out.next, out.paths ? { knownChangedPaths: out.paths } : undefined));
+    let flush;
     try {
-      originals.check(repo.flushTableSync(table));
+      flush = repo.flushTableSync(table);
+      originals.check(flush);
     } catch (error) {
-      repo.write(table, "/", previousRoot(live), { force: true });
+      const restored = repo.write(table, "/", previousRoot(live), { force: true });
+      if (restored && restored.success && flush && flush.errorMsg === "FLUSH_ERROR" && error && typeof error === "object") {
+        error.code = "DYNAMIC_RESOURCE_FLUSH_ERROR";
+      }
       throw error;
     }
     commitCount += 1;
@@ -638,6 +653,7 @@ function install(essExports, deps) {
       const store = cachedExports(deps.requireCache, nodePath.join(srcDir, "gameStore", "index.js"));
       const repoModule = cachedExports(deps.requireCache, nodePath.join(srcDir, "gameStore", "tableRepository.js"));
       fastDeps = { tableRepo: repoModule.createTableRepository("service:dynamic"),
+        flushRepair: typeof store.flushTableDurable === "function" ? (t) => flushTable(store, t) : undefined,
         readPersisted: typeof store.readPersisted === "function"
           ? (t, p) => store.readPersisted(t, p) : undefined };
     }

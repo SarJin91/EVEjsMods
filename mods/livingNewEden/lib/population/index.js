@@ -74,7 +74,7 @@ function startPopulation(deps) {
       listStations: deps.listStations, buildHubDistance: deps.buildHubDistance, yieldTurn: deps.yieldTurn,
       nowMs: deps.nowMs, slowOpMs: T.slowOpMs, slowOpLogPerMin: T.slowOpLogPerMin, getPresence: deps.getPresence,
       liveMaxOwned: deps.liveMaxOwned, contextSources: deps.contextSources, standingFactions: deps.standingFactions,
-      generateName: deps.generateName });
+      generateName: deps.generateName, activityIntents: deps.activityIntents });
     const unregisterViews = registerViews(deps, service, S, (line) => logger.log(line));
     const poller = createPoller({
       runPass: () => service.runPass(clock.now()),

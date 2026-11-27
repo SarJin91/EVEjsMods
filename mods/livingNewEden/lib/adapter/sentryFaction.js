@@ -96,7 +96,10 @@ function checkFactionAmmoFrom(vendor, pairs) {
   }
 }
 
-function deployFactionSentryFrom(vendor, spec) {
+const runPhase = (_phase, operation) => operation();
+
+function deployFactionSentryFrom(vendor, spec, measure) {
+  const phase = typeof measure === "function" ? measure : runPhase;
   const s = isObj(spec) ? spec : {};
   const pos = isObj(s.position) ? { x: num(s.position.x), y: num(s.position.y), z: num(s.position.z) } : null;
   if (typeof s.sentryId !== "string" || s.sentryId === "" || !isId(s.ownerCorpId) || !isId(s.systemId)
@@ -105,29 +108,31 @@ function deployFactionSentryFrom(vendor, spec) {
   if (!check.ok) return check;
   try {
     const S = vendor.itemStore;
-    const g = S.grantItemToOwnerLocationIdempotent(s.ownerCorpId, s.systemId, FLAG_SPACE, s.typeId, 1,
-      { receiptKey: deployReceipt(s.sentryId), singleton: 1 });
+    const g = phase("grantItem", () => S.grantItemToOwnerLocationIdempotent(s.ownerCorpId, s.systemId, FLAG_SPACE,
+      s.typeId, 1, { receiptKey: deployReceipt(s.sentryId), singleton: 1 }));
     if (!isObj(g) || g.success !== true) return grantRefusal(g);
     const itemId = grantedIds(g)[0];
     if (!isId(itemId)) return refuse("GRANT_NO_ITEM", true);
     const duplicate = g.duplicate === true;
-    const u = S.updateInventoryItem(itemId, (cur) => ({ ...cur, ownerID: s.ownerCorpId, locationID: s.systemId,
-      flagID: FLAG_SPACE, singleton: 1,
+    const u = phase("updateItem", () => S.updateInventoryItem(itemId, (cur) => ({ ...cur, ownerID: s.ownerCorpId,
+      locationID: s.systemId, flagID: FLAG_SPACE, singleton: 1,
       spaceState: { ...(isObj(cur.spaceState) ? cur.spaceState : {}), systemID: s.systemId, position: pos,
         velocity: { x: 0, y: 0, z: 0 }, direction: { x: 1, y: 0, z: 0 }, mode: "STOP", corporationID: s.ownerCorpId,
-        anchorState: "anchored", isAnchored: true, onlineState: "online", online: 1 } }));
+        anchorState: "anchored", isAnchored: true, onlineState: "online", online: 1 } })));
     if (!isObj(u) || u.success !== true) {
       const reason = String((u && u.errorMsg) || "ITEM_UPDATE_FAILED");
       return refuse(reason, reason === "ITEM_NOT_FOUND" || reason === "INVALID_ITEM_STATE");
     }
     let ammoUnits = 0;
     if (isObj(s.ammo) && isId(s.ammo.typeId) && isId(s.ammo.units)) {
-      const item = S.findItemById(itemId);
-      const cap = isObj(item) ? capacityUnitsOf(vendor, item, s.ammo.typeId) : 0;
+      const cap = phase("ammoCapacity", () => {
+        const item = S.findItemById(itemId);
+        return isObj(item) ? capacityUnitsOf(vendor, item, s.ammo.typeId) : 0;
+      });
       const units = Math.min(s.ammo.units, cap);
       if (units > 0) {
-        const a = S.grantItemToOwnerLocationIdempotent(s.ownerCorpId, itemId, FLAG_CHARGES, s.ammo.typeId, units,
-          { receiptKey: ammoReceipt(s.sentryId, 0) });
+        const a = phase("grantAmmo", () => S.grantItemToOwnerLocationIdempotent(s.ownerCorpId, itemId, FLAG_CHARGES,
+          s.ammo.typeId, units, { receiptKey: ammoReceipt(s.sentryId, 0) }));
         if (!isObj(a) || a.success !== true) return grantRefusal(a);
         ammoUnits = units;
       }
@@ -135,7 +140,8 @@ function deployFactionSentryFrom(vendor, spec) {
     let spawned = false;
     let spawnFailed = false;
     if (vendor.runtime.isSolarSystemSceneLoaded(s.systemId) === true) {
-      const sp = vendor.runtime.spawnDynamicInventoryEntity(s.systemId, itemId, { broadcast: true });
+      const sp = phase("spawnInScene",
+        () => vendor.runtime.spawnDynamicInventoryEntity(s.systemId, itemId, { broadcast: true }));
       spawned = isObj(sp) && sp.success === true;
       spawnFailed = !spawned;
     }

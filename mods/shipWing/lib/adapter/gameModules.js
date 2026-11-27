@@ -182,7 +182,9 @@ const GAME_MODULES = Object.freeze([
   ]),
   mod("space/runtime/weaponSnapshot", [
     sym("buildWeaponSnapshotForEntity", "export", "combat"),
-    sym("resolveTurretShotWithConfiguredAdditive", "export", "combat"),
+  ]),
+  mod("space/combat/laserTurrets", [
+    sym("resolveTurretShot", "export", "combat"),
   ]),
   mod("space/runtime/targetDamageApplication", [
     sym("applyWeaponDamageToTarget", "export", "combat"),
@@ -522,6 +524,9 @@ const GAME_MODULES = Object.freeze([
     .map((name) => sym(name, "export", "board"))),
   mod("space/runtime/entityScopeTags", ["applyRuntimeEntityScopeMetadata", "clearPlayerShipGenericDungeonScope"]
     .map((name) => sym(name, "export", "board"))),
+  mod("services/security/shipPursuit", [
+    sym("getShipChangePursuitError", "export", "board", { optional: true }),
+  ]),
   mod("space/transitions", [
     sym("boardSpaceShip", "export", "boardServer"),
   ]),

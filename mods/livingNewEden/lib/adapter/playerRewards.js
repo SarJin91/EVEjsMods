@@ -1,6 +1,7 @@
 "use strict";
 
 const { COMMAND_PREFIX, MAX_CHARACTER_BALANCE, characterWalletOf } = require("./tradeContracts");
+const { flushTable } = require("./gameStoreFlush");
 
 const CORPORATE_REWARD_PAYOUT = 99;
 const CHARACTERS_TABLE = "characters";
@@ -70,7 +71,7 @@ async function creditRewardIskFrom(walletState, gameStore, spec) {
       return keyRefusal(errorMsg) || { ok: false, reason: "WALLET_FAILED", permanent: false, detail: errorMsg };
     }
     try {
-      const flushed = gameStore.flushTableSync(CHARACTERS_TABLE);
+      const flushed = await flushTable(gameStore, CHARACTERS_TABLE);
       if (!flushed || flushed.success !== true) {
         return { ok: false, reason: "FLUSH_FAILED", permanent: false,
           detail: String((flushed && flushed.errorMsg) || "no_result").slice(0, MAX_DETAIL) };

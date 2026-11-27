@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 3,
+  "id": "sharedStorePerfFix",
+  "displayName": "Shared Store Performance Fix",
+  "version": "1.1.0",
+  "description": "Saving the structures table got slower with the square of the structure count (about 3 minutes for 819 structures), so the server lost its database lease at startup. After each game database open this mod stores one SQLite planner statistic that makes the save linear (about 4 s for 819). It also skips sovereignty mirror saves that change nothing, which the startup sovereignty repair otherwise repeats hundreds of times. It changes no data and no schema. Workaround for EveJS bugs; it removes its statistic by itself once EveJS fixes the query plan.",
+  "kind": "loader",
+  "supportedBackends": [
+    "native",
+    "docker"
+  ],
+  "activation": {
+    "strategy": "loader_rename"
+  },
+  "restart": "game_server",
+  "compatibility": {
+    "evejsVersions": [
+      "261126.2"
+    ]
+  },
+  "settings": {
+    "schemaVersion": 1,
+    "files": [
+      {
+        "id": "settings",
+        "base": "mod",
+        "path": "settings.json",
+        "format": "json"
+      }
+    ],
+    "fields": [
+      {
+        "id": "enabled",
+        "label": "Enabled",
+        "description": "Store the planner statistic after each game database open. Off = vanilla EveJS (the mod reads and writes nothing). Default: on.",
+        "type": "boolean",
+        "default": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "enabled"
+        ]
+      },
+      {
+        "id": "pinRows",
+        "label": "Pinned row estimate",
+        "description": "Row count written into the statistic. Any large value gives the good plan. Default: 100000.",
+        "type": "integer",
+        "default": 100000,
+        "minimum": 1000,
+        "maximum": 10000000,
+        "step": 1000,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "pinRows"
+        ],
+        "advanced": true
+      },
+      {
+        "id": "busyTimeoutMs",
+        "label": "Database lock wait (ms)",
+        "description": "How long a writing connection waits for a database lock held by another writer. 0 = server default (5000). Raise it (for example 15000, below the 30 s lease) only if the log shows 'database is locked' around structure saves. Default: 0.",
+        "type": "integer",
+        "default": 0,
+        "minimum": 0,
+        "maximum": 120000,
+        "step": 1000,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "busyTimeoutMs"
+        ],
+        "advanced": true
+      },
+      {
+        "id": "mirrorSkip",
+        "label": "Skip unchanged sovereignty mirror saves",
+        "description": "A sovereignty mirror save whose structure state did not change keeps the old state start time, and a save that then changes nothing does not rewrite the structures table. Off = every mirror save rewrites the table as in vanilla EveJS. Default: on.",
+        "type": "boolean",
+        "default": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "mirrorSkip"
+        ],
+        "advanced": true
+      }
+    ]
+  },
+  "updates": {
+    "provider": "github",
+    "repository": "SarJin91/EVEjsMods",
+    "asset": "sharedStorePerfFix-{version}.zip",
+    "channel": "stable",
+    "tagPrefix": "sharedStorePerfFix-v",
+    "preserveFiles": []
+  }
+}

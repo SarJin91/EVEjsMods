@@ -155,7 +155,7 @@ function npcsOf(vendor, scene, max) {
       if (!isObj(entity) || entity.kind !== "ship" || entity.nativeNpc !== true || entity.session
         || entity.empireSentry === true || isDead(entity)) continue;
       const entityType = String(entity.npcEntityType || "").trim().toLowerCase();
-      if (entityType === "concord") continue;
+      if (entityType === "concord" || entityType === "fireshow") continue;
       const entityId = Math.trunc(num(entity.itemID));
       const position = pointOf(entity.position);
       if (!isId(entityId) || position === null) continue;

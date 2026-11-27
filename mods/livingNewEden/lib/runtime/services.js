@@ -637,11 +637,20 @@ function installSceneNpcSources(ctx) {
   }
 }
 
-function installPollerHooksFor(ctx, telemetry) {
+function pollerStallOf(ctx, logger) {
+  const t = ctx.config && ctx.config.telemetry;
+  const afterMs = t && Number.isFinite(t.pollerStallLogMs) ? t.pollerStallLogMs : 0;
+  if (afterMs <= 0 || !logger || typeof logger.log !== "function") return null;
+  return { afterMs, log: (label, ms) => logger.log(`poller: pass ${label} still pending after ${ms} ms`) };
+}
+
+function installPollerHooksFor(ctx, telemetry, logger) {
   const meter = typeof telemetry.notePoller === "function" ? telemetry.notePoller : null;
   const pacer = buildPollerPacer(ctx, telemetry);
-  if (meter === null && pacer === null) return;
-  const h = { ...(meter !== null ? { meter } : {}), ...(pacer !== null ? { pacer } : {}) };
+  const stall = pollerStallOf(ctx, logger);
+  if (meter === null && pacer === null && stall === null) return;
+  const h = { ...(meter !== null ? { meter } : {}), ...(pacer !== null ? { pacer } : {}),
+    ...(stall !== null ? { stall } : {}) };
   require("../presence/poller").installPollerHooks(h);
   pollerHooksOf.set(telemetry, h);
 }
@@ -671,7 +680,7 @@ function buildDefaultServiceDefs(starters = {}) {
           logger: deps.logger, clock: ctx.clock, stallTimers: ctx.stallTimers || null });
         if (!started || !started.ok) return refusalOf(started);
         ctx.telemetry = started.telemetry;
-        installPollerHooksFor(ctx, started.telemetry);
+        installPollerHooksFor(ctx, started.telemetry, deps.logger);
         try {
           const st = started.telemetry.getStatus();
           const snap = started.telemetry.getSnapshot();
@@ -711,12 +720,20 @@ function buildDefaultServiceDefs(starters = {}) {
         ctx.persistence = result || null;
         if (!result || !result.ok) return refusalOf(result);
         ctx.streams = createStreams(result.worldSeed);
+        if (ctx.adapter && typeof ctx.adapter.setVendorTagStore === "function") {
+          const { createVendorTagStore } = require("../persistence/vendorTags");
+          const p = (ctx.config && ctx.config.persistence) || {};
+          ctx.adapter.setVendorTagStore(createVendorTagStore(result.store, { legacyRead: p.vendorTagsLegacyRead,
+            pruneMax: p.vendorTagsPruneMax, pruneGraceMs: p.vendorTagsPruneGraceMs }));
+        }
         return { ok: true };
       },
       stop(ctx, reason) {
+        if (ctx.adapter && typeof ctx.adapter.setVendorTagStore === "function") ctx.adapter.setVendorTagStore(null);
         if (ctx.persistence && ctx.persistence.ok) ctx.persistence.store.close(reason);
       },
       onUnavailable(ctx, reason, detail) {
+        if (ctx.adapter && typeof ctx.adapter.setVendorTagStore === "function") ctx.adapter.setVendorTagStore(null);
         if (!ctx.persistence || ctx.persistence.ok !== false) ctx.persistence = persistenceRefusal(reason, detail);
         ctx.streams = null;
       },
@@ -3106,6 +3123,27 @@ function buildDefaultServiceDefs(starters = {}) {
       },
     },
     {
+      name: "capsuleFx",
+      module: "world",
+      requires: [],
+      start(ctx, deps) {
+        const startCapsuleFx = starters.startCapsuleFx || require("../capsuleFx").startCapsuleFx;
+        const started = startCapsuleFx({ config: ctx.config, clock: ctx.clock, telemetry: ctx.telemetry || null,
+          logger: deps.logger, adapter: ctx.adapter || null });
+        if (!started || !started.ok) return refusalOf(started);
+        ctx.capsuleFx = started.capsuleFx;
+        return { ok: true };
+      },
+      stop(ctx, reason) {
+        const capsuleFx = ctx.capsuleFx;
+        ctx.capsuleFx = null;
+        if (capsuleFx && typeof capsuleFx.stop === "function") capsuleFx.stop(reason);
+      },
+      onUnavailable(ctx, reason) {
+        ctx.capsuleFx = require("../capsuleFx").createUnavailableCapsuleFx(reason);
+      },
+    },
+    {
       name: "officerSpawns",
       module: "world",
       requires: ["persistence"],
@@ -3453,7 +3491,8 @@ function buildDefaultServiceDefs(starters = {}) {
           standingFactions: ctx.config.population && ctx.config.population.standings
             && ctx.config.population.standings.enabled === true ? populationStandingFactions() : undefined,
           generateName: ctx.config.population && ctx.config.population.corps
-            && ctx.config.population.corps.enabled === true ? require("../freeCorps/names").generateName : undefined });
+            && ctx.config.population.corps.enabled === true ? require("../freeCorps/names").generateName : undefined,
+          activityIntents: require("../highsecLife/schema").trafficActivityIntentsOf(ctx.config) });
         if (!started || !started.ok) return refusalOf(started);
         ctx.population = started.population;
         return { ok: true };

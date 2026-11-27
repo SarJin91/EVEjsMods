@@ -1,0 +1,73 @@
+{
+  "version": 4,
+  "nextPairSequence": 15,
+  "nextEndpointSequence": 29,
+  "universeSeededAtMs": 1700000000000,
+  "pairsByID": {
+    "11": {
+      "pairID": 11, "kind": "static", "randomProfileKey": null, "state": "active",
+      "createdAtMs": 1700000000000, "expiresAtMs": 0, "collapseAtMs": 0, "collapseReason": null,
+      "totalMass": 2000000000, "remainingMass": 2000000000, "massRegeneration": 0, "maxJumpMass": 300000000,
+      "lifetimeMinutes": 0, "lastMassStateAtMs": 1700000000000, "massRegenRemainder": 0,
+      "lastPassiveRevealCheckAtMs": 0, "staticSlotKey": "30000201:static:1",
+      "source": { "endpointID": 21, "systemID": 30000201, "typeID": 30583, "targetID": "WH-21", "code": "K162",
+        "discovered": true, "visibilityState": "visible", "wormholeClassID": 0, "nebulaID": 0, "typeName": "Wormhole K162",
+        "position": { "x": 1, "y": 2, "z": 3 }, "direction": { "x": 1, "y": 0, "z": 0 }, "radius": 3000, "graphicID": 0,
+        "slotKey": "30000201:static:1" },
+      "destination": { "endpointID": 22, "systemID": 30000210, "typeID": 30584, "targetID": "WH-22", "code": "B274",
+        "discovered": false, "visibilityState": "hidden", "wormholeClassID": 7, "nebulaID": 0, "typeName": "Wormhole B274",
+        "position": { "x": 4, "y": 5, "z": 6 }, "direction": { "x": 1, "y": 0, "z": 0 }, "radius": 3000, "graphicID": 0,
+        "slotKey": null }
+    },
+    "12": {
+      "pairID": 12, "kind": "random", "randomProfileKey": "k-space", "state": "active",
+      "createdAtMs": 1700000100000, "expiresAtMs": 1700018100000, "collapseAtMs": 0, "collapseReason": null,
+      "totalMass": 1000000000, "remainingMass": 900000000, "massRegeneration": 0, "maxJumpMass": 20000000,
+      "lifetimeMinutes": 300, "lastMassStateAtMs": 1700000100000, "massRegenRemainder": 0,
+      "lastPassiveRevealCheckAtMs": 0, "staticSlotKey": null,
+      "source": { "endpointID": 23, "systemID": 30000205, "typeID": 30585, "targetID": "WH-23", "code": "N110",
+        "discovered": true, "visibilityState": "visible", "wormholeClassID": 0, "nebulaID": 0, "typeName": "Wormhole N110",
+        "position": { "x": 0, "y": 0, "z": 0 }, "direction": { "x": 1, "y": 0, "z": 0 }, "radius": 3000, "graphicID": 0,
+        "slotKey": null },
+      "destination": { "endpointID": 24, "systemID": 30000209, "typeID": 30583, "targetID": "WH-24", "code": "K162",
+        "discovered": true, "visibilityState": "visible", "wormholeClassID": 0, "nebulaID": 0, "typeName": "Wormhole K162",
+        "position": { "x": 0, "y": 0, "z": 0 }, "direction": { "x": 1, "y": 0, "z": 0 }, "radius": 3000, "graphicID": 0,
+        "slotKey": null }
+    },
+    "13": {
+      "pairID": 13, "kind": "random", "randomProfileKey": "k-space", "state": "collapsed",
+      "createdAtMs": 1700000200000, "expiresAtMs": 1700086600000, "collapseAtMs": 1700000500000,
+      "collapseReason": "mass", "totalMass": 1000000000, "remainingMass": 0, "massRegeneration": 0,
+      "maxJumpMass": 20000000, "lifetimeMinutes": 1440, "lastMassStateAtMs": 1700000500000, "massRegenRemainder": 0,
+      "lastPassiveRevealCheckAtMs": 0, "staticSlotKey": null,
+      "source": { "endpointID": 25, "systemID": 30000201, "typeID": 30585, "targetID": "WH-25", "code": "N110",
+        "discovered": true, "visibilityState": "visible", "wormholeClassID": 0, "nebulaID": 0, "typeName": "Wormhole N110",
+        "position": { "x": 0, "y": 0, "z": 0 }, "direction": { "x": 1, "y": 0, "z": 0 }, "radius": 3000, "graphicID": 0,
+        "slotKey": null },
+      "destination": { "endpointID": 26, "systemID": 30000208, "typeID": 30583, "targetID": "WH-26", "code": "K162",
+        "discovered": true, "visibilityState": "visible", "wormholeClassID": 0, "nebulaID": 0, "typeName": "Wormhole K162",
+        "position": { "x": 0, "y": 0, "z": 0 }, "direction": { "x": 1, "y": 0, "z": 0 }, "radius": 3000, "graphicID": 0,
+        "slotKey": null }
+    },
+    "14": {
+      "pairID": 14, "kind": "random", "randomProfileKey": "k-space", "state": "active",
+      "createdAtMs": 1700000300000, "expiresAtMs": 1700086700000, "collapseAtMs": 0, "collapseReason": null,
+      "totalMass": 1000000000, "remainingMass": 1000000000, "massRegeneration": 0, "maxJumpMass": 20000000,
+      "lifetimeMinutes": 1440, "lastMassStateAtMs": 1700000300000, "massRegenRemainder": 0,
+      "lastPassiveRevealCheckAtMs": 0, "staticSlotKey": null,
+      "source": { "endpointID": 27, "systemID": 30000203, "typeID": 30585, "targetID": "WH-27", "code": "N110",
+        "discovered": true, "visibilityState": "visible", "wormholeClassID": 0, "nebulaID": 0, "typeName": "Wormhole N110",
+        "position": { "x": 0, "y": 0, "z": 0 }, "direction": { "x": 1, "y": 0, "z": 0 }, "radius": 3000, "graphicID": 0,
+        "slotKey": null },
+      "destination": { "endpointID": 28, "systemID": 0, "typeID": 0, "targetID": null, "code": null,
+        "discovered": false, "visibilityState": "hidden", "wormholeClassID": 0, "nebulaID": 0, "typeName": null,
+        "position": { "x": 0, "y": 0, "z": 0 }, "direction": { "x": 1, "y": 0, "z": 0 }, "radius": 3000, "graphicID": 0,
+        "slotKey": null }
+    }
+  },
+  "staticSlotsByKey": {
+    "30000201:static:1": { "slotKey": "30000201:static:1", "systemID": 30000201, "generation": 1, "activePairID": 11,
+      "nextRespawnAtMs": 0 }
+  },
+  "polarizationByCharacter": {}
+}

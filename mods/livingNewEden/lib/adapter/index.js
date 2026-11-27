@@ -6,6 +6,7 @@ const { GAME_MODULES } = require("./gameModules");
 const { probeModules } = require("./probe");
 const { resolveSqliteDriver } = require("./sqliteDriver");
 const { registerShutdown, subscribeOwnerLost } = require("./gameStoreHooks");
+const { flushTable } = require("./gameStoreFlush");
 const { wrapTickSample } = require("./tickSample");
 const { readStaticMapFrom } = require("./staticMap");
 const { readPresenceFrom } = require("./sessionPresence");
@@ -78,6 +79,7 @@ const {
   returnSellEscrowFrom,
 } = require("./tradeMarket");
 const { loadModsFrom: loadNativeWreckModsFrom, createNativeWrecksFacade } = require("./nativeWrecks");
+const { isTagStore, createTaggedEscrowState, createTaggedWreckStore } = require("./vendorTagViews");
 const { createNpcSpawn, checkNpcSpawnFrom } = require("./npcSpawn");
 const { createSceneNpcBudget } = require("./sceneNpcBudget");
 const { createHuntScene, checkHuntSceneFrom } = require("./huntScene");
@@ -124,6 +126,7 @@ const { CONSUMER: GRID_ANCHORS_CONSUMER, UNAVAILABLE: GRID_ANCHORS_UNAVAILABLE,
   createGridAnchorSeam } = require("./gridAnchors");
 const { createVirtualIdentitiesAdapter } = require("./virtualIdentities");
 const liveLossHook = require("./liveLossHook");
+const capsuleFx = require("./capsuleFx");
 const dormancyGuard = require("./dormancyGuard");
 const vendorPauses = require("./vendorPauses");
 const capitalProfiles = require("./capitalProfiles");
@@ -252,6 +255,27 @@ function createAdapter(deps = {}) {
     } catch (_err) {
     }
   };
+
+  let vendorTags = null;
+  let legacyTagLogged = false;
+  const vendorTagHooks = {
+    onLegacy: () => {
+      if (legacyTagLogged) return;
+      legacyTagLogged = true;
+      logAdapter("vendor record carries a legacy LNE tag; run tools/moveVendorTags.js before upgrading the save");
+    },
+    onPrune: (escrow, wreck) => logAdapter(`vendor tags pruned escrow=${escrow} wreck=${wreck}`),
+  };
+
+  function setVendorTagStore(tags) {
+    if (tags === null) {
+      vendorTags = null;
+      return { ok: true };
+    }
+    if (!isTagStore(tags)) return { ok: false, reason: "INVALID_TAG_STORE" };
+    vendorTags = tags;
+    return { ok: true };
+  }
 
   const state = {
     serverSrc: null,
@@ -1189,13 +1213,20 @@ function createAdapter(deps = {}) {
     return { ok: true };
   }
 
-  function getNativeWrecks() {
+  const taggedWreckMods = () => {
     const loaded = loadNativeWreckModsFrom(requireGame);
+    if (!loaded.ok) return loaded;
+    const tagged = createTaggedWreckStore(loaded.mods.store, vendorTags, vendorTagHooks);
+    return tagged.ok ? { ok: true, mods: { ...loaded.mods, store: tagged.view } } : tagged;
+  };
+
+  function getNativeWrecks() {
+    const loaded = taggedWreckMods();
     return loaded.ok ? createNativeWrecksFacade(loaded.mods) : loaded;
   }
 
   function checkNativeWrecks() {
-    const loaded = loadNativeWreckModsFrom(requireGame);
+    const loaded = taggedWreckMods();
     return loaded.ok ? { ok: true } : loaded;
   }
 
@@ -1396,6 +1427,33 @@ function createAdapter(deps = {}) {
     return liveLossHook.addListener((targetEntity, destroyResult, result) => {
       const facts = liveLossHook.lossFactsOf(targetEntity, destroyResult, result, { isCharacter });
       if (facts) fn(facts);
+    });
+  }
+
+  let capsuleFxScene = null;
+  function getCapsuleFxScene() {
+    const disabled = state.report ? state.report.disabledModules : null;
+    if (disabled && hasOwn(disabled, capsuleFx.CONSUMER)) {
+      return { ok: false, reason: "SEAM_UNAVAILABLE", detail: String(disabled[capsuleFx.CONSUMER]) };
+    }
+    const check = capsuleFx.checkCapsuleFxSceneFrom(requireGame);
+    if (!check.ok) return check;
+    if (capsuleFxScene === null) capsuleFxScene = capsuleFx.createCapsuleFxScene({ requireGame });
+    return { ok: true, seam: capsuleFxScene };
+  }
+
+  function addNpcWreckListener(fn, opts) {
+    if (typeof fn !== "function") return { ok: false, reason: "LISTENER_INVALID" };
+    const checked = checkLiveLossHook();
+    if (!checked.ok) return checked;
+    const excludedFactionIds = opts && opts.excludedFactionIds instanceof Set ? opts.excludedFactionIds : new Set();
+    const onSkip = opts && typeof opts.onSkip === "function" ? opts.onSkip : null;
+    const deps = { excludedFactionIds, isMissionInstance: capsuleFx.isMissionInstanceFrom(requireGame),
+      isCareerLessonInstance: capsuleFx.isCareerLessonInstanceFrom(requireGame) };
+    return liveLossHook.addListener((targetEntity, destroyResult) => {
+      const r = capsuleFx.classifyVictim(targetEntity, destroyResult, deps);
+      if (r.facts) fn(r.facts);
+      else if (onSkip !== null) onSkip(r.skip);
     });
   }
 
@@ -1900,12 +1958,12 @@ function createAdapter(deps = {}) {
       const gameStore = requireGameFn("gameStore/index");
       if (gameStore.ok && gameStore.exports && typeof gameStore.exports.flushTableSync === "function") {
         try {
-          const flushResult = await gameStore.exports.flushTableSync("sovereignty");
+          const flushResult = await flushTable(gameStore.exports, "sovereignty");
           if (!flushResult || flushResult.success !== true) {
-            logger?.warn?.(`[sovProjection] flushTableSync returned failure: ${flushResult?.errorMsg ?? "unknown"}`);
+            logger?.warn?.(`[sovProjection] sovereignty flush returned failure: ${flushResult?.errorMsg ?? "unknown"}`);
           }
         } catch (flushErr) {
-          logger?.warn?.(`[sovProjection] flushTableSync threw: ${flushErr.message}`);
+          logger?.warn?.(`[sovProjection] sovereignty flush threw: ${flushErr.message}`);
         }
       }
       return { ok: true };
@@ -2515,6 +2573,12 @@ function createAdapter(deps = {}) {
     if (loaded.exports == null) return { ok: false, detail: `${relPath}: no_exports` };
     return { ok: true, exports: loaded.exports };
   };
+  const taggedEscrowSeam = () => {
+    const es = marketSeam("services/market/marketEscrowState");
+    if (!es.ok) return es;
+    const tagged = createTaggedEscrowState(es.exports, vendorTags, vendorTagHooks);
+    return tagged.ok ? { ok: true, exports: tagged.view } : { ok: false, detail: tagged.detail };
+  };
   const marketDaemonSeam = () => {
     const md = marketSeam("services/market/marketDaemonClient");
     return md.ok ? { ok: true, exports: md.exports.marketDaemonClient || md.exports } : md;
@@ -2534,7 +2598,7 @@ function createAdapter(deps = {}) {
     const flags = { permanent: false, ambiguous: false };
     const md = marketDaemonSeam();
     if (!md.ok) return Promise.resolve(seamDown(md.detail, flags));
-    const es = marketSeam("services/market/marketEscrowState");
+    const es = taggedEscrowSeam();
     if (!es.ok) return Promise.resolve(seamDown(es.detail, flags));
     const metadata = buyOrderStationMetadata(spec && spec.stationId);
     return placeAndAttachBuyOrderFrom(md.exports, es.exports, spec, Date.now(), metadata);
@@ -2543,7 +2607,7 @@ function createAdapter(deps = {}) {
   function tradeMarketRead(orderId) {
     const md = marketDaemonSeam();
     if (!md.ok) return Promise.resolve(seamDown(md.detail));
-    const es = marketSeam("services/market/marketEscrowState");
+    const es = taggedEscrowSeam();
     if (!es.ok) return Promise.resolve(seamDown(es.detail));
     return readBuyOrderFrom(md.exports, es.exports, orderId);
   }
@@ -2551,19 +2615,19 @@ function createAdapter(deps = {}) {
   function tradeMarketFind(spec) {
     const md = marketDaemonSeam();
     if (!md.ok) return Promise.resolve(seamDown(md.detail));
-    const es = marketSeam("services/market/marketEscrowState");
+    const es = taggedEscrowSeam();
     if (!es.ok) return Promise.resolve(seamDown(es.detail));
     return findBuyOrderFrom(md.exports, es.exports, spec);
   }
 
   function tradeMarketAttachEscrow(spec) {
-    const es = marketSeam("services/market/marketEscrowState");
+    const es = taggedEscrowSeam();
     if (!es.ok) return seamDown(es.detail);
     return attachBuyEscrowFrom(es.exports, spec);
   }
 
   function tradeMarketDetachEscrow(spec) {
-    const es = marketSeam("services/market/marketEscrowState");
+    const es = taggedEscrowSeam();
     if (!es.ok) return seamDown(es.detail);
     const s = spec || {};
     return detachEscrowFrom(es.exports, { ...s, escrowType: s.escrowType === undefined ? "buy" : s.escrowType });
@@ -2578,13 +2642,13 @@ function createAdapter(deps = {}) {
   function tradeMarketListCorpOrders(corporationId) {
     const md = marketDaemonSeam();
     if (!md.ok) return Promise.resolve(seamDown(md.detail));
-    const es = marketSeam("services/market/marketEscrowState");
+    const es = taggedEscrowSeam();
     if (!es.ok) return Promise.resolve(seamDown(es.detail));
     return listCorpOrdersFrom(md.exports, es.exports, corporationId);
   }
 
   function tradeMarketListTaggedEscrows(spec) {
-    const es = marketSeam("services/market/marketEscrowState");
+    const es = taggedEscrowSeam();
     if (!es.ok) return seamDown(es.detail);
     return listTaggedEscrowsFrom(es.exports, spec);
   }
@@ -2593,9 +2657,11 @@ function createAdapter(deps = {}) {
     const md = marketDaemonSeam();
     if (!md.ok) return md;
     const out = { daemon: md.exports };
-    for (const [key, rel] of [["escrowState", "services/market/marketEscrowState"],
-      ["itemStore", "services/inventory/itemStore"], ["itemCustody", "services/inventory/itemCustody"],
-      ["marketCustody", "services/inventory/marketItemCustody"]]) {
+    const escrow = taggedEscrowSeam();
+    if (!escrow.ok) return escrow;
+    out.escrowState = escrow.exports;
+    for (const [key, rel] of [["itemStore", "services/inventory/itemStore"],
+      ["itemCustody", "services/inventory/itemCustody"], ["marketCustody", "services/inventory/marketItemCustody"]]) {
       const loaded = marketSeam(rel);
       if (!loaded.ok) return loaded;
       out[key] = loaded.exports;
@@ -2633,7 +2699,7 @@ function createAdapter(deps = {}) {
   function tradeMarketFindSell(spec) {
     const md = marketDaemonSeam();
     if (!md.ok) return Promise.resolve(seamDown(md.detail));
-    const es = marketSeam("services/market/marketEscrowState");
+    const es = taggedEscrowSeam();
     if (!es.ok) return Promise.resolve(seamDown(es.detail));
     return findSellOrderFrom(md.exports, es.exports, spec);
   }
@@ -3582,6 +3648,7 @@ function createAdapter(deps = {}) {
     readSiteHackWins,
     getNativeWrecks,
     checkNativeWrecks,
+    setVendorTagStore,
     getNpcSpawn,
     checkNpcSpawn,
     getHuntScene,
@@ -3606,6 +3673,8 @@ function createAdapter(deps = {}) {
     checkLiveLossHook,
     bindLiveLossSink,
     addLiveLossListener,
+    getCapsuleFxScene,
+    addNpcWreckListener,
     readDormancyGuardStats,
     reserveCharacterId: identities.reserveCharacterId,
     writeCharacter: identities.writeCharacter,

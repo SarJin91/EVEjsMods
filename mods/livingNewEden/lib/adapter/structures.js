@@ -1,5 +1,7 @@
 "use strict";
 
+const { flushTableThen } = require("./gameStoreFlush");
+
 const PATHS = Object.freeze({
   state: "services/structure/structureState",
   constants: "services/structure/structureConstants",
@@ -497,11 +499,8 @@ function flushStructuresFrom(vendor) {
     const store = vendor && vendor.gameStore;
     const table = vendor && vendor.state && vendor.state.STRUCTURES_TABLE;
     if (!isFn(store, "flushTableSync") || typeof table !== "string" || table === "") return failed("seam");
-    const result = store.flushTableSync(table);
-    if (!result || result.success !== true) {
-      return failed(String((result && result.errorMsg) || "UNKNOWN").slice(0, MAX_DETAIL));
-    }
-    return { ok: true };
+    return flushTableThen(store, table, (result) => (result && result.success === true ? { ok: true }
+      : failed(String((result && result.errorMsg) || "UNKNOWN").slice(0, MAX_DETAIL))), (err) => failed(detailOf(err)));
   } catch (err) {
     return failed(detailOf(err));
   }

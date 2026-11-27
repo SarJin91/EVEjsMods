@@ -1,0 +1,5 @@
+{
+  "enabled": false,
+  "maxWingPerPilot": 2,
+  "controlRangeMeters": 20000
+}

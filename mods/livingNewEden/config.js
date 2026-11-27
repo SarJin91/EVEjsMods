@@ -73,7 +73,8 @@ const { LEVELS: BOUNTY_LEVELS } = require("./lib/bounty/data/levels");
 const DEV_INDEX_SOURCE_COUNT = require("./lib/world/devIndices/schema").SOURCES.length;
 const { BANDS: HIGHSEC_LIFE_BANDS, parseBands: parseHighsecLifeBands, parseNearHubPilots: parseHighsecNearHubPilots,
   parseHourCurve: parseHighsecHourCurve, parseHubSystemIds: parseHighsecHubSystemIds,
-  parseGankSystemIds: parseHighsecGankSystemIds } = require("./lib/highsecLife/schema");
+  parseGankSystemIds: parseHighsecGankSystemIds, parseExplorerFamilies: parseHighsecExplorerFamilies }
+  = require("./lib/highsecLife/schema");
 const { checkBaseUrl: checkChatterAiBaseUrl, checkModel: checkChatterAiModel, LANGUAGE_CODES: CHATTER_AI_LANGUAGES,
   PROFANITY_LEVELS: CHATTER_AI_PROFANITY_LEVELS } = require("./lib/chatterAi/schema");
 const { LANGUAGES: NEWS_LANGUAGES, CAPITAL_CLASSES: NEWS_CAPITAL_CLASSES, isKindList: isNewsKindList,
@@ -861,6 +862,13 @@ function bountyRow(name, envSuffix, type, def, min, max, origin) {
 function ambientRatsRow(name, envSuffix, type, def, min, max, origin, check) {
   const row = { key: `ambientRats.${name}`, type, default: def, env: `${ENV_PREFIX}AMBIENT_RATS_${envSuffix}`,
     origin: `${origin}` };
+  if (type === "integer" || type === "number") Object.assign(row, { min, max, outOfRange: "clamp" });
+  if (check) row.check = check;
+  return row;
+}
+
+function capsuleFxRow(name, envSuffix, type, def, min, max, origin, check) {
+  const row = { key: `capsuleFx.${name}`, type, default: def, env: `${ENV_PREFIX}CAPSULE_FX_${envSuffix}`, origin };
   if (type === "integer" || type === "number") Object.assign(row, { min, max, outOfRange: "clamp" });
   if (check) row.check = check;
   return row;
@@ -1669,6 +1677,21 @@ const SCHEMA = deepFreeze([
     key: "persistence.warmupMaxBytes", type: "integer", default: 536870912, min: 1048576, max: 4294967296,
     outOfRange: "clamp", env: `${ENV_PREFIX}PERSISTENCE_WARMUP_MAX_BYTES`,
     origin: "a larger file -> only its prefix is read (truncated=1)",
+  },
+  {
+    key: "persistence.vendorTagsLegacyRead", type: "boolean", default: true,
+    env: `${ENV_PREFIX}PERSISTENCE_VENDOR_TAGS_LEGACY_READ`,
+    origin: "Also accept LNE ownership fields stored inside vendor records (saves written before the shared schema)",
+  },
+  {
+    key: "persistence.vendorTagsPruneMax", type: "integer", default: 200, min: 1, max: 5000, outOfRange: "clamp",
+    env: `${ENV_PREFIX}PERSISTENCE_VENDOR_TAGS_PRUNE_MAX`,
+    origin: "Stale vendor tags removed per full list call",
+  },
+  {
+    key: "persistence.vendorTagsPruneGraceMs", type: "integer", default: 60000, min: 1000, max: 86400000,
+    outOfRange: "clamp", env: `${ENV_PREFIX}PERSISTENCE_VENDOR_TAGS_PRUNE_GRACE_MS`,
+    origin: "Minimum tag age before a tag without a vendor record is removed",
   },
   {
     key: "retention.enabled", type: "boolean", default: false, env: `${ENV_PREFIX}RETENTION_ENABLED`,
@@ -6518,6 +6541,8 @@ const SCHEMA = deepFreeze([
   sentriesRow("maxTotal", "MAX_TOTAL", "integer", 500, 1, 10000, "Live sentries on the server"),
   sentriesRow("maxAnchorsRead", "MAX_ANCHORS_READ", "integer", 64, 8, 1024,
     "anchors (gates, stations, structures) of one system read by an anchoring"),
+  sentriesRow("slowDeployLogMs", "SLOW_DEPLOY_LOG_MS", "integer", 100, 0, 60000,
+    "a SENTRY_DEPLOY slower than this logs its phase timings (0 = off)"),
   sentriesRow("reconcileIntervalMs", "RECONCILE_INTERVAL_MS", "integer", 600000, 60000, 86400000,
     "Period of SENTRY_RECONCILE"),
   sentriesRow("reconcileMaxRows", "RECONCILE_MAX_ROWS", "integer", 200, 10, 5000,
@@ -7366,6 +7391,24 @@ const SCHEMA = deepFreeze([
     "escort attack orders per pump pass (all exposures together)"),
   fleetExposureRow("convoyEscortMaxTargets", "CONVOY_ESCORT_MAX_TARGETS", "integer", 16, 1, 64,
     "player ships kept as targets of the escort of one exposure"),
+  fleetExposureRow("minerBeamsEnabled", "MINER_BEAMS_ENABLED", "boolean", false, undefined, undefined,
+    "Mining laser effect on MINER exposures seen by a player"),
+  fleetExposureRow("minerBeamViewMeters", "MINER_BEAM_VIEW_METERS", "integer", 150000, 10000, 1000000,
+    "A player this close to a miner sees the beams"),
+  fleetExposureRow("minerBeamRockMeters", "MINER_BEAM_ROCK_METERS", "integer", 60000, 1000, 200000,
+    "Farthest asteroid a beam may target"),
+  fleetExposureRow("minerBeamRefreshMs", "MINER_BEAM_REFRESH_MS", "integer", 30000, 5000, 600000,
+    "Full restart of the beams of an exposure"),
+  fleetExposureRow("minerBeamMaxFxPerPass", "MINER_BEAM_MAX_FX_PER_PASS", "integer", 40, 0, 500,
+    "Beam effects sent per exposure pass (0 = none)"),
+  fleetExposureRow("minerBeamApproachEnabled", "MINER_BEAM_APPROACH_ENABLED", "boolean", false, undefined, undefined,
+    "MINER exposures fly to the asteroid at full subwarp before the beam (needs minerBeamsEnabled)"),
+  fleetExposureRow("minerBeamStartMeters", "MINER_BEAM_START_METERS", "integer", 10000, 2000, 60000,
+    "Surface distance to the asteroid at which the beam starts"),
+  fleetExposureRow("minerBeamApproachMeters", "MINER_BEAM_APPROACH_METERS", "integer", 7500, 500, 50000,
+    "Follow range of the approach (kept below minerBeamStartMeters)"),
+  fleetExposureRow("minerBeamRetryMs", "MINER_BEAM_RETRY_MS", "integer", 5000, 1000, 60000,
+    "Gap between two approach checks of a miner without a beam"),
   fleetExposureRow("presence.enabled", "PRESENCE_ENABLED", "boolean", false, undefined, undefined,
     "every fleet IDLE / PLANNED / STAGED / REFITTING / RETREATING of the system of a "
     + "player gets passive ships (needs battle.liveLossImport.enabled)"),
@@ -7618,6 +7661,12 @@ const SCHEMA = deepFreeze([
     origin: "A major GC pause this long (ms) gets one 'telemetry: major GC' line; 0 = off",
   },
   {
+    key: "telemetry.pollerStallLogMs", type: "integer", default: 60000, min: 0, max: 3600000, outOfRange: "clamp",
+    env: `${ENV_PREFIX}TELEMETRY_POLLER_STALL_LOG_MS`,
+    origin: "A poller pass whose promise is still pending after this many ms gets one 'poller: pass still pending' "
+      + "line; 0 = off",
+  },
+  {
     key: "telemetry.moduleCost.enabled", type: "boolean", default: true,
     env: `${ENV_PREFIX}TELEMETRY_MODULE_COST_ENABLED`,
     origin: "Snapshot moduleCost + view module-cost; 0 = no field, no poller hook (every pass as before)",
@@ -7859,7 +7908,8 @@ const SCHEMA = deepFreeze([
       + " (band 120-129.9 = warning)"),
   governorRow("minModeHoldSeconds", "MIN_MODE_HOLD_SECONDS", "number", 180, 0, 900,
     "D-prop-3: min. time in a mode before stepping down; <= 2*3600/180+5 = 45 changes/h (KO5 <= 50)"
-      + " 0 = no hold"),
+      + " 0 = no hold",
+    ["Minimum time in mode (s)", "Minimum time before the governor can step down from its current load mode.", 1]),
   governorRow("shedMinHoldSeconds", "SHED_MIN_HOLD_SECONDS", "number", 30, 0, 900,
     "BUG governor-flapping: base SHED steps down to OVERLOADED after this hold"
       + " (not minModeHoldSeconds), so SETTLEMENT/LIVE return ~30 s after an isolated stall;"
@@ -7888,13 +7938,19 @@ const SCHEMA = deepFreeze([
   governorRow("latenessSampleCount", "LATENESS_SAMPLE_COUNT", "integer", 600, 100, 3000,
     "~60 s at 10 Hz; a single stall <= ~7 s stays below latenessWarningPercent"),
   governorRow("latenessWarningPercent", "LATENESS_WARNING_PERCENT", "number", 15, 1, 90,
-    "A 5.9 s stall ~10%, two in a minute ~14.7%"),
+    "A 5.9 s stall ~10%, two in a minute ~14.7%",
+    ["Tick lateness warning (%)", "Share of late tick time that puts the governor in CONSTRAINED.", 1]),
   governorRow("latenessOverloadPercent", "LATENESS_OVERLOAD_PERCENT", "number", 25, 1, 95,
-    "Sustained 30% lateness = OVERLOADED"),
+    "Sustained 30% lateness = OVERLOADED",
+    ["Tick lateness overload (%)", "Share of late tick time that puts the governor in OVERLOADED.", 1]),
   governorRow("latenessRecoveryPercent", "LATENESS_RECOVERY_PERCENT", "number", 10, 0, 90,
-    "CONSTRAINED steps down below this (5 pp hysteresis)"),
+    "CONSTRAINED steps down below this (5 pp hysteresis)",
+    ["Tick lateness recovery (%)",
+      "Late tick share must fall below this value before CONSTRAINED can return to NORMAL.", 1]),
   governorRow("latenessOverloadExitPercent", "LATENESS_OVERLOAD_EXIT_PERCENT", "number", 15, 0, 95,
-    "OVERLOADED steps down below warning (pattern)"),
+    "OVERLOADED steps down below warning (pattern)",
+    ["Tick lateness overload exit (%)", "Late tick share must fall below this value before OVERLOADED can step down.",
+      1]),
   {
     key: "governor.vendorPauseExcuseEnabled", type: "boolean", default: true,
     env: `${ENV_PREFIX}GOVERNOR_VENDOR_PAUSE_EXCUSE_ENABLED`,
@@ -8586,6 +8642,109 @@ const SCHEMA = deepFreeze([
     "Longest stay at the belt (not below minerStayMinMs)"),
   highsecTrafficRow("minerAsteroidMeters", "MINER_ASTEROID_METERS", "integer", 5000, 0, 50000,
     "Distance of the landing point from the centre of the belt"),
+  highsecTrafficRow("gateJumpFxEnabled", "GATE_JUMP_FX_ENABLED", "boolean", false, undefined, undefined,
+    "JumpIn after a gate spawn, JumpOut at the target gate"),
+  highsecTrafficRow("gateJumpInDurationMs", "GATE_JUMP_IN_DURATION_MS", "integer", 5000, 1000, 20000,
+    "Duration of the JumpIn effect"),
+  highsecTrafficRow("gateJumpOutDespawnMs", "GATE_JUMP_OUT_DESPAWN_MS", "integer", 3000, 1000, 30000,
+    "From the JumpOut to the despawn"),
+  highsecTrafficRow("gateControllerEventsEnabled", "GATE_CONTROLLER_EVENTS_ENABLED", "boolean", false, undefined,
+    undefined, "Gate Arrival/Departure animation for civilian gate traffic (needs gateJumpFxEnabled)"),
+  highsecTrafficRow("gateControllerEventMaxPerPass", "GATE_CONTROLLER_EVENT_MAX_PER_PASS", "integer", 40, 0, 500,
+    "Gate Arrival/Departure events and arrival rotations per traffic pass (0 = none)"),
+  highsecTrafficRow("gateArrivalPoseEnabled", "GATE_ARRIVAL_POSE_ENABLED", "boolean", false, undefined, undefined,
+    "Ships spawned at a gate stand still, turned away from their first target"),
+  highsecTrafficRow("gateArrivalTurnMinDeg", "GATE_ARRIVAL_TURN_MIN_DEG", "integer", 60, 0, 180,
+    "Smallest turn away from the first target"),
+  highsecTrafficRow("gateArrivalTurnMaxDeg", "GATE_ARRIVAL_TURN_MAX_DEG", "integer", 120, 0, 180,
+    "Largest turn away from the first target (not below gateArrivalTurnMinDeg)"),
+  highsecTrafficRow("alignBeforeWarpEnabled", "ALIGN_BEFORE_WARP_ENABLED", "boolean", false, undefined, undefined,
+    "Traffic ships align before the warp (vendor warp order)"),
+  highsecTrafficRow("alignTimeoutMs", "ALIGN_TIMEOUT_MS", "integer", 30000, 5000, 120000,
+    "No warp this long after the align order -> instant warp"),
+  highsecTrafficRow("visibleWarpEnabled", "VISIBLE_WARP_ENABLED", "boolean", false, undefined, undefined,
+    "Warping effect on the instant warp of civilian traffic"),
+  highsecTrafficRow("visibleWarpMaxFxPerPass", "VISIBLE_WARP_MAX_FX_PER_PASS", "integer", 40, 0, 500,
+    "Warping effects sent per traffic pass (0 = none)"),
+  highsecTrafficRow("miningBeamsEnabled", "MINING_BEAMS_ENABLED", "boolean", false, undefined, undefined,
+    "Mining laser effect on civilian miners seen by a player"),
+  highsecTrafficRow("miningBeamViewMeters", "MINING_BEAM_VIEW_METERS", "integer", 150000, 10000, 1000000,
+    "A player this close to a miner sees the beams"),
+  highsecTrafficRow("miningBeamRockMeters", "MINING_BEAM_ROCK_METERS", "integer", 60000, 1000, 200000,
+    "Farthest asteroid a beam may target"),
+  highsecTrafficRow("miningBeamRefreshMs", "MINING_BEAM_REFRESH_MS", "integer", 30000, 5000, 600000,
+    "Full restart of the beams of a system"),
+  highsecTrafficRow("miningBeamMaxFxPerPass", "MINING_BEAM_MAX_FX_PER_PASS", "integer", 40, 0, 500,
+    "Beam effects sent per traffic pass (0 = none)"),
+  highsecTrafficRow("miningBeamApproachEnabled", "MINING_BEAM_APPROACH_ENABLED", "boolean", false, undefined,
+    undefined, "Civilian miners fly to the asteroid at full subwarp before the beam (needs miningBeamsEnabled)"),
+  highsecTrafficRow("miningBeamStartMeters", "MINING_BEAM_START_METERS", "integer", 10000, 2000, 60000,
+    "Surface distance to the asteroid at which the beam starts"),
+  highsecTrafficRow("miningBeamApproachMeters", "MINING_BEAM_APPROACH_METERS", "integer", 7500, 500, 50000,
+    "Follow range of the approach (kept below miningBeamStartMeters)"),
+  highsecTrafficRow("miningBeamRetryMs", "MINING_BEAM_RETRY_MS", "integer", 5000, 1000, 60000,
+    "Gap between two approach checks of a miner without a beam"),
+  highsecTrafficRow("fleeEnabled", "FLEE_ENABLED", "boolean", false, undefined, undefined,
+    "A hauler attacked by a player warps away"),
+  highsecTrafficRow("fleeWindowMs", "FLEE_WINDOW_MS", "integer", 60000, 5000, 600000,
+    "How long after the last hit the hauler keeps trying to flee"),
+  highsecTrafficRow("fleeRetryMs", "FLEE_RETRY_MS", "integer", 5000, 1000, 60000,
+    "Gap between two flee warp orders"),
+  highsecTrafficRow("fleeMinMeters", "FLEE_MIN_METERS", "integer", 150000, 0, 10000000,
+    "Nearest landing point a flee warp may use"),
+  highsecTrafficRow("fleeAlarmEnabled", "FLEE_ALARM_ENABLED", "boolean", false, undefined, undefined,
+    "Civilians of every role near a civilian attacked by a player flee too (needs fleeEnabled)"),
+  highsecTrafficRow("fleeAlarmMeters", "FLEE_ALARM_METERS", "integer", 100000, 1000, 1000000,
+    "Distance from the attacked civilian within which the others flee"),
+  highsecTrafficRow("fleeAlarmMaxPerPass", "FLEE_ALARM_MAX_PER_PASS", "integer", 8, 0, 50,
+    "Civilians alarmed per traffic pass (0 = only the victim flees)"),
+  highsecTrafficRow("ratterEnabled", "RATTER_ENABLED", "boolean", false, undefined, undefined,
+    "Civilian ratters patrol asteroid belts without weapons (needs civilianHullsEnabled)"),
+  highsecTrafficRow("ratterPermille", "RATTER_PERMILLE", "integer", 150, 0, 1000,
+    "Share of the ratter role per spawn"),
+  highsecTrafficRow("ratterMaxPerSystem", "RATTER_MAX_PER_SYSTEM", "integer", 2, 0, 10, "Ratters per system"),
+  highsecTrafficRow("ratterBeltsMin", "RATTER_BELTS_MIN", "integer", 2, 1, 10,
+    "Fewest belts of one patrol (not above the belts of the system)"),
+  highsecTrafficRow("ratterBeltsMax", "RATTER_BELTS_MAX", "integer", 3, 1, 10,
+    "Most belts of one patrol (not below ratterBeltsMin, not above the belts of the system)"),
+  highsecTrafficRow("ratterDwellMinMs", "RATTER_DWELL_MIN_MS", "integer", 45000, 5000, 600000,
+    "Shortest stay at one belt"),
+  highsecTrafficRow("ratterDwellMaxMs", "RATTER_DWELL_MAX_MS", "integer", 90000, 5000, 600000,
+    "Longest stay at one belt (not below ratterDwellMinMs)"),
+  highsecTrafficRow("ratterLandingMeters", "RATTER_LANDING_METERS", "integer", 10000, 0, 50000,
+    "Landing distance from the centre of the belt"),
+  highsecTrafficRow("ratterOrbitMeters", "RATTER_ORBIT_METERS", "integer", 7500, 500, 50000,
+    "Orbit distance around the belt"),
+  highsecTrafficRow("ratterOrbitSpeedPermille", "RATTER_ORBIT_SPEED_PERMILLE", "integer", 600, 100, 1000,
+    "Orbit speed as a share of the top speed"),
+  highsecTrafficRow("ratterLegMs", "RATTER_LEG_MS", "integer", 60000, 10000, 600000,
+    "Lifetime allowance per belt of a patrol"),
+  highsecTrafficRow("explorerEnabled", "EXPLORER_ENABLED", "boolean", false, undefined, undefined,
+    "Civilian explorers visit public data and relic sites without touching them (needs civilianHullsEnabled)"),
+  highsecTrafficRow("explorerPermille", "EXPLORER_PERMILLE", "integer", 100, 0, 1000,
+    "Share of the explorer role per spawn"),
+  highsecTrafficRow("explorerMaxPerSystem", "EXPLORER_MAX_PER_SYSTEM", "integer", 2, 0, 10, "Explorers per system"),
+  highsecTrafficRow("explorerFamilies", "EXPLORER_FAMILIES", "string", "data,relic", undefined, undefined,
+    "Site families an explorer visits (data, relic)", "highsecTrafficExplorerFamilies"),
+  highsecTrafficRow("explorerMaxSites", "EXPLORER_MAX_SITES", "integer", 2, 1, 5, "Sites of one explorer"),
+  highsecTrafficRow("explorerScanMs", "EXPLORER_SCAN_MS", "integer", 20000, 1000, 300000,
+    "Scan stop per planned site at the safe spot"),
+  highsecTrafficRow("explorerSiteDwellMs", "EXPLORER_SITE_DWELL_MS", "integer", 60000, 5000, 600000,
+    "Stay at one site"),
+  highsecTrafficRow("explorerSiteOffsetMeters", "EXPLORER_SITE_OFFSET_METERS", "integer", 5000, 0, 50000,
+    "Landing distance from the site"),
+  highsecTrafficRow("explorerNpcClearMeters", "EXPLORER_NPC_CLEAR_METERS", "integer", 150000, 10000, 1000000,
+    "No NPC ship this close to a site, else the site is skipped"),
+  highsecTrafficRow("explorerSafeSpotOffsetMeters", "EXPLORER_SAFE_SPOT_OFFSET_METERS", "integer", 1500000, 0,
+    100000000, "Height of the safe spot above the line of two celestials"),
+  highsecTrafficRow("explorerSafeSpotMinMeters", "EXPLORER_SAFE_SPOT_MIN_METERS", "integer", 1000000, 0, 100000000,
+    "Smallest distance of the safe spot from any gate, station or belt"),
+  highsecTrafficRow("explorerSafeSpotTries", "EXPLORER_SAFE_SPOT_TRIES", "integer", 4, 1, 16,
+    "Tries to find a safe spot away from every celestial"),
+  highsecTrafficRow("explorerSiteReadsPerPass", "EXPLORER_SITE_READS_PER_PASS", "integer", 4, 0, 50,
+    "Site reads of all explorers per traffic pass (0 = explorers skip sites)"),
+  highsecTrafficRow("explorerLegMs", "EXPLORER_LEG_MS", "integer", 60000, 10000, 600000,
+    "Lifetime allowance per leg of an explorer"),
   highsecLifeRow("civilianHullsEnabled", "CIVILIAN_HULLS_ENABLED", "boolean", false, undefined, undefined,
     "Traffic ships use the civilian hulls lne_civ_* (miners, haulers, frigates, cruisers; restart needed)"),
   highsecGankRow("enabled", "ENABLED", "boolean", false, undefined, undefined,
@@ -9491,6 +9650,8 @@ const SCHEMA = deepFreeze([
     "share of the trips from a NEAR system that go to the nearest observed system"),
   populationRow("near.arrivalRingSize", "NEAR_ARRIVAL_RING_SIZE", "integer", 512, 16, 10000,
     "jumps into NEAR / LIVE systems kept for arrivalsInto"),
+  populationRow("near.activityRingSize", "NEAR_ACTIVITY_RING_SIZE", "integer", 128, 16, 10000,
+    "Activity changes (dock to ratting / exploring) kept for the pilot ships of civilian ratters and explorers"),
   populationRow("observer.panelEnabled", "OBSERVER_PANEL_ENABLED", "boolean", true, undefined, undefined,
     "observer panel population"),
   populationRow("observer.layerEnabled", "OBSERVER_LAYER_ENABLED", "boolean", true, undefined, undefined,
@@ -9983,6 +10144,8 @@ const SCHEMA = deepFreeze([
     "A fleeing boss this close to the gate surface (not in warp) jumps"),
   bountyRow("gateJumpDespawnMs", "GATE_JUMP_DESPAWN_MS", "integer", 3000, 0, 30000,
     "The group leaves the scene this long after the JumpOut of the boss (the escape is settled then)"),
+  bountyRow("gateControllerEventsEnabled", "GATE_CONTROLLER_EVENTS_ENABLED", "boolean", false, undefined, undefined,
+    "Gate Arrival/Departure animation for bounty ships at gates"),
   bountyRow("fleeRetryMs", "FLEE_RETRY_MS", "integer", 15000, 1000, 300000,
     "A flee warp held by tackle (not in warp, not at the gate) is ordered again after this"),
   bountyRow("followSpawnWindowMs", "FOLLOW_SPAWN_WINDOW_MS", "integer", 180000, 0, 1800000,
@@ -10294,6 +10457,38 @@ const SCHEMA = deepFreeze([
     "<chance permille>:<gates> tiers of the transit chanceBase, chance ascending", "ambientRatsGatePicketTiers"),
   ambientRatsRow("gatePicketMaxGates", "GATE_PICKET_MAX_GATES", "integer", 3, 0, 8,
     "Ceiling of the gates with a picket in one system (0 = no picket)"),
+  capsuleFxRow("enabled", "ENABLED", "boolean", false, undefined, undefined,
+    "feature flag (needs modules.world), a capsule warps out of an NPC wreck near a player; effect only"),
+  capsuleFxRow("civilianEnabled", "CIVILIAN_ENABLED", "boolean", false, undefined, undefined,
+    "source: civilian highsec traffic"),
+  capsuleFxRow("ratsEnabled", "RATS_ENABLED", "boolean", false, undefined, undefined,
+    "source: vendor rats outside missions (belts, anomalies, sites)"),
+  capsuleFxRow("missionRatsEnabled", "MISSION_RATS_ENABLED", "boolean", false, undefined, undefined,
+    "source: vendor rats of a mission site"),
+  capsuleFxRow("lneFleetsEnabled", "LNE_FLEETS_ENABLED", "boolean", false, undefined, undefined,
+    "source: fleets, scenes and materializations of the mod"),
+  capsuleFxRow("warpDelayMs", "WARP_DELAY_MS", "integer", 2500, 0, 30000, "pause between the spawn and the warp"),
+  capsuleFxRow("despawnAfterWarpMs", "DESPAWN_AFTER_WARP_MS", "integer", 4000, 500, 60000,
+    "the capsule is removed this long after the warp started"),
+  capsuleFxRow("maxLifetimeMs", "MAX_LIFETIME_MS", "integer", 20000, 2000, 120000,
+    "removal of a capsule that could not warp (at least warpDelayMs + despawnAfterWarpMs)"),
+  capsuleFxRow("warpDistanceAu", "WARP_DISTANCE_AU", "number", 3, 0.5, 50, "warp distance in a random direction"),
+  capsuleFxRow("spawnOffsetMeters", "SPAWN_OFFSET_METERS", "integer", 300, 0, 5000,
+    "spawn distance from the wreck surface"),
+  capsuleFxRow("viewMeters", "VIEW_METERS", "integer", 300000, 10000, 2000000,
+    "a player ship this close to the wreck is needed for a capsule"),
+  capsuleFxRow("maxPerSystem", "MAX_PER_SYSTEM", "integer", 6, 1, 50, "queued and live capsules in one scene"),
+  capsuleFxRow("maxGlobal", "MAX_GLOBAL", "integer", 48, 1, 500, "queued and live capsules, server wide"),
+  capsuleFxRow("maxPending", "MAX_PENDING", "integer", 64, 1, 1000, "queue length, the excess is dropped"),
+  capsuleFxRow("pendingMaxAgeMs", "PENDING_MAX_AGE_MS", "integer", 3000, 250, 30000,
+    "a queued capsule older than this is dropped"),
+  capsuleFxRow("maxSpawnsPerPass", "MAX_SPAWNS_PER_PASS", "integer", 8, 1, 100, "spawns in one pass"),
+  capsuleFxRow("maxActionsPerPass", "MAX_ACTIONS_PER_PASS", "integer", 32, 1, 500, "warps and removals in one pass"),
+  capsuleFxRow("pollMs", "POLL_MS", "integer", 250, 100, 5000, "pause of the timer between passes"),
+  capsuleFxRow("untargetable", "UNTARGETABLE", "boolean", true, undefined, undefined,
+    "the capsule refuses a target lock"),
+  capsuleFxRow("excludedFactionIds", "EXCLUDED_FACTION_IDS", "string", "500021,500024,500025", undefined, undefined,
+    "factions without a capsule (empty = none)", "factionIdListOrEmpty"),
   heavyEventsRow("enabled", "ENABLED", "boolean", false, undefined, undefined,
     "feature flag (needs modules.world and modules.sites), off = no heavy events, no rows"),
   heavyEventsRow("redoubtEnabled", "REDOUBT_ENABLED", "boolean", true, undefined, undefined,
@@ -12598,6 +12793,10 @@ const CHECKS = Object.freeze({
     expected: "1..16 distinct positive system ids separated by commas (the first is the prime hub)",
     test: (value) => parseHighsecHubSystemIds(value) !== null,
   }),
+  highsecTrafficExplorerFamilies: Object.freeze({
+    expected: "distinct site families of data,relic separated by commas",
+    test: (value) => parseHighsecExplorerFamilies(value) !== null,
+  }),
   highsecLifeGankSystemIds: Object.freeze({
     expected: "1..16 distinct positive system ids separated by commas",
     test: (value) => parseHighsecGankSystemIds(value) !== null,
@@ -13841,6 +14040,17 @@ function resolveConfig(input) {
     && String(uc.shipCapKinds).split(",").map((x) => x.trim()).includes("empire")) {
     warnings.push("upkeep.deficitReliefEnabled without upkeep.homeSpaceIncomeEnabled - the deficit relief skips kind "
       + "empire");
+  }
+  const cfx = config.capsuleFx;
+  if (cfx.enabled === true && cfx.maxLifetimeMs < cfx.warpDelayMs + cfx.despawnAfterWarpMs) {
+    warnings.push("capsuleFx.maxLifetimeMs below warpDelayMs + despawnAfterWarpMs - the sum is used");
+  }
+  if (cfx.enabled === true && cfx.civilianEnabled !== true && cfx.ratsEnabled !== true
+    && cfx.missionRatsEnabled !== true && cfx.lneFleetsEnabled !== true) {
+    warnings.push("capsuleFx.enabled without a source flag - no capsules");
+  }
+  if (cfx.enabled === true && !isModuleEnabled(config, "world")) {
+    warnings.push("capsuleFx.enabled without modules.world - no capsules");
   }
   if (config.ambientRats.highsecNavy === true && config.ambientRats.enabled !== true) {
     warnings.push("ambientRats.highsecNavy without ambientRats.enabled - no navy groups");
@@ -15413,12 +15623,16 @@ function resolveConfig(input) {
         + "- the traffic is refused (INVALID_SETTINGS)");
     }
     const minerOn = Boolean(hst) && hst.minerEnabled === true;
+    const ratterOn = Boolean(hst) && hst.ratterEnabled === true && hsl.civilianHullsEnabled === true;
+    const explorerOn = Boolean(hst) && hst.explorerEnabled === true && hsl.civilianHullsEnabled === true;
     const roleShare = (hst && hst.undockEnabled === true ? hst.undockPermille : 0)
-      + (hst && hst.gateIdleEnabled === true ? hst.gateIdlePermille : 0) + (minerOn ? hst.minerPermille : 0);
+      + (hst && hst.gateIdleEnabled === true ? hst.gateIdlePermille : 0) + (minerOn ? hst.minerPermille : 0)
+      + (ratterOn ? hst.ratterPermille : 0) + (explorerOn ? hst.explorerPermille : 0);
     const roleDraw = 1000;
     if (hslFeature("traffic") && roleShare > roleDraw) {
-      warnings.push(`highsecLife.traffic undockPermille + gateIdlePermille${minerOn ? " + minerPermille" : ""} = `
-        + `${roleShare} above ${roleDraw} - no hauler between gates and stations`);
+      warnings.push(`highsecLife.traffic undockPermille + gateIdlePermille${minerOn ? " + minerPermille" : ""}`
+        + `${ratterOn ? " + ratterPermille" : ""}${explorerOn ? " + explorerPermille" : ""} = ${roleShare} above `
+        + `${roleDraw} - no hauler between gates and stations`);
     }
     if (hslFeature("traffic") && hst.minerStayMinMs > hst.minerStayMaxMs) {
       warnings.push(`highsecLife.traffic.minerStayMinMs=${hst.minerStayMinMs} above minerStayMaxMs=`
@@ -15427,6 +15641,18 @@ function resolveConfig(input) {
     if (hslFeature("traffic") && hst.gateIdleEnabled === true && hst.gateIdleMaxMs > hst.maxLifetimeMs) {
       warnings.push(`highsecLife.traffic.gateIdleMaxMs=${hst.gateIdleMaxMs} above maxLifetimeMs=${hst.maxLifetimeMs} `
         + "- the wait at the gate is cut to maxLifetimeMs (informative)");
+    }
+    if (hslFeature("traffic") && hst.fleeEnabled === true && hst.fleeRetryMs > hst.fleeWindowMs) {
+      warnings.push(`highsecLife.traffic.fleeRetryMs=${hst.fleeRetryMs} above fleeWindowMs=${hst.fleeWindowMs} `
+        + "- a hauler gets one flee warp order per hit (informative)");
+    }
+    if (hslFeature("traffic") && hst.fleeAlarmEnabled === true && hst.fleeEnabled !== true) {
+      warnings.push("highsecLife.traffic.fleeAlarmEnabled without fleeEnabled - no effect");
+    }
+    for (const role of ["ratterEnabled", "explorerEnabled"]) {
+      if (hslFeature("traffic") && hst[role] === true && hsl.civilianHullsEnabled !== true) {
+        warnings.push(`highsecLife.traffic.${role} without highsecLife.civilianHullsEnabled - no effect`);
+      }
     }
   }
   const sit = config.situations;

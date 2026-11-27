@@ -9,6 +9,11 @@
     "native",
     "docker"
   ],
+  "compatibility": {
+    "evejsVersions": [
+      "261126.2"
+    ]
+  },
   "activation": {
     "strategy": "loader_rename"
   },
@@ -26,19 +31,6 @@
     "planetaryDrill",
     "missionStructureRestore"
   ],
-  "compatibility": {
-    "evejsVersions": [
-      "261115.2"
-    ]
-  },
-  "updates": {
-    "provider": "github",
-    "repository": "SarJin91/EVEjsMods",
-    "asset": "livingNewEden-{version}.zip",
-    "channel": "stable",
-    "tagPrefix": "livingNewEden-v",
-    "preserveFiles": []
-  },
   "settings": {
     "schemaVersion": 1,
     "files": [
@@ -672,6 +664,96 @@
         ]
       },
       {
+        "id": "governor.minModeHoldSeconds",
+        "label": "Minimum time in mode (s)",
+        "description": "Minimum time before the governor can step down from its current load mode. Default: 180.",
+        "group": "Load governor",
+        "type": "number",
+        "default": 180,
+        "minimum": 0,
+        "maximum": 900,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "governor",
+          "minModeHoldSeconds"
+        ]
+      },
+      {
+        "id": "governor.latenessWarningPercent",
+        "label": "Tick lateness warning (%)",
+        "description": "Share of late tick time that puts the governor in CONSTRAINED. Default: 15.",
+        "group": "Load governor",
+        "type": "number",
+        "default": 15,
+        "minimum": 1,
+        "maximum": 90,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "governor",
+          "latenessWarningPercent"
+        ]
+      },
+      {
+        "id": "governor.latenessOverloadPercent",
+        "label": "Tick lateness overload (%)",
+        "description": "Share of late tick time that puts the governor in OVERLOADED. Default: 25.",
+        "group": "Load governor",
+        "type": "number",
+        "default": 25,
+        "minimum": 1,
+        "maximum": 95,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "governor",
+          "latenessOverloadPercent"
+        ]
+      },
+      {
+        "id": "governor.latenessRecoveryPercent",
+        "label": "Tick lateness recovery (%)",
+        "description": "Late tick share must fall below this value before CONSTRAINED can return to NORMAL. Default: 10.",
+        "group": "Load governor",
+        "type": "number",
+        "default": 10,
+        "minimum": 0,
+        "maximum": 90,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "governor",
+          "latenessRecoveryPercent"
+        ]
+      },
+      {
+        "id": "governor.latenessOverloadExitPercent",
+        "label": "Tick lateness overload exit (%)",
+        "description": "Late tick share must fall below this value before OVERLOADED can step down. Default: 15.",
+        "group": "Load governor",
+        "type": "number",
+        "default": 15,
+        "minimum": 0,
+        "maximum": 95,
+        "step": 1,
+        "advanced": true,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "governor",
+          "latenessOverloadExitPercent"
+        ]
+      },
+      {
         "id": "governor.recoverySeconds",
         "label": "Recovery window (s)",
         "description": "How long the tick must stay healthy before the mod works at full speed again. Default: 15.",
@@ -836,5 +918,13 @@
         ]
       }
     ]
+  },
+  "updates": {
+    "provider": "github",
+    "repository": "SarJin91/EVEjsMods",
+    "asset": "livingNewEden-{version}.zip",
+    "channel": "stable",
+    "tagPrefix": "livingNewEden-v",
+    "preserveFiles": []
   }
 }

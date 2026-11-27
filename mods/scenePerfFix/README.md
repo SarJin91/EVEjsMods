@@ -23,3 +23,9 @@ Upstream removed both hot paths itself. Movement is computed by Destiny Evolve (
 ## Configuration
 
 `settings.json` or environment variables (they win), see `.env.example`: `skipInertWrecks`, `inertKinds`, `inertSpeedEpsilon`, `cacheItemNameLookups`, `itemNameCacheMax`, `statsLogMinutes`.
+
+## Tests
+
+```
+node mods/scenePerfFix/test/run.js
+```

@@ -2,6 +2,7 @@
 
 const path = require("node:path");
 const { performance } = require("node:perf_hooks");
+const { isThenable } = require("../adapter/maybeAsync");
 
 const STATE = Object.freeze({ IDLE: "idle", RUNNING: "running", STOPPED: "stopped" });
 const UNKNOWN_LABEL = "poller:unknown";
@@ -73,6 +74,35 @@ function createPoller(deps) {
   let inPass = false;
   let rerunAt = null;
   let passes = 0;
+  let stallTimer = null;
+
+  function cancelStall() {
+    if (stallTimer === null) return;
+    const handle = stallTimer;
+    stallTimer = null;
+    try {
+      handle.cancel();
+    } catch (_err) {
+    }
+  }
+
+  function watchStall(h) {
+    const stall = h !== null && h.stall && typeof h.stall.log === "function" ? h.stall : null;
+    const afterMs = stall ? stall.afterMs : 0;
+    if (!Number.isFinite(afterMs) || afterMs <= 0) return;
+    try {
+      stallTimer = setTimer(() => {
+        stallTimer = null;
+        if (!inPass || state !== STATE.RUNNING) return;
+        try {
+          stall.log(label, afterMs);
+        } catch (_err) {
+        }
+      }, afterMs);
+    } catch (_err) {
+      stallTimer = null;
+    }
+  }
 
   function cancelTimer() {
     if (timer === null) return;
@@ -111,20 +141,39 @@ function createPoller(deps) {
     const t0 = metered ? performance.now() : 0;
     inPass = true;
     rerunAt = null;
+    let result;
     try {
-      runPass();
+      result = runPass();
     } catch (err) {
-      onError(err);
-    } finally {
-      inPass = false;
-      passes += 1;
-      if (metered) {
-        try {
-          h.meter(label, performance.now() - t0);
-        } catch (_err) {
-        }
+      try {
+        onError(err);
+      } catch (_err) {
       }
     }
+    if (metered) {
+      try {
+        h.meter(label, performance.now() - t0);
+      } catch (_err) {
+      }
+    }
+    if (isThenable(result)) {
+      watchStall(h);
+      Promise.resolve(result).then(() => finishPass(h), (err) => {
+        try {
+          onError(err);
+        } finally {
+          finishPass(h);
+        }
+      }).catch(noop);
+      return;
+    }
+    finishPass(h);
+  }
+
+  function finishPass(h) {
+    cancelStall();
+    inPass = false;
+    passes += 1;
     const pending = rerunAt;
     rerunAt = null;
     arm(pending === null ? pacedInterval(h) : Math.max(0, pending - now()));
@@ -151,6 +200,7 @@ function createPoller(deps) {
     if (state === STATE.STOPPED) return;
     state = STATE.STOPPED;
     cancelTimer();
+    cancelStall();
     const h = hooks;
     if (h !== null && h.pacer && typeof h.pacer.release === "function") {
       try {

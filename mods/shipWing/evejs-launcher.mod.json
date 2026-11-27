@@ -15,16 +15,8 @@
   "restart": "game_server",
   "compatibility": {
     "evejsVersions": [
-      "261115.2"
+      "261126.2"
     ]
-  },
-  "updates": {
-    "provider": "github",
-    "repository": "SarJin91/EVEjsMods",
-    "asset": "shipWing-{version}.zip",
-    "channel": "stable",
-    "tagPrefix": "shipWing-v",
-    "preserveFiles": []
   },
   "settings": {
     "schemaVersion": 1,
@@ -83,5 +75,13 @@
         ]
       }
     ]
+  },
+  "updates": {
+    "provider": "github",
+    "repository": "SarJin91/EVEjsMods",
+    "asset": "shipWing-{version}.zip",
+    "channel": "stable",
+    "tagPrefix": "shipWing-v",
+    "preserveFiles": []
   }
 }

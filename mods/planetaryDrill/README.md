@@ -252,3 +252,7 @@ Log lines:
 ```
 
 `DRIFT ...` = an EveJS update changed a seam: the mod is inert (vanilla).
+
+## Tests
+
+`node mods/planetaryDrill/test/run.js` (or `RunTests.bat`).

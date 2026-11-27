@@ -1,6 +1,7 @@
 "use strict";
 
 const { createPoller } = require("../presence/poller");
+const { isThenable } = require("../adapter/maybeAsync");
 const { createAbortSentinel } = require("../persistence/store");
 const { backoffMs } = require("./killmails");
 const { OUTBOX_KIND_ANCHOR, STRUCTURE_STATES: SS, STRUCTURES_MAX_TOTAL } = require("./schema");
@@ -21,6 +22,8 @@ const PLAN_COUNTERS = Object.freeze({ CAP: "stCap", ISK: "stSkipIsk", CORP_CAP: 
   SYSTEM_CAP: "stSkipSystemCap", COOLDOWN: "stSkipCooldown", SOV: "stBlockedSov", STATION: "stBlockedStation",
   UNKNOWN: "stBlockedUnknown" });
 const FAR_FUTURE = Number.MAX_SAFE_INTEGER;
+const FLUSH_FAILED = Object.freeze({ ok: false, reason: "FLUSH_FAILED" });
+const NOT_RUNNING = Object.freeze({ ok: true, ran: false, reason: "NOT_RUNNING" });
 
 function safe(fn, fallback) {
   try {
@@ -440,8 +443,8 @@ function createStructurePump(deps) {
     }
     running = true;
     const now = clock.now();
-    const ctx = { writes: 0, vendorWrites: 0, records: [], anchor: null };
-    let wrote = false;
+    const ctx = { writes: 0, vendorWrites: 0, records: [], anchor: null, wrote: false };
+    let flushed;
     try {
       if (now >= nextReconcileAt) {
         if (reconcile(seam, ctx, now)) {
@@ -454,7 +457,7 @@ function createStructurePump(deps) {
         const c = store.transaction("freeCorps.structures.cleanup", (tx) => cleanupAnchorsTx(tx, now));
         if (c && c.ok === true) {
           commit(c.value);
-          if (c.value.length > 0) wrote = true;
+          if (c.value.length > 0) ctx.wrote = true;
         } else {
           refusal("cleanup", c);
         }
@@ -468,24 +471,43 @@ function createStructurePump(deps) {
           commit(c.value.tally);
           if (c.value.op === "spacing") bump("stSpacing");
           else if (c.value.op === "expired") bump("stExpired");
-          if (c.value.op !== "idle" && c.value.op !== "spacing") wrote = true;
+          if (c.value.op !== "idle" && c.value.op !== "spacing") ctx.wrote = true;
           if (c.value.op === "call") ctx.anchor = anchor(seam, states, ctx, c.value, now);
         }
       }
-      if (ctx.vendorWrites > 0) {
-        const f = safe(() => seam.flushStructures(), { ok: false, reason: "FLUSH_FAILED" });
-        if (!f || f.ok !== true) {
-          bump("stFlushFailed");
-          refusal("flush", f);
-          if (ctx.anchor && ctx.anchor.vendor === true) ctx.anchor = { ob: ctx.anchor.ob, row: ctx.anchor.row,
-            fail: "FLUSH_FAILED" };
-        }
+      flushed = ctx.vendorWrites > 0 ? safe(() => seam.flushStructures(), FLUSH_FAILED) : null;
+    } catch (err) {
+      running = false;
+      return pumpFailed(err);
+    }
+    if (!isThenable(flushed)) return finishRun(ctx, flushed, now);
+    return Promise.resolve(flushed).then((f) => f, () => FLUSH_FAILED).then((f) => {
+      if (stopped || safe(isRunning, false) !== true) {
+        running = false;
+        return NOT_RUNNING;
+      }
+      return finishRun(ctx, f, now);
+    });
+  }
+
+  function pumpFailed(err) {
+    log(`structure pump failed - ${detailOf(err)}`);
+    return { ok: false, reason: "PUMP_FAILED" };
+  }
+
+  function finishRun(ctx, f, now) {
+    try {
+      if (f !== null && (!f || f.ok !== true)) {
+        bump("stFlushFailed");
+        refusal("flush", f);
+        if (ctx.anchor && ctx.anchor.vendor === true) ctx.anchor = { ob: ctx.anchor.ob, row: ctx.anchor.row,
+          fail: "FLUSH_FAILED" };
       }
       const settle = (fn) => {
         const r = store.transaction("freeCorps.structures.record", fn);
         if (r && r.ok === true) {
           commit(r.value);
-          wrote = true;
+          ctx.wrote = true;
         } else if (r && r.error === RECORD_CONFLICT) {
           bump("stRecordConflict");
         } else {
@@ -501,7 +523,7 @@ function createStructurePump(deps) {
         const p = store.transaction("freeCorps.structures.plan", (tx) => planTx(tx, now));
         if (p && p.ok === true) {
           commit(p.value);
-          if (p.value.includes("stPlanned")) wrote = true;
+          if (p.value.includes("stPlanned")) ctx.wrote = true;
         } else {
           refusal("plan", p);
           log(`structures plan failed - ${reasonOf(p)}${p && p.error ? ` ${detailOf(p.error)}` : ""}`);
@@ -512,17 +534,16 @@ function createStructurePump(deps) {
         open = n.value;
         metric("gauge", "freeCorps.structuresOpen", open);
       }
-      if (wrote) onWrite();
+      if (ctx.wrote) onWrite();
       return { ok: true, ran: true };
     } catch (err) {
-      log(`structure pump failed - ${detailOf(err)}`);
-      return { ok: false, reason: "PUMP_FAILED" };
+      return pumpFailed(err);
     } finally {
       running = false;
     }
   }
 
-  poller = createPoller({ runPass: () => { runNow(); }, intervalMs: S.pumpMs, now: () => clock.now(),
+  poller = createPoller({ runPass: () => runNow(), intervalMs: S.pumpMs, now: () => clock.now(),
     setTimer: deps.setTimer, onError: (err) => log(`structure pump timer - ${detailOf(err)}`) });
 
   return Object.freeze({

@@ -194,7 +194,7 @@ function startSentries(deps) {
       getFactionKind: typeof deps.getFactionKind === "function" ? deps.getFactionKind : null,
       isFactionEnemy: typeof deps.isFactionEnemy === "function" ? deps.isFactionEnemy : null,
       thresholds: huntThresholds(huntSettings), neutralPolicy: parseNeutralPolicy(huntSettings.neutralPolicy) || {} },
-      telemetry: deps.telemetry || null, logger });
+      telemetry: deps.telemetry || null, logger, nowMs: typeof deps.nowMs === "function" ? deps.nowMs : undefined });
 
     let registration;
     try {

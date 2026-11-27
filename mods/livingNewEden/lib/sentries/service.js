@@ -1,5 +1,6 @@
 "use strict";
 
+const { performance } = require("node:perf_hooks");
 const S = require("./schema");
 const { checkPlacement, checkLimits, checkKindLimits, checkFreeLimits } = require("./policy");
 const { SENTRY_TYPE_IDS, defaultAmmoOfType, sentryTypeOfFaction, kindOfType, isPassiveKind, typeIdsOfKind,
@@ -105,6 +106,7 @@ function createSentryService(deps) {
   const { store, repository, seam, scheduler, config, clock } = deps;
   const C = config.sentries;
   const logger = deps.logger && typeof deps.logger.log === "function" ? deps.logger : { log() {} };
+  const nowMs = typeof deps.nowMs === "function" ? deps.nowMs : () => performance.now();
   const telemetry = deps.telemetry || null;
   const limits = Object.freeze({ maxPerAnchor: C.maxPerAnchor, maxPerSystemPerOwner: C.player.maxPerSystemPerOwner,
     maxPerOwner: C.player.maxPerOwner, maxTotal: C.maxTotal });
@@ -164,6 +166,30 @@ function createSentryService(deps) {
       logger.log(line);
     } catch (_err) {
     }
+  }
+
+  const PASS_THROUGH = Object.freeze({ measure: (_phase, operation) => operation(), report: () => {} });
+
+  function deployTimer(row) {
+    const thresholdMs = C.slowDeployLogMs;
+    if (!(thresholdMs > 0)) return PASS_THROUGH;
+    const startedMs = nowMs();
+    const phases = [];
+    const measure = (phase, operation) => {
+      const t0 = nowMs();
+      try {
+        return operation();
+      } finally {
+        phases.push(`${phase}=${(nowMs() - t0).toFixed(1)}`);
+      }
+    };
+    const report = (outcome) => {
+      const totalMs = nowMs() - startedMs;
+      if (totalMs < thresholdMs) return;
+      log(`sentries: slow SENTRY_DEPLOY sentry=${row.sentryId} system=${row.systemId} outcome=${String(outcome)} `
+        + `totalMs=${totalMs.toFixed(1)} phaseMs ${phases.join(" ")}`);
+    };
+    return { measure, report };
   }
 
   const stopped = () => state === "stopped";
@@ -602,13 +628,23 @@ function createSentryService(deps) {
           log(`sentries: faction sentry ${row.sentryId} of ${row.factionId} in ${row.systemId} not deployed `
             + `(${reason}${detail ? ` ${detail}` : ""}) - CANCELLED, no refund`);
         } });
-      const anchors = seamCall("readAnchors", row.systemId, { maxAnchors: C.maxAnchorsRead });
-      if (!anchors.ok) return { ok: false, reason: String(anchors.reason) };
+      const timer = deployTimer(row);
+      const anchors = timer.measure("readAnchors",
+        () => seamCall("readAnchors", row.systemId, { maxAnchors: C.maxAnchorsRead }));
+      if (!anchors.ok) {
+        timer.report(anchors.reason);
+        return { ok: false, reason: String(anchors.reason) };
+      }
       const anchor = anchors.anchors.find((a) => a.kind === row.anchorKind && a.id === row.anchorId) || null;
-      if (anchor === null) return cancel("ANCHOR_GONE");
+      if (anchor === null) {
+        timer.report("ANCHOR_GONE");
+        return cancel("ANCHOR_GONE");
+      }
       const ammo = noAmmoTypes.has(row.typeId) ? null : defaultAmmoOfType(row.typeId);
       const d = seamCall("deployFactionSentry", { sentryId: row.sentryId, ownerCorpId: row.ownerCorpId,
-        systemId: row.systemId, typeId: row.typeId, position: ringPosition(anchor, row.slot, { ...C, ...F }), ammo });
+        systemId: row.systemId, typeId: row.typeId, position: ringPosition(anchor, row.slot, { ...C, ...F }), ammo },
+      timer.measure);
+      timer.report(d.ok ? (d.duplicate ? "REPLAY" : "OK") : d.reason);
       if (!d.ok) return d.permanent === true ? cancel(d.reason, d.detail) : { ok: false, reason: String(d.reason) };
       const armedAt = at + C.armDelayMs;
       return { ok: true, outcome: d.duplicate ? "DEPLOYED_REPLAY" : "DEPLOYED",

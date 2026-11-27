@@ -6,6 +6,7 @@ const bountyVictims = require("./bountyVictims");
 const { factionKeyOf } = require("./officerSpawn");
 const freighters = require("./data/factionLiveProfiles");
 const { admitOrPass } = require("./sceneNpcBudget");
+const { GATE_EVENT, broadcastGateEvent } = require("./gateJumpFx");
 
 const MAX_DETAIL = 120;
 const SITE_PREFIX = "lneBounty";
@@ -33,7 +34,7 @@ const FUNCTIONS = Object.freeze({
 });
 
 const SEAM_METHODS = Object.freeze(["isSceneLoaded", "spawnGroup", "readAggression", "warpOff", "orderAttack",
-  "despawn", "listAlive", "markShips", "forgetShips", "fleeToGate", "jumpAtGate"]);
+  "despawn", "listAlive", "markShips", "forgetShips", "fleeToGate", "jumpAtGate", "presentGateDeparture"]);
 const ALIGN_ORDER = "align";
 const JUMP_OUT_FX = "effects.JumpOut";
 const JUMP_IN_FX = "effects.JumpIn";
@@ -118,8 +119,9 @@ function specOf(spec) {
   const cargo = spec.cargo === undefined || spec.cargo === null ? [] : spec.cargo;
   if (!Array.isArray(cargo) || cargo.length > MAX_CARGO
     || !cargo.every((it) => it && isPositiveInt(it.typeId) && isPositiveInt(it.quantity))) return null;
+  if (spec.gateEvents !== undefined && typeof spec.gateEvents !== "boolean") return null;
   return { systemId: spec.systemId, factionId: spec.factionId, anchor: a, boss, escorts: spec.escorts,
-    archetype: spec.archetype, slimName, seedKey: spec.seedKey, cargo };
+    archetype: spec.archetype, slimName, seedKey: spec.seedKey, cargo, gateEvents: spec.gateEvents === true };
 }
 
 function createBountyScene(deps) {
@@ -394,7 +396,17 @@ function createBountyScene(deps) {
           }
         }
       }
-      return { ok: true, bossId, escortIds, anchorPoint: pointOf(anchorEntity.position), cargo, wake, arrivalGate };
+      if (!(arrivalGate && s.gateEvents)) {
+        return { ok: true, bossId, escortIds, anchorPoint: pointOf(anchorEntity.position), cargo, wake, arrivalGate };
+      }
+      const gateId = toPositiveInt(anchorEntity.itemID);
+      let arrivals = 0;
+      for (const id of made) {
+        const ev = broadcastGateEvent(sc.scene, gateId, id, GATE_EVENT.ARRIVAL);
+        if (ev.ok === true && ev.sent === true) arrivals += 1;
+      }
+      return { ok: true, bossId, escortIds, anchorPoint: pointOf(anchorEntity.position), cargo, wake, arrivalGate,
+        arrivals };
     } catch (err) {
       if (spawn && made.length > 0) {
         try {
@@ -548,6 +560,19 @@ function createBountyScene(deps) {
     }
   };
 
+  const presentGateDeparture = (systemId, entityId, gateId) => {
+    if (!isPositiveInt(systemId) || !isPositiveInt(entityId) || !isPositiveInt(gateId)) {
+      return { ok: false, reason: "INVALID_INPUT" };
+    }
+    try {
+      const sc = sceneOf(systemId);
+      if (!sc.ok) return sc;
+      return broadcastGateEvent(sc.scene, gateId, entityId, GATE_EVENT.DEPARTURE);
+    } catch (err) {
+      return { ok: false, reason: "FX_FAILED", detail: messageOf(err) };
+    }
+  };
+
   const despawn = (systemId, entityIds) => {
     if (!isPositiveInt(systemId) || !isIdList(entityIds)) return { ok: false, reason: "INVALID_INPUT" };
     try {
@@ -574,7 +599,7 @@ function createBountyScene(deps) {
   const forgetShips = (entityIds) => bountyVictims.forgetBountyShips(entityIds);
 
   return Object.freeze({ isSceneLoaded, spawnGroup, readAggression, warpOff, orderAttack, despawn, listAlive,
-    markShips, forgetShips, fleeToGate, jumpAtGate });
+    markShips, forgetShips, fleeToGate, jumpAtGate, presentGateDeparture });
 }
 
 module.exports = { PATHS, FUNCTIONS, SEAM_METHODS, HULL_LADDER, CAPITAL_ORDER, createBountyScene,

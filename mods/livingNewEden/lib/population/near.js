@@ -56,6 +56,16 @@ function createNearLayer(deps) {
   const departures = deps.departures === true;
   let ringNext = 0;
   let ringCount = 0;
+  const activityIntents = new Set(Array.isArray(deps.activityIntents)
+    ? deps.activityIntents.filter((c) => Number.isInteger(c) && c > 0) : EMPTY);
+  const activityOn = activityIntents.size > 0;
+  const activityRingSize = activityOn ? Math.max(1, N.activityRingSize | 0) : 0;
+  const actSys = new Int32Array(activityRingSize);
+  const actPilot = new Int32Array(activityRingSize);
+  const actAt = new Float64Array(activityRingSize);
+  const actIntent = new Uint8Array(activityRingSize);
+  let actNext = 0;
+  let actCount = 0;
   const names = new Map();
   let prewarmedTotal = 0;
 
@@ -159,7 +169,26 @@ function createNearLayer(deps) {
     if (ringCount < ringSize) ringCount += 1;
   }
 
-  function afterCommit(id, fromId, jumped, nowMs, fromState) {
+  function recordActivity(systemId, pilotId, at, intent) {
+    actSys[actNext] = systemId;
+    actPilot[actNext] = pilotId;
+    actAt[actNext] = at;
+    actIntent[actNext] = intent;
+    actNext = (actNext + 1) % activityRingSize;
+    if (actCount < activityRingSize) actCount += 1;
+  }
+
+  function noteActivity(p, id, fromId, jumped, nowMs, fromState, fromIntent) {
+    if (jumped || p.systemId !== fromId || p.state !== STATE.ACTIVE || !activityIntents.has(p.intent)) return;
+    if (fromState === STATE.DOCKED) {
+      recordActivity(p.systemId, id, nowMs, p.intent);
+      bump("near.activityEvents");
+    } else if (fromState === STATE.ACTIVE && fromIntent !== p.intent) {
+      bump("near.activitySkipped");
+    }
+  }
+
+  function afterCommit(id, fromId, jumped, nowMs, fromState, fromIntent) {
     const p = pilots.get(id);
     if (!p) return;
     const t = tierCode(p.systemId);
@@ -171,6 +200,7 @@ function createNearLayer(deps) {
     else if (departures && !jumped && fromState === STATE.DOCKED && p.state === STATE.TRAVEL && p.systemId === fromId) {
       recordArrival(p.systemId, id, 0, nowMs, RING_DEPART);
     }
+    if (activityOn && Number.isInteger(fromIntent)) noteActivity(p, id, fromId, jumped, nowMs, fromState, fromIntent);
     if (p.flags & FLAG_NEAR) {
       pilots.setFlags(id, (p.flags & ~SUBSTATE_MASK) | (substateOf(p, nowMs, S) << SUBSTATE_SHIFT));
     } else {
@@ -235,6 +265,24 @@ function createNearLayer(deps) {
         kind: e.kind === RING_DEPART ? "DEPART" : "ARRIVE" })));
   }
 
+  function activitiesInto(systemId, sinceMs, limit) {
+    if (!activityOn || actCount === 0) return EMPTY;
+    const sys = Number(systemId);
+    const since = Number.isFinite(Number(sinceMs)) ? Number(sinceMs) : -Infinity;
+    const n = Number.isSafeInteger(limit) && limit > 0 ? limit : ARRIVALS_DEFAULT_LIMIT;
+    const latest = new Map();
+    for (let k = 0; k < actCount; k += 1) {
+      if (actSys[k] !== sys || !(actAt[k] > since)) continue;
+      const prev = latest.get(actPilot[k]);
+      if (!prev || actAt[k] >= prev.at) {
+        latest.set(actPilot[k], Object.freeze({ pilotId: actPilot[k], systemId: sys, at: actAt[k],
+          intent: actIntent[k], kind: "ACTIVITY" }));
+      }
+    }
+    if (latest.size === 0) return EMPTY;
+    return Object.freeze([...latest.values()].sort((a, b) => a.at - b.at || a.pilotId - b.pilotId).slice(0, n));
+  }
+
   function onTierChange(cb) {
     if (typeof cb !== "function") return { ok: false, reason: "LISTENER_INVALID" };
     listeners.add(cb);
@@ -260,7 +308,7 @@ function createNearLayer(deps) {
 
   function status() {
     return Object.freeze({ ...counts(), version: seenVersion, refreshes, pending: pending.length - head,
-      prewarmed: prewarmedTotal, arrivals: ringCount, names: names.size });
+      prewarmed: prewarmedTotal, arrivals: ringCount, activities: actCount, names: names.size });
   }
 
   function viewOf(id, flags) {
@@ -271,12 +319,14 @@ function createNearLayer(deps) {
   function approxBytes() {
     const K = S_.MEMORY_ESTIMATE;
     return ringSys.byteLength + ringPilot.byteLength + ringFrom.byteLength + ringAt.byteLength + ringKind.byteLength
+      + actSys.byteLength + actPilot.byteLength + actAt.byteLength + actIntent.byteLength
       + queued.byteLength + (pending.length - head) * K.ROUTE_HOP_BYTES + names.size * K.NAME_ENTRY_BYTES
       + tiers.size * K.MAP_ENTRY_BYTES;
   }
 
-  return Object.freeze({ refresh, prewarmPass, afterCommit, attract, arrivalsInto, eventsInto, onTierChange, counts,
-    status, viewOf, tierOf: (systemId) => TIER_NAMES[tierCode(Number(systemId))], tierCode, ringSize, approxBytes });
+  return Object.freeze({ refresh, prewarmPass, afterCommit, attract, arrivalsInto, eventsInto, activitiesInto,
+    onTierChange, counts, status, viewOf, tierOf: (systemId) => TIER_NAMES[tierCode(Number(systemId))], tierCode,
+    ringSize, activityRingSize, approxBytes });
 }
 
 module.exports = { createNearLayer, substateOf, displayNameOf, NAME_STYLES };

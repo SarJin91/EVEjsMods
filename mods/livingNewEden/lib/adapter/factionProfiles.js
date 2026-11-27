@@ -102,7 +102,7 @@ function bountyFreighterRows(data) {
   return out;
 }
 
-const CIVILIAN_ROLES = Object.freeze(["HAULER", "MINER", "UNDOCK", "GATE_IDLE", "POD", "PILOT"]);
+const CIVILIAN_ROLES = Object.freeze(["HAULER", "MINER", "UNDOCK", "GATE_IDLE", "RATTER", "EXPLORER", "POD", "PILOT"]);
 const CIVILIAN_KEY_RE = /^[a-z0-9_]{1,24}$/;
 const posInt = (value) => Number.isSafeInteger(value) && value > 0;
 

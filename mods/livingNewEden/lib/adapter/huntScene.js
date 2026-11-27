@@ -4,6 +4,8 @@
 
 const dormancyGuard = require("./dormancyGuard");
 const { attackLockFields } = require("./attackLock");
+const { presentBeams, motionOf } = require("./miningBeams");
+const { queueWarpingFx } = require("./ballUpdates");
 
 const MAX_DETAIL = 120;
 
@@ -29,9 +31,11 @@ const REQUIRED_FUNCTIONS = Object.freeze({
 });
 
 const SEAM_METHODS = Object.freeze(["listSystemObjects", "readPlayerShips", "readShips", "warpShips", "setSearch",
-  "attackTargets", "readAggressors", "explainShips", "armNpcCombat"]);
+  "attackTargets", "readAggressors", "explainShips", "armNpcCombat", "presentMiningBeams"]);
 
 const NOT_IN_SCENE = "ENTITY_NOT_IN_SCENE";
+const ALIGN_ORDER = "align";
+const RESUME_ORDER = "resume";
 
 function messageOf(err) {
   return String((err && err.message) || err).slice(0, MAX_DETAIL);
@@ -353,31 +357,85 @@ function createHuntScene({ requireGame, data, attackLock }) {
     }
   };
 
+  const optionalFlag = (value) => value === undefined || typeof value === "boolean";
+
+  const resumeOrder = (npc, entityId) => {
+    try {
+      const r = npc.issueManualOrder(entityId, { type: RESUME_ORDER });
+      return Boolean(r && r.success === true);
+    } catch (_err) {
+      return false;
+    }
+  };
+
+  const alignedWarp = (scene, npc, entityId, landing) => {
+    let aligned = false;
+    try {
+      const entity = scene.getEntityByID(entityId);
+      const from = pointOf(entity && entity.position);
+      if (entity && from !== null && typeof scene.warpDynamicEntityToPoint === "function") {
+        const direction = { x: landing.x - from.x, y: landing.y - from.y, z: landing.z - from.z };
+        const issued = npc.issueManualOrder(entityId, { type: ALIGN_ORDER, direction });
+        if (issued && issued.success === true) npc.wakeNpcController(entityId, 0);
+        const warp = issued && issued.success === true ? scene.warpDynamicEntityToPoint(entity, landing) : null;
+        aligned = Boolean(warp && warp.success === true);
+      }
+    } catch (_err) {
+      aligned = false;
+    }
+    if (!aligned) resumeOrder(npc, entityId);
+    return aligned;
+  };
+
   const warpShips = (systemId, entityIds, point, options = {}) => {
     const center = pointOf(point);
     const spread = options && options.spreadMeters !== undefined ? Number(options.spreadMeters) : 0;
+    const align = options ? options.align : undefined;
+    const clearAlignOrder = options ? options.clearAlignOrder : undefined;
+    const warpFx = options ? options.warpFx : undefined;
     if (!isPositiveInt(systemId) || !isIdList(entityIds) || center === null
-      || !Number.isFinite(spread) || spread < 0) {
+      || !Number.isFinite(spread) || spread < 0 || !optionalFlag(align) || !optionalFlag(clearAlignOrder)
+      || !optionalFlag(warpFx) || (align === true && clearAlignOrder === true)) {
       return { ok: false, reason: "INVALID_INPUT" };
     }
+    const withOrders = align === true || clearAlignOrder === true;
     try {
-      const loaded = load(["runtime", "npcRuntime"]);
+      const loaded = load(withOrders ? ["runtime", "npcRuntime", "npc"] : ["runtime", "npcRuntime"]);
       if (!loaded.ok) return loaded;
       if (!sceneLoadedIn(loaded.mods.runtime, systemId)) return { ok: false, reason: "SCENE_NOT_LOADED" };
       const inScene = splitInScene(loaded.mods.runtime, systemId, entityIds);
       if (!inScene.ok) return inScene;
       const npcRuntime = loaded.mods.npcRuntime;
+      const npc = withOrders ? loaded.mods.npc : null;
+      const scene = align === true || warpFx === true ? sceneOf(loaded.mods.runtime, systemId) : null;
       let warped = 0;
+      let aligned = 0;
+      let fellBack = 0;
+      let fxSent = 0;
       const failed = [...inScene.missing];
       let detail = inScene.missing.length > 0 ? NOT_IN_SCENE : null;
       for (let i = 0; i < entityIds.length; i += 1) {
         const entityId = entityIds[i];
         if (inScene.missing.includes(entityId)) continue;
+        const landing = landingPoint(center, i, entityIds.length, spread);
+        if (align === true) {
+          if (alignedWarp(scene, npc, entityId, landing)) {
+            warped += 1;
+            aligned += 1;
+            continue;
+          }
+        } else if (clearAlignOrder === true) {
+          resumeOrder(npc, entityId);
+        }
         try {
-          const result = npcRuntime.warpToPoint(entityId, landingPoint(center, i, entityIds.length, spread),
-            { ...data.HUNT_WARP_OPTIONS });
+          const result = npcRuntime.warpToPoint(entityId, landing, { ...data.HUNT_WARP_OPTIONS });
           if (result && result.success === true) {
             warped += 1;
+            if (align === true) fellBack += 1;
+            if (warpFx === true) {
+              const fx = queueWarpingFx(requireGame, scene, entityId);
+              if (fx.ok === true && fx.sent === true) fxSent += 1;
+            }
             continue;
           }
           if (detail === null) detail = String((result && result.errorMsg) || "WARP_FAILED").slice(0, MAX_DETAIL);
@@ -386,7 +444,10 @@ function createHuntScene({ requireGame, data, attackLock }) {
         }
         failed.push(entityId);
       }
-      return detail === null ? { ok: true, warped, failed } : { ok: true, warped, failed, detail };
+      const out = align === true ? { ok: true, warped, failed, aligned, fellBack } : { ok: true, warped, failed };
+      if (warpFx === true) out.warpFx = fxSent;
+      if (detail !== null) out.detail = detail;
+      return out;
     } catch (err) {
       return { ok: false, reason: "WARP_FAILED", detail: messageOf(err) };
     }
@@ -583,8 +644,23 @@ function createHuntScene({ requireGame, data, attackLock }) {
     }
   };
 
+  const presentMiningBeams = (systemId, req) => {
+    if (!isPositiveInt(systemId)) return { ok: false, reason: "INVALID_INPUT" };
+    try {
+      const loaded = load(["runtime"]);
+      if (!loaded.ok) return loaded;
+      if (!sceneLoadedIn(loaded.mods.runtime, systemId)) return { ok: false, reason: "SCENE_NOT_LOADED" };
+      const scene = sceneOf(loaded.mods.runtime, systemId);
+      if (!scene) return { ok: false, reason: "SCENE_NOT_LOADED" };
+      const npcLoaded = req && req.approach ? load(["npc"]) : null;
+      return presentBeams(scene, req, npcLoaded && npcLoaded.ok ? motionOf(npcLoaded.mods.npc) : null);
+    } catch (err) {
+      return { ok: false, reason: "FX_FAILED", detail: messageOf(err) };
+    }
+  };
+
   return { listSystemObjects, readPlayerShips, readShips, warpShips, setSearch, attackTargets, readAggressors,
-    explainShips, armNpcCombat };
+    explainShips, armNpcCombat, presentMiningBeams };
 }
 
 module.exports = { MODULE_PATHS, FACTION_KILL_PATH, SIGNATURE_RUNTIME_PATH, REQUIRED_FUNCTIONS, SEAM_METHODS, createHuntScene, checkHuntSceneFrom,

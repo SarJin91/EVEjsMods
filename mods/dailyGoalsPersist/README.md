@@ -1,4 +1,4 @@
-# Daily Goals Persist (EveJS loader mod)
+# Daily Goals Persist (EveJS 0.12.9 loader mod)
 
 Daily goal progress, claimed (`redeemed`) goals, pending reward settlements and
 the Monthly Reward Track survive a server restart. Without this mod EveJS
@@ -69,6 +69,10 @@ Docker: `docker/entrypoint.sh` preloads
 `--require /app/mods/dailyGoalsPersist/loader.js` in both server blocks.
 Native launcher: activate as a loader mod (`loader_rename`).
 
+## Tests
+
+`node mods/dailyGoalsPersist/test/run.js` (or `RunTests.bat`). No server needed;
+T1 checks the seam tokens against the real `server/src` files.
 
 ## Not covered
 

@@ -1,0 +1,12 @@
+{
+  "enabled": true,
+  "chanceSmall": 0.04,
+  "chanceMedium": 0.08,
+  "chanceLarge": 0.16,
+  "chanceOther": 0.06,
+  "copyShare": 0.65,
+  "t1OriginalShare": 0.25,
+  "t2OriginalShare": 0.10,
+  "log": true,
+  "resonatorsEnabled": false
+}

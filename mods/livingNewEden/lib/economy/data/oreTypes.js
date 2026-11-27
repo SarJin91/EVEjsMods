@@ -10,9 +10,9 @@ function deepFreeze(value) {
 
 const HEADER = {
   "catalogVersion": 1,
-  "sdeBuild": 3396210,
-  "sdeReleaseDate": "2026-06-16T12:43:42Z",
-  "sourceHash": "2954129ef1d55c67d0e008a267f51a62bae32e8206d36c1a0af49a4fd20744e3",
+  "sdeBuild": 3724492,
+  "sdeReleaseDate": "2026-11-19T11:07:08Z",
+  "sourceHash": "e95e80e7f185987b0c3b609a21d6882c19e14dbffeade123fe8b4d7164507347",
   "oreCount": 83,
   "baseCount": 24,
   "namedFamilies": 15,

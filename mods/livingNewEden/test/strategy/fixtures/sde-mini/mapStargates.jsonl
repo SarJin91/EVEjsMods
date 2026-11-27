@@ -1,0 +1,16 @@
+{"_key": 50000001, "destination": {"solarSystemID": 30000002, "stargateID": 50000002}, "solarSystemID": 30000001}
+{"_key": 50000002, "destination": {"solarSystemID": 30000001, "stargateID": 50000001}, "solarSystemID": 30000002}
+{"_key": 50000003, "destination": {"solarSystemID": 30000003, "stargateID": 50000004}, "solarSystemID": 30000002}
+{"_key": 50000004, "destination": {"solarSystemID": 30000002, "stargateID": 50000003}, "solarSystemID": 30000003}
+{"_key": 50000005, "destination": {"solarSystemID": 30000004, "stargateID": 50000006}, "solarSystemID": 30000003}
+{"_key": 50000006, "destination": {"solarSystemID": 30000003, "stargateID": 50000005}, "solarSystemID": 30000004}
+{"_key": 50000007, "destination": {"solarSystemID": 30000005, "stargateID": 50000008}, "solarSystemID": 30000004}
+{"_key": 50000008, "destination": {"solarSystemID": 30000004, "stargateID": 50000007}, "solarSystemID": 30000005}
+{"_key": 50000009, "destination": {"solarSystemID": 30000020, "stargateID": 50000010}, "solarSystemID": 30000005}
+{"_key": 50000010, "destination": {"solarSystemID": 30000005, "stargateID": 50000009}, "solarSystemID": 30000020}
+{"_key": 50000011, "destination": {"solarSystemID": 30000021, "stargateID": 50000012}, "solarSystemID": 30000020}
+{"_key": 50000012, "destination": {"solarSystemID": 30000020, "stargateID": 50000011}, "solarSystemID": 30000021}
+{"_key": 50000013, "destination": {"solarSystemID": 30000022, "stargateID": 50000014}, "solarSystemID": 30000021}
+{"_key": 50000014, "destination": {"solarSystemID": 30000021, "stargateID": 50000013}, "solarSystemID": 30000022}
+{"_key": 50000015, "destination": {"solarSystemID": 30000006, "stargateID": 50000016}, "solarSystemID": 30000002}
+{"_key": 50000016, "destination": {"solarSystemID": 30000002, "stargateID": 50000015}, "solarSystemID": 30000006}

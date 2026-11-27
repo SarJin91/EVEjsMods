@@ -8,6 +8,7 @@ const { targetRefOf, gridScopeOf, gridHoldOf, moversOf: gridMoversOf } = require
 const { relationOf, huntThresholds } = require("../../playerHunt/policy");
 const { parseNeutralPolicy } = require("../../playerHunt/schema");
 const { STATE: EVENT_STATE } = require("../../scheduler/schema");
+const { isThenable } = require("../../adapter/maybeAsync");
 
 const NULLSEC = "nullsec";
 const LAYERS = Object.freeze(["shield", "armor", "hull"]);
@@ -556,7 +557,13 @@ function createPlayerSiegeService(deps) {
       if (h.ok) {
         hits += 1;
         bump("hits");
-        if (h.flushed !== true) bump("flushFailed");
+        if (isThenable(h.flushed)) {
+          h.flushed.then((flushed) => {
+            if (flushed !== true) bump("flushFailed");
+          }, () => bump("flushFailed")).catch(() => undefined);
+        } else if (h.flushed !== true) {
+          bump("flushFailed");
+        }
         const again = h.view ? { ok: true, view: h.view } : viewOf(siege.structureId);
         if (!again.ok) return again;
         view = again.view;

@@ -104,8 +104,8 @@ prints it from the command line.
   See `docs/evejs-update.md` before updating EveJS.
 - Load `loader.js` **after** the other mods of this collection: with Docker
   or a manual `--require` setup, put its `--require` last. The launcher
-  manifest declares `loadAfter` for the other mods of this collection, so the
-  launcher applies this order.
+  manifest has no `loadAfter` entry, so the launcher does not enforce this
+  order.
 - `clientHook.js` is a second, optional preload used only by the in-game job
   board and map windows. With Docker or a manual `--require` setup, add
   `--require <path>/mods/livingNewEden/clientHook.js` **before** `shipWing` and
@@ -167,3 +167,11 @@ window), `!settings` (mod settings panel, allowed characters only).
   dependency.
 - `--require` is baked into a Docker image: enabling or disabling the mod
   there means a rebuild, or `EVEJS_LNE_NO_INSTALL=1` in the environment.
+
+## Tests
+
+`node mods/livingNewEden/test/run.js` (or `RunTests.bat`). Tests that use
+SQLite need `better-sqlite3`; without it, preload the `node:sqlite` shim:
+`node --require ./mods/livingNewEden/tools/liveSim/sqliteShim/preload.js mods/livingNewEden/test/run.js`.
+
+Credits for ported code: `CREDITS.md`.

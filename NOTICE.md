@@ -14,7 +14,7 @@ EVE Online and all related names, marks and data belong to CCP hf.
 
 | Source | Licence | Used for |
 |---|---|---|
-| [EveJS](https://github.com/V0nCleef/evejs) server (versions 0.12.9 to 261115.2), distributed with the [EveJS Launcher](https://github.com/V0nCleef/evejs-launcher) | AGPL-3.0-only | Small helpers and predicates ported from EveJS so a mod reproduces EveJS behaviour exactly; data shapes and seams read from EveJS sources. Used by most mods. |
+| [EveJS](https://github.com/V0nCleef/evejs) server (versions 0.12.9 to 261126.2), distributed with the [EveJS Launcher](https://github.com/V0nCleef/evejs-launcher) | AGPL-3.0-only | Small helpers and predicates ported from EveJS so a mod reproduces EveJS behaviour exactly; data shapes and seams read from EveJS sources. Used by most mods. |
 | EVE Online Static Data Export (SDE) build 3396210, CCP Games ([developers.eveonline.com](https://developers.eveonline.com/static-data)) | CCP developer licence / EULA | Generated data tables (names, type, blueprint, dogma and map facts). No SDE file is shipped. |
 
 ## livingNewEden
@@ -28,6 +28,8 @@ EVE Online and all related names, marks and data belong to CCP hf.
 | Advanced Utility Drones 1.0.3 (EveJS mod) | AGPL-3.0 | Idea for plain chat replies; settings panel pattern. No code copied. |
 | EVE SDE build 3396210 | CCP | `data/mapNames.json`, strength, hull, capital, commodity and industry catalogs under `lib/**/data/`. |
 | [Fuzzwork Market](https://market.fuzzwork.co.uk/) (CCP market data via ESI) | CCP data | Optional Jita price lookup at run time. No data shipped. |
+| [zKillboard](https://zkillboard.com/) killmail dumps (CCP killmail data via ESI) | CCP data | Offline calibration of the battle resolver (`tools/calibration/`). No killmail data shipped. |
+| Community package by greatguy (EveJS Discord) | shared with the community for Living New Eden | Ideas for civilian traffic effects and behaviours, durable flushes and load order; see `mods/livingNewEden/CREDITS.md`. |
 | [Piper TTS](https://github.com/OHF-Voice/piper1-gpl) and [piper-voices](https://huggingface.co/rhasspy/piper-voices) | GPL-3.0-or-later / per-voice licences | Optional ship AI voice. Piper runs as a separate HTTP service that you install yourself; it is not included or linked. |
 
 ## shipWing
@@ -44,6 +46,12 @@ EVE Online and all related names, marks and data belong to CCP hf.
 |---|---|---|
 | EveJS | AGPL-3.0-only | Ported 1:1 so results match EveJS: dungeon instance summary, blueprint list by owner, native wreck list, structure helpers, sovereignty capture and cyno helpers, incursion tale filters. |
 | scenePerfFix, livingNewEden (this repository) | AGPL-3.0 | Loader pattern, session location rule. |
+
+## sharedStorePerfFix
+
+| Source | Licence | Used for |
+|---|---|---|
+| EveJS | AGPL-3.0-only | Reads the trigger SQL that EveJS generates (`gameStore/shared-schema`); read only, not copied. |
 
 ## scenePerfFix, dailyGoalsPersist, marketAllRegions
 

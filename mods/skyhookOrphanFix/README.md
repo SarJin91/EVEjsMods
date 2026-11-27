@@ -75,6 +75,11 @@ before `livingNewEden` (and before `planetaryDrill`). Expected log line:
 [skyhookOrphanFix] sov static snapshot patched (empty definition for non-sov planets)
 ```
 
+## Tests
+
+`node mods/skyhookOrphanFix/test/run.js` (or `RunTests.bat`). No server, no
+game database; the real `sovStaticData`, `worldData` and `skyhookHarvest`
+modules are loaded.
 
 ## Upstream bug report (text to submit)
 

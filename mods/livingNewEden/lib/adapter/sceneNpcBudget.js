@@ -68,7 +68,7 @@ function createSceneNpcBudget(deps = {}) {
     for (const e of entities.values()) {
       scanned += 1;
       if (scanned > maxScan) return Infinity;
-      if (e && e.nativeNpc === true) n += 1;
+      if (e && e.nativeNpc === true && e.lneCapsuleFx !== true) n += 1;
     }
     return n;
   }

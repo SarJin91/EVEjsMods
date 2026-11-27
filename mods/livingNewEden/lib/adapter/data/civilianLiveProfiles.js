@@ -31,10 +31,10 @@ const CIVILIAN_HULLS = deepFreeze([
   hull("impel", "Impel", 12753, 42655, ["HAULER"], 1),
   hull("mastodon", "Mastodon", 12747, 42661, ["HAULER"], 1),
   hull("occator", "Occator", 12745, 42659, ["HAULER"], 1),
-  hull("astero", "Astero", 33468, 57797, ["UNDOCK", "GATE_IDLE"], 1),
-  hull("catalyst", "Catalyst", 16240, 25125, ["UNDOCK", "GATE_IDLE"], 2),
-  hull("stratios", "Stratios", 33470, 57798, ["UNDOCK", "GATE_IDLE"], 1),
-  hull("brutix", "Brutix", 16229, 46076, ["UNDOCK", "GATE_IDLE"], 1),
+  hull("astero", "Astero", 33468, 57797, ["UNDOCK", "GATE_IDLE", "EXPLORER"], 1),
+  hull("catalyst", "Catalyst", 16240, 25125, ["UNDOCK", "GATE_IDLE", "RATTER"], 2),
+  hull("stratios", "Stratios", 33470, 57798, ["UNDOCK", "GATE_IDLE", "EXPLORER"], 1),
+  hull("brutix", "Brutix", 16229, 46076, ["UNDOCK", "GATE_IDLE", "RATTER"], 1),
   hull("capsule", "Capsule", 670, 27287, ["POD"], 1),
 ]);
 

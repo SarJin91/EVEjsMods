@@ -10,6 +10,7 @@ const F = require("../fleetExposure/factionEscortRules");
 const { createConvoyEscort } = require("./convoyEscort");
 const { createSpawnBackoff, failureReasonOf } = require("./spawnBackoff");
 const { isSceneRefusal } = require("./sceneBudget");
+const { planBeams, applyBeams, followMetersOf } = require("../util/miningBeamPlan");
 
 const COUNTER_NAMES = Object.freeze(["scans", "scanRefused", "startedConvoy", "startedMiner", "refusedGovernor",
   "refusedBudget", "refusedProfile", "refusedNoGate", "refusedCooldown", "spawnFailed",
@@ -24,7 +25,10 @@ const COUNTER_NAMES = Object.freeze(["scans", "scanRefused", "startedConvoy", "s
   "ambushCleared", "ambushCarriersLost",
   "factionEscortShips", "factionEscortTrimmed", "factionEscortNoProfile", "factionEscortWakes", "factionEscortOrders",
   "factionEscortOrderFailed", "factionEscortLost", "factionEscortTargetsFull",
-  "refusedBackoff", "ambushRefusedBackoff"]);
+  "refusedBackoff", "ambushRefusedBackoff",
+  "minerBeamRefresh", "minerBeamFx", "minerBeamBudgetCut", "minerBeamNoRock",
+  "minerBeamApproachOrders", "minerBeamApproaching", "minerBeamApproachBusy", "minerBeamApproachRefused",
+  "minerBeamApproachReleased"]);
 
 const WORK_CLASS_NEW = "OPERATIONAL";
 const CONVOY = "CONVOY";
@@ -128,6 +132,7 @@ function createExposureStep(deps) {
   let errorWindow = -Infinity;
   let errorLines = 0;
   let pass = { at: null, players: new Map() };
+  let minerFxLeft = 0;
   const ambushOn = S.ambushEnabled === true;
   const ambush = createConvoyAmbush({ npcSpawn, budget, settings: S, worldSeed, admits,
     secClassOf: deps.secClassOf, pirateFactionOf: deps.pirateFactionOf, carrierGroups: hullGroups[CONVOY],
@@ -424,7 +429,8 @@ function createExposureStep(deps) {
   }
 
   function sceneFacts(e, seam) {
-    const gone = { sceneLoaded: false, alive: [], aggressors: [], playerChar: new Map(), playerSeen: false };
+    const gone = { sceneLoaded: false, alive: [], aggressors: [], playerChar: new Map(), playerSeen: false,
+      players: [] };
     if (safeCall(() => npcSpawn.isSceneLoaded(e.systemId)) !== true) return gone;
     const players = playersOf(e.systemId, seam);
     if (!players || players.ok !== true) return players && players.reason === "SCENE_NOT_LOADED" ? gone : null;
@@ -441,7 +447,8 @@ function createExposureStep(deps) {
       if (ag && ag.ok === true) aggressors = ag.aggressors;
     }
     const playerChar = new Map(players.ships.map((p) => [p.entityId, p.characterId]));
-    return { sceneLoaded: true, alive, aggressors, playerChar, playerSeen: players.ships.length > 0 };
+    return { sceneLoaded: true, alive, aggressors, playerChar, playerSeen: players.ships.length > 0,
+      players: players.ships };
   }
 
   function aggressionSigOf(facts) {
@@ -607,6 +614,7 @@ function createExposureStep(deps) {
     const list = [...entries.values()].filter((e) => e.phase !== PHASE.ENDING)
       .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
     const exposable = readExposable(list.filter((e) => e.phase === PHASE.VISIBLE));
+    minerFxLeft = S.minerBeamMaxFxPerPass;
     for (const e of list) {
       if (!seam) {
         if (e.phase === PHASE.VISIBLE) despawnVisible(e, "SCENE_GONE", now);
@@ -639,6 +647,7 @@ function createExposureStep(deps) {
           lastPlayerSeenAt: e.lastPlayerSeenAt, sceneLoaded: facts.sceneLoaded }, P);
         if (d.action === R.ACTION.CLAIM) claimEntry(e, aggressorCharacterOf(facts), now, out);
         else if (d.action === R.ACTION.DESPAWN) despawnVisible(e, d.reason, now);
+        stepMinerBeams(e, facts, seam, now);
         stepFactionEscort(e, facts, seam, now);
         continue;
       }
@@ -655,7 +664,60 @@ function createExposureStep(deps) {
         e.exitAt = null;
         e.exitPoint = null;
       }
+      stepMinerBeams(e, facts, seam, now);
       stepFactionEscort(e, facts, seam, now);
+    }
+  }
+
+  function stepMinerBeams(e, facts, seam, now) {
+    if (S.minerBeamsEnabled !== true || e.kind !== MINER || e.despawned || facts.sceneLoaded !== true
+      || typeof seam.presentMiningBeams !== "function") return;
+    const miners = facts.alive.filter((s) => s && s.position && s.inWarp !== true)
+      .map((s) => ({ entityId: s.entityId, position: s.position, beltId: e.minerBeltId }));
+    const pending = Boolean(e.beams && e.beams.approaching && e.beams.approaching.size > 0);
+    if (miners.length === 0 && (!e.beams || e.beams.shown.size === 0) && !pending) return;
+    if (minerFxLeft <= 0 && !pending) return;
+    try {
+      const approachOn = S.minerBeamApproachEnabled === true;
+      const players = (Array.isArray(facts.players) ? facts.players : []).map((p) => ({
+        characterId: p && p.characterId, position: (p && p.position) || null, inWarp: Boolean(p && p.inWarp === true) }));
+      const plan = planBeams({ now, miners, players, state: e.beams,
+        suppress: e.phase !== PHASE.VISIBLE || facts.aggressors.length > 0,
+        viewMeters: S.minerBeamViewMeters, refreshMs: S.minerBeamRefreshMs,
+        ...(approachOn ? { retryMs: S.minerBeamRetryMs } : {}) });
+      if (plan.start.length === 0 && plan.stop.length === 0 && plan.release.length === 0) {
+        e.beams = applyBeams(e.beams, plan, { ok: true, started: [] });
+        return;
+      }
+      const req = { start: plan.start, stop: plan.stop, rockRangeMeters: S.minerBeamRockMeters,
+        maxFx: Math.max(0, minerFxLeft) };
+      if (approachOn) {
+        req.release = plan.release;
+        req.approach = { startMeters: S.minerBeamStartMeters,
+          followMeters: followMetersOf(S.minerBeamApproachMeters, S.minerBeamStartMeters) };
+      }
+      const r = seam.presentMiningBeams(e.systemId, req);
+      e.beams = applyBeams(e.beams, plan, r);
+      if (!r || r.ok !== true) {
+        logLimited(now, `fleetExposure: miner beams ${e.key} - ${(r && r.reason) || "no result"}`);
+        return;
+      }
+      const sent = Number.isSafeInteger(r.fxSent) ? r.fxSent : 0;
+      const orders = Number.isSafeInteger(r.ordersSent) ? r.ordersSent : 0;
+      minerFxLeft -= sent + orders;
+      bump("minerBeamFx", sent);
+      bump("minerBeamBudgetCut", Number.isSafeInteger(r.budgetCut) ? r.budgetCut : 0);
+      bump("minerBeamNoRock", Array.isArray(r.noRock) ? r.noRock.length : 0);
+      if (approachOn) {
+        bump("minerBeamApproachOrders", orders);
+        bump("minerBeamApproaching", Array.isArray(r.approaching) ? r.approaching.length : 0);
+        bump("minerBeamApproachBusy", Array.isArray(r.busy) ? r.busy.length : 0);
+        bump("minerBeamApproachRefused", Number.isSafeInteger(r.refused) ? r.refused : 0);
+        bump("minerBeamApproachReleased", Array.isArray(r.released) ? r.released.length : 0);
+      }
+      if (plan.full) bump("minerBeamRefresh");
+    } catch (err) {
+      logLimited(now, `fleetExposure: miner beams ${e.key} threw - ${messageOf(err)}`);
     }
   }
 
@@ -862,7 +924,10 @@ function createExposureStep(deps) {
       exitGate: where.exit && Number.isSafeInteger(where.exit.itemId) && where.exit.position
         ? { kind: where.exit.kind, itemId: where.exit.itemId, position: { ...where.exit.position } } : null,
       ambush: null,
-      factionEscort: null };
+      factionEscort: null,
+      minerBeltId: c.kind === MINER && where.anchor.kind === "asteroidBelt" && Number.isSafeInteger(where.anchor.itemId)
+        ? where.anchor.itemId : null,
+      beams: null };
     entries.set(key, e);
     try {
       const anchor = { kind: where.anchor.kind, itemID: where.anchor.itemId };

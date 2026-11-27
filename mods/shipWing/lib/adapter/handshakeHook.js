@@ -11,6 +11,9 @@ const SEAM_CALL = "[buildTidiSignedFunc(this.clientId, { accountRole: this.accou
 const TAIL_MARKER = "__shipWingPreviousLogin";
 const DCB_MARKER = "__fscOriginalLogin";
 const MOON_MARKER = "__moonPreviousLogin";
+const DCB_OWNER = "Symbol.for(\"evejs.ourMods.privateFittingRuntime\")";
+const MOON_OWNER = "Symbol.for(\"evejs.moonOreAnomalies.transientNames\")";
+const LOGIN_CALL = "buildTidiSignedFunc(this.clientId, { accountRole: this.accountRole })";
 const LOG_TAG = "SHIPWING_UI";
 
 const TAIL = "\n;const __shipWingPreviousLogin = buildTidiSignedFunc;\n"
@@ -37,6 +40,19 @@ function logLine(logger, line) {
     if (logger && typeof logger.log === "function") logger.log(line);
   } catch (_err) {
   }
+}
+
+function count(text, token) {
+  return text.split(token).length - 1;
+}
+
+// Peers may wrap the login call site; the tail only needs the declaration and the call through its binding.
+function acceptsSource(content, baseline) {
+  if (typeof content !== "string") return false;
+  if (content.startsWith(baseline)) return true;
+  const declarationEnd = baseline.indexOf("\nfunction ", baseline.indexOf(SEAM_FUNCTION) + 1);
+  return declarationEnd > 0 && content.startsWith(baseline.slice(0, declarationEnd))
+    && count(content, SEAM_FUNCTION) === 1 && count(content, LOGIN_CALL) === 1;
 }
 
 function installHandshakeHook(deps) {
@@ -73,11 +89,10 @@ function installHandshakeHook(deps) {
       try {
         if (typeof filename === "string" && canonical(filename) === target) {
           done = true;
-          if (typeof content === "string" && content.startsWith(baseline) && !content.includes(TAIL_MARKER)) {
-            const foreign = content.slice(baseline.length);
-            state.tailBytes = Buffer.byteLength(foreign, "utf8");
-            state.dcb = foreign.includes(DCB_MARKER);
-            state.moon = foreign.includes(MOON_MARKER);
+          if (acceptsSource(content, baseline) && !content.includes(TAIL_MARKER)) {
+            state.tailBytes = Buffer.byteLength(content, "utf8") - Buffer.byteLength(baseline, "utf8");
+            state.dcb = content.includes(DCB_MARKER) || content.includes(DCB_OWNER);
+            state.moon = content.includes(MOON_MARKER) || content.includes(MOON_OWNER);
             args[0] = content + TAIL;
             state.status = "WRAPPED";
             logLine(logger, `${LOG_TAG}:WRAPPER_READY tail=${state.tailBytes} dcb=${state.dcb ? 1 : 0} `

@@ -76,6 +76,7 @@ const { upGameMaster } = require("../gameMaster/schema");
 const { upSeasons } = require("../seasons/schema");
 const { upNemesis } = require("../nemesis/schema");
 const { upWorldBosses } = require("../worldBosses/schema");
+const { upVendorTags } = require("./vendorTags");
 
 const MAX_UINT32 = 0xFFFFFFFF;
 const META_TABLE = "lne_meta";
@@ -755,6 +756,11 @@ const MIGRATIONS = Object.freeze([
     version: 127,
     name: "free-corp-wh-corps",
     up: upFreeCorpWhCorps,
+  }),
+  Object.freeze({
+    version: 128,
+    name: "vendor-record-tags",
+    up: upVendorTags,
   }),
 ]);
 

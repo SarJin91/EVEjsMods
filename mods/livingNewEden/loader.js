@@ -295,6 +295,14 @@ function shipAiLossEnabled(ctx) {
     && c.shipAi.proactiveEnabled === true;
 }
 
+function capsuleFxEnabled(ctx) {
+  const cfg = getConfig(ctx);
+  const c = cfg.ok ? cfg.config : null;
+  return Boolean(c) && c.enabled === true
+    && Boolean(c.modules && c.modules.world) && c.modules.world.enabled === true
+    && Boolean(c.capsuleFx) && c.capsuleFx.enabled === true;
+}
+
 function shipAiKillsEnabled(c) {
   return Boolean(c) && c.enabled === true && Boolean(c.shipAi) && c.shipAi.enabled === true
     && c.shipAi.proactiveEnabled === true && c.shipAi.triggersEnabled === true && c.shipAi.killLinesEnabled === true;
@@ -1905,7 +1913,7 @@ function buildHooks(ctx) {
           && exportHas(exports, "enqueueKillmailFromDestruction", "function");
       },
       run(exports) {
-        if (!liveLossImportEnabled(ctx) && !shipAiLossEnabled(ctx)) {
+        if (!liveLossImportEnabled(ctx) && !shipAiLossEnabled(ctx) && !capsuleFxEnabled(ctx)) {
           ctx.state.liveLossImport = "disabled";
           ctx.logger.debug("liveLossImport: not wrapped - disabled by config");
           return;

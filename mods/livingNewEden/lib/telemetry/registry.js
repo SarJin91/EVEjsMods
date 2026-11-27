@@ -68,6 +68,7 @@ const CHANNELS = Object.freeze(["tick", "gc", "process", "persistence", "journal
   "seasons",
   "population",
   "extraction",
+  "capsuleFx",
   "perf"]);
 
 const NAME_RE = /^[a-zA-Z][a-zA-Z0-9]*(\.[a-zA-Z0-9_]+)+$/;

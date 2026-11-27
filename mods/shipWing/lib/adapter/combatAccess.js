@@ -14,6 +14,7 @@ const { createBreacherHandler, createBombHandler, PROJECTILE_COUNTER_NAMES } = r
 
 const ACCESS_MODULES = Object.freeze({
   weaponSnapshot: "space/runtime/weaponSnapshot",
+  laserTurrets: "space/combat/laserTurrets",
   targetDamageApplication: "space/runtime/targetDamageApplication",
   killmailTracker: "space/combat/killmailTracker",
   weaponDogma: "space/combat/weaponDogma",
@@ -382,7 +383,7 @@ function depsFromGame(g) {
       return optional("breacherPods", "isBreacherPodTarget");
     },
     buildWeaponSnapshotForEntity: late("weaponSnapshot", "buildWeaponSnapshotForEntity"),
-    resolveTurretShotWithConfiguredAdditive: late("weaponSnapshot", "resolveTurretShotWithConfiguredAdditive"),
+    resolveTurretShot: late("laserTurrets", "resolveTurretShot"),
     applyWeaponDamageToTarget: late("targetDamageApplication", "applyWeaponDamageToTarget"),
     killmailTracker: g.killmailTracker,
     getAppliedDamageAmount: late("combatDamageMessages", "getAppliedDamageAmount"),

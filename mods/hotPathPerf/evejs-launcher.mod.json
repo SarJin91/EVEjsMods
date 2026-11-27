@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "id": "hotPathPerf",
   "displayName": "Hot Path Performance",
-  "version": "0.24.1",
+  "version": "0.24.2",
   "description": "Diagnostics for long server stalls: measures the wall time of selected EveJS calls (dungeon site scheduler boundary, Agency/scanner site lists, empty-scene sweep, scene creation, location lookups) and logs the slow ones plus periodic stats. No gameplay change. Optional (off by default): active site index, keeping docked systems' scenes loaded, career Abyssal read without parsing the whole site table, read-only dungeon templates for site lists, batched saving of ore left in dungeon rocks, per-system structure reads without copying every structure (optionally without repeating a fresh structure timer refresh), batched mining drone saves, structure timers advanced once per 5-10 s, fast Industry blueprint list, fast NPC wreck list, server config remembered between logins.",
   "kind": "loader",
   "supportedBackends": [
@@ -15,16 +15,8 @@
   "restart": "game_server",
   "compatibility": {
     "evejsVersions": [
-      "261115.2"
+      "261126.2"
     ]
-  },
-  "updates": {
-    "provider": "github",
-    "repository": "SarJin91/EVEjsMods",
-    "asset": "hotPathPerf-{version}.zip",
-    "channel": "stable",
-    "tagPrefix": "hotPathPerf-v",
-    "preserveFiles": []
   },
   "settings": {
     "schemaVersion": 1,
@@ -709,5 +701,13 @@
         "advanced": true
       }
     ]
+  },
+  "updates": {
+    "provider": "github",
+    "repository": "SarJin91/EVEjsMods",
+    "asset": "hotPathPerf-{version}.zip",
+    "channel": "stable",
+    "tagPrefix": "hotPathPerf-v",
+    "preserveFiles": []
   }
 }

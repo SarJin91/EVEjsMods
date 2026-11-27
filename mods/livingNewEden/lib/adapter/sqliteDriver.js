@@ -29,6 +29,12 @@ function backupHandleOpener(cppdb) {
   };
 }
 
+function driverUtilOf(load) {
+  if (typeof load.resolve !== "function") return load(`${DRIVER_PACKAGE}/lib/util`);
+  // The package "exports" map hides lib/util, so it is loaded by its file path; that is the module the driver itself uses.
+  return load(path.join(path.dirname(load.resolve(DRIVER_PACKAGE)), "util.js"));
+}
+
 function resolveSqliteDriver(serverSrc, deps = { createRequire }) {
   if (typeof serverSrc !== "string" || serverSrc === "") {
     return { ok: false, reason: "SQLITE_DRIVER_UNAVAILABLE", detail: "server_src_invalid" };
@@ -48,7 +54,7 @@ function resolveSqliteDriver(serverSrc, deps = { createRequire }) {
     let openBackupHandle = null;
     let backupHandleReason;
     try {
-      const util = load(`${DRIVER_PACKAGE}/lib/util`);
+      const util = driverUtilOf(load);
       if (util && typeof util.cppdb === "symbol") openBackupHandle = backupHandleOpener(util.cppdb);
       else backupHandleReason = "cppdb is not a symbol";
     } catch (err) {

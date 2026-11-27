@@ -21,7 +21,7 @@ const ANCHORS = Object.freeze({
 const FINGERPRINTS = Object.freeze({
   site: Object.freeze({
     tickSceneSiteBehaviors: "4bf0a3067f50a31562d43c2ba6514f922e7f2f2e",
-    processGateDefenseHazards: "1c8704037aefa335299b592afe83d9a61f905a54",
+    processGateDefenseHazards: "e4d76ccb425163eb9525b36d06663ab9c30e1aed",
     maybeAdvanceExplicitlySatisfiedObjective: "514bfe3f1c93a65d336e0e455c8e86ee0f39c5cc",
     processPaidMissionMiningObjective: "b8583d228ab6951c098c9f1d70b7317d19a3077e",
     readPaidMissionMiningTrigger: "10a8321fe1fcc9a14f86b35c3809145945473ab1",

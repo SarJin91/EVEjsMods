@@ -176,6 +176,9 @@ State: `${EVEJS_DATA_ROOT}/mods/shipWing/wings.json` (Docker: volume `/var/lib/e
 
 Without `EVEJS_SHIPWING_ENABLED=1` the mod logs nothing and installs no hook.
 
+## Tests
+
+`node mods/shipWing/test/run.js` (or `RunTests.bat`). The tests do not start the server.
 
 ## License
 

@@ -3,7 +3,7 @@
   "id": "planetaryDrill",
   "displayName": "Planetary Drill (Skyhook outside sov null)",
   "version": "1.1.0",
-  "description": "A vanilla Orbital Skyhook anchored at a high-sec or low-sec planet mines that planet's P0 resource (the best-quality one, or the one named by a Planetary Drill (<P0>) item) into its secured bay; Extract to cargo works as for sov null-sec Skyhooks. Requires skyhookOrphanFix (loaded before this mod); the drill items come from customTypes. Off by default (EVEJS_PDRILL_ENABLED). Danger: drill stock is lost if the mod is turned off or stops working after an EveJS update, or if a drill's P0 changes. Extract first. Read the README.",
+  "description": "A vanilla Orbital Skyhook anchored at a high-sec or low-sec planet mines the P0 of that planet (the best quality one; a Skyhook launched from a Planetary Drill (<P0>) variant item mines that P0) into its secured bay; Extract to cargo works as for sov null-sec Skyhooks. Requires skyhookOrphanFix loaded before it. Switch: EVEJS_PDRILL_ENABLED (mod default off; the Docker compose default is on). DANGER - drill stock is lost when: the mod is switched off (or an EveJS update makes it inert) - at the next sovereignty bootstrap every drill record stays but with empty reagents, so all stock is gone; the P0 of a drill changes (a legacy [PI:] tag in the name, or a lost launch ledger turns a variant drill to auto) - the old P0 stock is gone; the planet has no P0 resources - nothing is mined. Extract first. A WARN line is logged when a drill changes its P0 or leaves the overlay. The Planetary Drill item 340100 and its 15 Planetary Drill (<P0>) variants 340102-340116 (mods/customTypes) launch as an Orbital Skyhook 81080 (EVEJS_PDRILL_LAUNCH_TYPE_ID, 0 = off); a variant launch at a planet without its P0 is refused (the item stays in the cargo hold, client notification); the rest of a stack and a failed launch go back to the launched item type; launched drills are kept in a ledger under EVEJS_DATA_ROOT (mods/planetaryDrill/launch-ledger.json). EVEJS_PDRILL_DRILL_ITEMS_ONLY (default off): when on, only Skyhooks launched from the drill item mine - every Skyhook anchored before stops mining (stock kept, amount 0).",
   "kind": "loader",
   "supportedBackends": [
     "native",
@@ -13,15 +13,9 @@
     "strategy": "loader_rename"
   },
   "restart": "game_server",
-  "requires": [
-    "skyhookOrphanFix"
-  ],
-  "loadAfter": [
-    "customTypes"
-  ],
   "compatibility": {
     "evejsVersions": [
-      "261115.2"
+      "261126.2"
     ]
   },
   "updates": {

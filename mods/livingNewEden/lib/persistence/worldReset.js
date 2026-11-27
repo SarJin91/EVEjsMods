@@ -160,6 +160,8 @@ const TABLE_POLICY = Object.freeze({
   world_bosses: ACTION.WIPE,
   world_boss_participants: ACTION.WIPE,
   world_boss_payouts: ACTION.KEEP,
+  lne_market_escrow_tags: ACTION.KEEP,
+  lne_native_wreck_tags: ACTION.KEEP,
 });
 
 const FUTURE_TABLES = Object.freeze([]);

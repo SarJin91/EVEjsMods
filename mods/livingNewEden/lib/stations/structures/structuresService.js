@@ -1,6 +1,7 @@
 "use strict";
 
 const { createPoller } = require("../../presence/poller");
+const { afterValue, isThenable } = require("../../adapter/maybeAsync");
 const { deriveSeed } = require("../../util/rng");
 const { DESTROYED_STATION_STATE } = require("../schema");
 const { OPS, REMOVE_REASONS, SEAM_REASONS, projectionKey } = require("./schema");
@@ -36,6 +37,8 @@ const detailOf = (err) => String((err && err.message) || err).slice(0, MAX_DETAI
 const reasonOf = (r) => String((r && r.reason) || "NO_RESULT");
 const isLiveView = (v) => Boolean(v) && v.destroyedAt === null;
 const byStructureId = (a, b) => a.structureId - b.structureId;
+const FLUSH_SKIPPED = Object.freeze({ ok: true });
+const flushThrew = (err) => ({ ok: false, reason: SEAM_REASONS.FLUSH_FAILED, detail: detailOf(err) });
 
 function createStructuresService(deps) {
   const { seam, states, store, clock, worldSeed, settings, mode } = deps;
@@ -59,6 +62,7 @@ function createStructuresService(deps) {
   let projected = 0;
   let poller = null;
   let unsubscribe = null;
+  let inFlight = null;
   const status = { state: STATE.RUNNING, seq: 0, passes: 0, lastPassAt: null, lastFullAt: null, lastPeriodicAt: null,
     lastError: null, remaining: null, cleanup: null, lastChecks: 0, lastWrites: 0,
     counters: Object.fromEntries(COUNTER_NAMES.map((n) => [n, 0])) };
@@ -535,15 +539,21 @@ function createStructuresService(deps) {
     if (input.full) adoptions(input, plan, recordOf, ctx);
     status.lastWrites = ctx.writes;
 
+    const settle = (flushed) => settleProject(flushed, repository, input, ctx, outcome, now);
     if (ctx.writes > 0 || ctx.records.size > 0) {
-      const flushed = seam.flushStructures();
-      if (!flushed.ok) {
-        count("flushFailed");
-        needFull = true;
-        status.lastError = `FLUSH:${reasonOf(flushed)}`;
-        log(`structures: flush failed (${reasonOf(flushed)}) - nothing recorded, full reconcile next`);
-        return;
-      }
+      return afterValue(seam.flushStructures(), settle, (err) => settle(flushThrew(err)));
+    }
+    return settle(FLUSH_SKIPPED);
+  }
+
+  function settleProject(flushed, repository, input, ctx, outcome, now) {
+    if (status.state !== STATE.RUNNING) return;
+    if (!flushed || !flushed.ok) {
+      count("flushFailed");
+      needFull = true;
+      status.lastError = `FLUSH:${reasonOf(flushed)}`;
+      log(`structures: flush failed (${reasonOf(flushed)}) - nothing recorded, full reconcile next`);
+      return;
     }
     recordAll(repository, ctx.records, now);
 
@@ -609,39 +619,53 @@ function createStructuresService(deps) {
     status.cleanup = status.remaining === 0 ? CLEANUP_STATUS.DONE : CLEANUP_STATUS.RUNNING;
     status.lastWrites = ctx.writes;
     projected = status.remaining;
-    if (ctx.writes > 0) {
-      const flushed = seam.flushStructures();
-      if (!flushed.ok) {
-        count("flushFailed");
-        status.lastError = `FLUSH:${reasonOf(flushed)}`;
-        log(`structures: cleanup flush failed (${reasonOf(flushed)})`);
-      }
-    }
+    if (ctx.writes === 0) return undefined;
+    const settle = (flushed) => {
+      if (status.state !== STATE.RUNNING || (flushed && flushed.ok)) return;
+      count("flushFailed");
+      status.lastError = `FLUSH:${reasonOf(flushed)}`;
+      log(`structures: cleanup flush failed (${reasonOf(flushed)})`);
+    };
+    return afterValue(seam.flushStructures(), settle, (err) => settle(flushThrew(err)));
+  }
+
+  function passFailed(err) {
+    count("seamError");
+    needFull = true;
+    status.lastError = `THREW:${detailOf(err)}`;
+    log(`structures: pass failed - ${detailOf(err)}`);
+  }
+
+  function endPass(passMs) {
+    status.passes += 1;
+    status.lastPassAt = clock.now();
+    status.seq += 1;
+    observe(passMs);
   }
 
   function runPass() {
-    if (status.state !== STATE.RUNNING) return;
+    if (status.state !== STATE.RUNNING) return undefined;
+    if (inFlight !== null) return inFlight;
     const t0 = nowMs();
     status.lastChecks = 0;
     status.lastWrites = 0;
+    let pending;
     try {
-      if (!admitted()) {
-        count("passDeferred");
-        return;
-      }
-      if (mode === MODE.CLEANUP) cleanupPass();
-      else projectPass();
+      if (!admitted()) count("passDeferred");
+      else pending = mode === MODE.CLEANUP ? cleanupPass() : projectPass();
     } catch (err) {
-      count("seamError");
-      needFull = true;
-      status.lastError = `THREW:${detailOf(err)}`;
-      log(`structures: pass failed - ${detailOf(err)}`);
-    } finally {
-      status.passes += 1;
-      status.lastPassAt = clock.now();
-      status.seq += 1;
-      observe(nowMs() - t0);
+      passFailed(err);
     }
+    const passMs = nowMs() - t0;
+    if (!isThenable(pending)) {
+      endPass(passMs);
+      return undefined;
+    }
+    inFlight = Promise.resolve(pending).then(() => undefined, passFailed).then(() => {
+      inFlight = null;
+      endPass(passMs);
+    });
+    return inFlight;
   }
 
   function nudge() {

@@ -10,9 +10,9 @@ function deepFreeze(value) {
 
 const HEADER = {
   "catalogVersion": 1,
-  "sdeBuild": 3396210,
-  "sdeReleaseDate": "2026-06-16T12:43:42Z",
-  "sourceHash": "1e230d4e7cedbafbd90581af61887690588fc008d765219b013a0a9c68924e03",
+  "sdeBuild": 3724492,
+  "sdeReleaseDate": "2026-11-19T11:07:08Z",
+  "sourceHash": "bfa6aaa94b1bbc87324eae9e081e24083173bb6cd01cdb27343d7d3067453937",
   "maxDepth": 6,
   "attributes": {
     "oreHold": 1556,
@@ -33,7 +33,7 @@ const HULLS = {
   "porpoise": {"members":[42244],"representativeTypeId":42244,"sampleSize":1,"minerals":{"type:34":3600000,"type:35":675000,"type:36":168750,"type:37":90000,"type:38":33750,"type:39":5625,"type:40":3150},"mineralSum":4576275,"timeSec":15000,"mineralValueIsk":84124800,"componentValueIsk":0,"componentFactorPermille":1000,"unpricedLeaves":0,"cargoM3":500,"cargoMedianM3":500,"oreHoldM3":50000,"travel":{"warpSpeedAu":3.5,"alignSeconds":9.4,"maxVelocityMs":100}},
   "orca": {"members":[28606],"representativeTypeId":28606,"sampleSize":1,"minerals":{"type:34":3931500,"type:35":14135250,"type:36":3931500,"type:37":1110000,"type:38":108600,"type:39":55092,"type:40":27654},"mineralSum":23299596,"timeSec":1500000,"mineralValueIsk":783806184,"componentValueIsk":8627822008,"componentFactorPermille":12007,"unpricedLeaves":4,"cargoM3":30000,"cargoMedianM3":30000,"oreHoldM3":150000,"travel":{"warpSpeedAu":2.5,"alignSeconds":41.6,"maxVelocityMs":60}},
   "rorqual": {"members":[28352],"representativeTypeId":28352,"sampleSize":1,"minerals":{"type:34":10363125,"type:35":36952500,"type:36":10085625,"type:37":2844375,"type:38":288005,"type:39":146440,"type:40":73485},"mineralSum":60753555,"timeSec":2000000,"mineralValueIsk":2052523050,"componentValueIsk":14503083208,"componentFactorPermille":8065,"unpricedLeaves":7,"cargoM3":40000,"cargoMedianM3":40000,"oreHoldM3":300000,"travel":{"warpSpeedAu":1.5,"alignSeconds":77.6,"maxVelocityMs":60}},
-  "industrial": {"members":[648,649,650,651,652,653,654,655,656,657,1944,2863,2998,4363,4388,19744,32811,81008],"representativeTypeId":653,"sampleSize":17,"minerals":{"type:34":80000,"type:35":15000,"type:36":3750,"type:37":2000,"type:38":750,"type:39":125,"type:40":70},"mineralSum":101695,"timeSec":12000,"mineralValueIsk":1869440,"componentValueIsk":0,"componentFactorPermille":1000,"unpricedLeaves":0,"cargoM3":2900,"cargoMedianM3":2900,"oreHoldM3":0,"travel":{"warpSpeedAu":3.5,"alignSeconds":11.2,"maxVelocityMs":140}},
+  "industrial": {"members":[648,649,650,651,652,653,654,655,656,657,1944,2863,2998,4363,4388,19744,32811,81008],"representativeTypeId":652,"sampleSize":18,"minerals":{"type:34":80000,"type:35":15000,"type:36":3750,"type:37":2000,"type:38":750,"type:39":125,"type:40":70},"mineralSum":101695,"timeSec":12000,"mineralValueIsk":1869440,"componentValueIsk":0,"componentFactorPermille":1000,"unpricedLeaves":0,"cargoM3":5500,"cargoMedianM3":2900,"oreHoldM3":0,"travel":{"warpSpeedAu":3.5,"alignSeconds":14.5,"maxVelocityMs":120}},
   "freighter": {"members":[20183,20185,20187,20189,34328,81040],"representativeTypeId":34328,"sampleSize":6,"minerals":{"type:34":3205500,"type:35":11487750,"type:36":3205500,"type:37":888750,"type:38":88125,"type:39":44815,"type:40":22430},"mineralSum":18942870,"timeSec":1500000,"mineralValueIsk":635296680,"componentValueIsk":10928083208,"componentFactorPermille":18201,"unpricedLeaves":4,"cargoM3":4000,"cargoMedianM3":435000,"oreHoldM3":0,"travel":{"warpSpeedAu":1.5,"alignSeconds":59.9,"maxVelocityMs":65}},
   "jump_freighter": {"members":[28844,28846,28848,28850],"representativeTypeId":28850,"sampleSize":4,"minerals":{"type:34":4943056,"type:35":17786694,"type:36":4942722,"type:37":1380082,"type:38":137301,"type:39":71090,"type:40":34665},"mineralSum":29295610,"timeSec":3600000,"mineralValueIsk":986863376,"componentValueIsk":13024776048,"componentFactorPermille":14198,"unpricedLeaves":14,"cargoM3":135000,"cargoMedianM3":135000,"oreHoldM3":0,"travel":{"warpSpeedAu":1.5,"alignSeconds":68.6,"maxVelocityMs":84}},
 };

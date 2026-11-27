@@ -40,7 +40,7 @@ function createTurretShot(env) {
   }
 
   function shoot(scene, twin, module, charge, target, snapshot, simMs) {
-    const shotResult = deps.resolveTurretShotWithConfiguredAdditive({ attackerEntity: twin, targetEntity: target,
+    const shotResult = deps.resolveTurretShot({ attackerEntity: twin, targetEntity: target,
       weaponSnapshot: snapshot });
     count("combat.volley.fired");
     const hit = Boolean(shotResult && shotResult.hit);

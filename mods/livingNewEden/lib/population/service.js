@@ -10,7 +10,7 @@ const rules = require("./rules");
 const { buildSystemTable } = require("./context");
 const { createPilotStore } = require("./store");
 const { createNearLayer } = require("./near");
-const { createLiveOwnership } = require("./live");
+const { createLiveOwnership, activityIntentCodes } = require("./live");
 const { createWorldContext } = require("./worldContext");
 const { buildStandingTables, createStandings } = require("./standings");
 const { createCorpsService } = require("./corps/service");
@@ -102,9 +102,12 @@ function createPopulationService(deps) {
   }
 
   const identityOf = (id) => identityKey(id, pilots.genOf(id));
+  const activityIntents = S.near.enabled === true && S.live.trafficEnabled === true
+    ? activityIntentCodes(deps.activityIntents) : EMPTY_LIST;
   const near = S.near.enabled === true ? createNearLayer({ S, worldSeed, pilots, bump, identityOf,
     getPresence: typeof deps.getPresence === "function" ? deps.getPresence : () => null,
-    getGraph: () => graph, getTable: () => table, departures: S.live.trafficEnabled === true }) : null;
+    getGraph: () => graph, getTable: () => table, departures: S.live.trafficEnabled === true,
+    ...(activityIntents.length > 0 ? { activityIntents } : {}) }) : null;
   const activeLife = S.activeLife && S.activeLife.enabled === true;
   const standingsOn = S.standings && S.standings.enabled === true;
   let standingTables = null;
@@ -140,6 +143,7 @@ function createPopulationService(deps) {
   const groupLive = groups !== null && S.groups.liveSpawnEnabled === true;
   const live = near && S.live.trafficEnabled === true ? createLiveOwnership({ S, pilots, queue, near, step, commit, bump,
     keyOf, maxOwned: Number.isSafeInteger(deps.liveMaxOwned) && deps.liveMaxOwned > 0 ? deps.liveMaxOwned : S.size,
+    ...(activityIntents.length > 0 ? { activityIntents: new Set(activityIntents) } : {}),
     ...(groups ? { isGroupMember: (id) => groups.isMember(id) } : {}),
     ...(hullsOn ? { isLiveHull } : {}),
     ...(groupLive ? { membersOf: (id) => groups.membersOf(id),
@@ -411,7 +415,7 @@ function createPopulationService(deps) {
       : { ...next, seq: p.seq + 1, sinceAt: now, dueAt });
     if (careerOn) lifecycle.countCareer(before, pilots.careerOf(p.pilotId));
     queue.schedule(keyOf(p.pilotId), dueAt, p.pilotId);
-    if (near) near.afterCommit(p.pilotId, p.systemId, jumped === true, now, p.state);
+    if (near) near.afterCommit(p.pilotId, p.systemId, jumped === true, now, p.state, p.intent);
     if (groups && groups.isLeader(p.pilotId)) {
       if (next.state === STATE.POD) safeCall(() => groups.dissolve(p.pilotId, now, "POD"));
       else safeCall(() => groups.follow(p.pilotId, next, now, (m, memberNext) => applyMember(m, memberNext, now, jumped)));
@@ -425,7 +429,7 @@ function createPopulationService(deps) {
     pilots.apply(m.pilotId, patch ? { ...memberNext, ...patch, seq: m.seq + 1, sinceAt: now, dueAt }
       : { ...memberNext, seq: m.seq + 1, sinceAt: now, dueAt });
     if (careerOn) lifecycle.countCareer(before, pilots.careerOf(m.pilotId));
-    if (near) near.afterCommit(m.pilotId, m.systemId, jumped === true, now, m.state);
+    if (near) near.afterCommit(m.pilotId, m.systemId, jumped === true, now, m.state, m.intent);
   }
 
   function defer(id, now) {

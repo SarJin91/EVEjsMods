@@ -125,7 +125,7 @@ function createAmbientRatSeam(deps) {
       const ambient = new Set();
       const dynamics = sc.scene.dynamicEntities instanceof Map ? sc.scene.dynamicEntities.values() : [];
       for (const entity of dynamics) {
-        if (!entity || entity.nativeNpc !== true) continue;
+        if (!entity || entity.nativeNpc !== true || entity.lneCapsuleFx === true) continue;
         if (String(entity.operatorKind || "").trim() === OPERATOR_KIND) {
           const itemId = toPositiveInt(entity.itemID);
           if (itemId) ambient.add(itemId);

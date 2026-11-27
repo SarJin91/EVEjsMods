@@ -1,6 +1,6 @@
 "use strict";
 
-const { ALL_VERBS, REFUSAL, END_REASON, SETTLE_OUTCOME, BOARD_REFUSAL } = require("./reasons");
+const { ALL_VERBS, REFUSAL, END_REASON, SETTLE_OUTCOME, BOARD_REFUSAL, VENDOR_BOARD_REFUSAL } = require("./reasons");
 const { FLYING_STATES, transition } = require("./states");
 const { buildTwinSpec, launchSlot } = require("./twinSpec");
 const { createWingTasks, TASK_VERBS } = require("./wingTasks");
@@ -57,7 +57,7 @@ const FIXED_COUNTERS = Object.freeze([
 ]);
 const COUNTER_NAMES = Object.freeze([
   ...FIXED_COUNTERS,
-  ...BOARD_REFUSAL.filter((r) => r !== "ABYSSAL" && r !== "SHIP_DEATH_PENDING").map((r) => `board.refused.${r}`),
+  ...BOARD_REFUSAL.filter((r) => !VENDOR_BOARD_REFUSAL.includes(r)).map((r) => `board.refused.${r}`),
   ...REFUSAL.map((reason) => `formation.relaunch.dropped.${reason}`),
   ...SETTLE_OUTCOME.map((outcome) => `loss.settled.${outcome}`),
   ...ALL_VERBS.map((verb) => `orderCopy.ok.${verb}`),

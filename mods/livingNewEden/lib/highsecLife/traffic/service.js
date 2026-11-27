@@ -3,10 +3,13 @@
 const { performance } = require("node:perf_hooks");
 const { createRng, randomSeed } = require("../../util/rng");
 const { TRAFFIC_METRICS, TRAFFIC_COUNTER_NAMES, AGGRO_COUNTER_NAMES, RAT_AGGRO_COUNTER_NAMES } = require("../schema");
-const { SHIP_STATE, DESPAWN_REASON, SHIP_ROLE, MINER_LEG, planSpawns, pickRoute, pickProfile, landingPointOf,
-  stepShip, pickRole, pickUndockRoute, pickIdleGate, pickMinerRoute, planPilot, outcomeOf, GONE,
-  verifyPilotHulls } = require("./plan");
+const { SHIP_STATE, DESPAWN_REASON, SHIP_ROLE, MINER_LEG, PATROL_LEG, PATROL_ROLES, EXPLORER_LEG, WARP_MODE,
+  planSpawns, pickRoute, pickProfile, landingPointOf, stepShip, pickRole, pickUndockRoute, pickIdleGate,
+  pickMinerRoute, pickRatterRoute, pickExplorerRoute, pickSites, planPilot, outcomeOf, GONE, verifyPilotHulls,
+  isExpired, PILOT_EXIT, arrivalPoseOf } = require("./plan");
+const { FLEE_ROLES, noteAggression, fleeStepOf, fleeTargetOf, planAlarm } = require("./flee");
 const { aggroSettingsOf, vendorRatSettingsOf, planAggro } = require("./aggro");
+const { planBeams, applyBeams } = require("../../util/miningBeamPlan");
 
 const SCENE_METHODS = Object.freeze(["readNodes", "readPlayers", "spawnCivilian", "warpTo", "readShips", "despawn",
   "listTrafficIds", "dockPointOf"]);
@@ -15,6 +18,7 @@ const RAT_AGGRO_SCENE_METHODS = Object.freeze(["armPilotRatTarget", "releaseEnga
 const WORK_CLASS = "OPERATIONAL";
 const LEFT = "LEFT";
 const MS_DECIMALS = 10;
+const PERMILLE = 1000;
 const MAX_DETAIL = 160;
 const NAME_READ_MAX = 64;
 const NAME_MIN = 3;
@@ -79,6 +83,12 @@ function createTraffic(deps) {
   const ratCounters = VR ? Object.fromEntries(RAT_AGGRO_COUNTER_NAMES.map((name) => [name, 0])) : null;
   const ratWindow = new Map();
   let ratOff = false;
+  let beamFxLeft = 0;
+  let warpFxLeft = 0;
+  let gateEventLeft = 0;
+  let siteReadsLeft = 0;
+  let alarmLeft = 0;
+  const gateEventsOn = () => T.gateJumpFxEnabled === true && T.gateControllerEventsEnabled === true;
 
   function log(line) {
     if (!logger) return;
@@ -158,6 +168,110 @@ function createTraffic(deps) {
     return n;
   }
 
+  function roleIn(systemId, role) {
+    let n = 0;
+    for (const ship of ships.values()) if (ship.systemId === systemId && ship.role === role) n += 1;
+    return n;
+  }
+
+  function rattersIn(systemId) {
+    return roleIn(systemId, SHIP_ROLE.RATTER);
+  }
+
+  function explorersIn(systemId) {
+    return roleIn(systemId, SHIP_ROLE.EXPLORER);
+  }
+
+  function releaseMotion(ship) {
+    if (ship.orbiting !== true) return;
+    ship.orbiting = false;
+    if (typeof scene.releasePatrolMotion !== "function") return;
+    const r = call(() => scene.releasePatrolMotion(ship.systemId, ship.entityId));
+    if (r && r.ok === true && r.released === true) bump("patrolReleased");
+  }
+
+  function dwell(ship, now) {
+    const leg = ship.legs[ship.legIndex];
+    ship.state = SHIP_STATE.DWELLING;
+    ship.dwellUntil = now + leg.dwellMs;
+    ship.warpAttempts = 0;
+    if (ship.role === SHIP_ROLE.EXPLORER) {
+      bump(leg.kind === EXPLORER_LEG.SITE ? "explorerSites" : "explorerScans");
+      return;
+    }
+    bump("ratterBelts");
+    if (typeof scene.presentPatrolOrbit !== "function") return;
+    const r = call(() => scene.presentPatrolOrbit(ship.systemId, ship.entityId, leg.targetId,
+      { meters: T.ratterOrbitMeters, speedFraction: T.ratterOrbitSpeedPermille / PERMILLE }));
+    ship.orbiting = Boolean(r && r.ok === true && r.orbiting === true);
+    bump(ship.orbiting ? "ratterOrbits" : "ratterOrbitRefused");
+  }
+
+  function nextLeg(ship, now) {
+    releaseMotion(ship);
+    const next = ship.legIndex + 1;
+    ship.targetPoint = ship.legs[next].point;
+    if (warp(ship, now)) ship.legIndex = next;
+  }
+
+  function leave(ship, now) {
+    const patrol = PATROL_ROLES.includes(ship.role);
+    if (patrol) releaseMotion(ship);
+    ship.targetPoint = ship.exitPoint;
+    ship.leg = patrol ? PATROL_LEG.EXIT : MINER_LEG.EXIT;
+    warp(ship, now);
+  }
+
+  function explore(ship, seen, now) {
+    if (T.explorerSiteReadsPerPass <= 0) {
+      bump("explorerNoSite");
+      leave(ship, now);
+      return;
+    }
+    if (siteReadsLeft <= 0) {
+      bump("explorerReadBudget");
+      return;
+    }
+    if (typeof scene.readExplorerSites !== "function") {
+      fail("sites", "SEAM_UNAVAILABLE");
+      leave(ship, now);
+      return;
+    }
+    siteReadsLeft -= 1;
+    const r = call(() => scene.readExplorerSites(ship.systemId, { families: T.explorerFamilies,
+      npcClearMeters: T.explorerNpcClearMeters, maxSites: T.explorerMaxSites }));
+    if (!r || r.ok !== true || !Array.isArray(r.sites)) {
+      fail("sites", r && r.reason);
+      leave(ship, now);
+      return;
+    }
+    bump("explorerNpcBlocked", Number.isSafeInteger(r.npcBlocked) ? r.npcBlocked : 0);
+    const leg = ship.legs[ship.legIndex];
+    if (leg.kind === EXPLORER_LEG.SAFE) {
+      const picks = pickSites(r.sites, rng, T, seen.position || leg.point);
+      if (picks.length === 0) {
+        bump("explorerNoSite");
+        leave(ship, now);
+        return;
+      }
+      ship.legs = Object.freeze([leg, ...picks]);
+      nextLeg(ship, now);
+      return;
+    }
+    const open = new Set(r.sites.map((s) => s && s.siteId));
+    let j = ship.legIndex + 1;
+    while (j < ship.legs.length && !open.has(ship.legs[j].targetId)) {
+      bump("explorerSiteGone");
+      j += 1;
+    }
+    if (j >= ship.legs.length) {
+      leave(ship, now);
+      return;
+    }
+    ship.legIndex = j - 1;
+    nextLeg(ship, now);
+  }
+
   function despawnIds(systemId, ids) {
     if (ids.length === 0) return [];
     const res = call(() => scene.despawn(systemId, ids));
@@ -210,8 +324,25 @@ function createTraffic(deps) {
     return out;
   }
 
+  function presentDepartures(systemId, list, reason) {
+    if (!gateEventsOn() || (reason !== DESPAWN_REASON.JUMPED && reason !== DESPAWN_REASON.ARRIVED)
+      || typeof scene.presentGateDeparture !== "function") return;
+    for (const s of list) {
+      if (s.state !== SHIP_STATE.JUMPING || !Number.isSafeInteger(s.jumpGateId) || s.jumpGateId <= 0) continue;
+      if (gateEventLeft <= 0) {
+        bump("gateEventBudgetCut");
+        continue;
+      }
+      gateEventLeft -= 1;
+      const r = call(() => scene.presentGateDeparture(systemId, s.entityId, s.jumpGateId));
+      if (!r || r.ok !== true) bump("gateEventFailed");
+      else if (r.sent === true) bump("gateDepartureEvents");
+    }
+  }
+
   function despawnShips(systemId, shipList, reason) {
     const list = GS !== null ? withGroupShips(shipList) : shipList;
+    presentDepartures(systemId, list, reason);
     const removed = despawnIds(systemId, list.map((s) => s.entityId));
     for (const id of removed) ships.delete(id);
     if (PL) {
@@ -228,16 +359,139 @@ function createTraffic(deps) {
     }
   }
 
-  function warp(ship, now) {
-    const r = call(() => scene.warpTo(ship.systemId, ship.entityId, ship.targetPoint));
+  function warp(ship, now, immediate) {
+    const align = immediate !== true && T.alignBeforeWarpEnabled === true;
+    const fx = T.visibleWarpEnabled === true && warpFxLeft > 0;
+    if (T.visibleWarpEnabled === true && !fx) bump("visibleWarpFxCut");
+    if (fx) warpFxLeft -= 1;
+    const fxOpt = fx ? { warpFx: true } : {};
+    const opts = immediate === true ? { clearAlignOrder: true, ...fxOpt } : align ? { align: true, ...fxOpt }
+      : fx ? { warpFx: true } : undefined;
+    if (immediate === true) {
+      ship.warpMode = WARP_MODE.IMMEDIATE;
+      bump("alignTimeouts");
+    }
+    const r = call(() => (opts === undefined ? scene.warpTo(ship.systemId, ship.entityId, ship.targetPoint)
+      : scene.warpTo(ship.systemId, ship.entityId, ship.targetPoint, opts)));
+    if (r && r.ok === true && r.warpFx === true) bump("visibleWarpFx");
     if (r && r.ok === true && r.warped === true) {
+      if (ship.state !== SHIP_STATE.WARPING) ship.preWarpState = ship.state;
       ship.state = SHIP_STATE.WARPING;
       ship.warpAt = now;
-      return;
+      ship.warpMode = r.aligned === true ? WARP_MODE.ALIGN : WARP_MODE.IMMEDIATE;
+      if (r.aligned === true) bump("alignWarps");
+      else if (align) bump("alignFellBack");
+      return true;
+    }
+    if (immediate === true && ship.state === SHIP_STATE.WARPING) {
+      ship.state = typeof ship.preWarpState === "string" ? ship.preWarpState : SHIP_STATE.SPAWNED;
+      ship.warpAt = null;
+      ship.warpMode = null;
     }
     ship.warpAttempts += 1;
     bump("warpFailed");
     if (ship.warpAttempts >= T.maxWarpAttempts) despawnShips(ship.systemId, [ship], DESPAWN_REASON.STUCK);
+    return false;
+  }
+
+  function nodeOf(nodes, target) {
+    if (!target) return null;
+    const list = target.kind === "stargate" ? nodes.gates : target.kind === "station" ? nodes.stations : null;
+    const node = Array.isArray(list) ? list.find((n) => n && n.itemId === target.itemId) : null;
+    return node ? { kind: target.kind, itemId: node.itemId, position: node.position, radius: node.radius } : null;
+  }
+
+  function exitLegOf(ship) {
+    if (ship.role === SHIP_ROLE.MINER) return ship.leg !== MINER_LEG.EXIT ? MINER_LEG.EXIT : null;
+    if (PATROL_ROLES.includes(ship.role)) return ship.leg !== PATROL_LEG.EXIT ? PATROL_LEG.EXIT : null;
+    return null;
+  }
+
+  function flee(ship, seen, needTarget, nodesOf, now) {
+    ship.fleeNextAt = now + T.fleeRetryMs;
+    const exitLeg = exitLegOf(ship);
+    if (needTarget || exitLeg !== null) {
+      const nodes = nodesOf();
+      if (nodes === null) return;
+      const pick = fleeTargetOf(seen.position, nodes, nodeOf(nodes, ship.target), T);
+      if (!pick.ok) {
+        bump("fleeNoTarget");
+        return;
+      }
+      ship.target = { kind: pick.target.kind, itemId: pick.target.itemId };
+      ship.targetPoint = landingPointOf(seen.position, pick.target, T);
+      ship.docking = false;
+      if (!pick.keptRoute && Number.isSafeInteger(ship.pilotId)) ship.exit = PILOT_EXIT.NONE;
+      if (exitLeg !== null) ship.leg = exitLeg;
+    }
+    releaseMotion(ship);
+    if (ship.state === SHIP_STATE.IDLING) ship.idleUntil = null;
+    if (warp(ship, now)) {
+      ship.fleeOrdered = true;
+      bump("fleeWarps");
+    } else {
+      bump("fleeRetry");
+    }
+  }
+
+  function jumpOut(ship, gateId, reason, now) {
+    const r = typeof scene.presentGateJumpOut === "function"
+      ? call(() => scene.presentGateJumpOut(ship.systemId, ship.entityId, gateId)) : null;
+    if (!r || r.ok !== true || r.sent !== true) {
+      bump("jumpFxFailed");
+      return false;
+    }
+    ship.state = SHIP_STATE.JUMPING;
+    ship.jumpOutAt = now;
+    ship.jumpReason = reason;
+    ship.jumpGateId = gateId;
+    bump("jumpOutFx");
+    return true;
+  }
+
+  function jumpInSpec(spec) {
+    if (T.gateJumpFxEnabled !== true || !spec || !Number.isSafeInteger(spec.gateId) || spec.undock === true) return {};
+    if (!gateEventsOn()) return { jumpInMs: T.gateJumpInDurationMs };
+    if (gateEventLeft <= 0) {
+      bump("gateEventBudgetCut");
+      return { jumpInMs: T.gateJumpInDurationMs };
+    }
+    gateEventLeft -= 1;
+    return { jumpInMs: T.gateJumpInDurationMs, gateEvents: true };
+  }
+
+  function gateNodeOf(nodes, spec) {
+    const gates = nodes && Array.isArray(nodes.gates) ? nodes.gates : [];
+    return spec && Number.isSafeInteger(spec.gateId) ? gates.find((g) => g && g.itemId === spec.gateId) || null : null;
+  }
+
+  function arrivalSpec(plan, gateNode, offsetMeters) {
+    if (T.gateArrivalPoseEnabled !== true || !plan || !plan.spec || !Number.isSafeInteger(plan.spec.gateId)
+      || plan.spec.undock === true || !plan.targetPoint || !gateNode) {
+      return {};
+    }
+    const radius = Number.isFinite(gateNode.radius) && gateNode.radius >= 0 ? gateNode.radius : 0;
+    const pose = arrivalPoseOf(gateNode, plan.targetPoint, radius + offsetMeters, rng, T);
+    if (!pose.ok) {
+      bump("gateArrivalNoHeading");
+      return {};
+    }
+    const rotate = gateEventLeft > 0;
+    if (rotate) gateEventLeft -= 1;
+    else bump("gateEventBudgetCut");
+    return { arrivalPose: { position: pose.position, direction: pose.direction, rotate } };
+  }
+
+  function noteJumpIn(r, spec) {
+    if (r.jumpIn === true) bump("jumpInFx");
+    else if (r.jumpIn === false) bump("jumpFxFailed");
+    if (r.arrival === true) bump("gateArrivalEvents");
+    else if (r.arrival === false) bump("gateEventFailed");
+    if (r.posed === true) bump("gateArrivalPoses");
+    if (r.rotated === true) bump("gateArrivalRotations");
+    else if (r.posed === true && spec && spec.arrivalPose && spec.arrivalPose.rotate === true) {
+      bump("gateArrivalPoseFailed");
+    }
   }
 
   function reclaimMembers(leader, now) {
@@ -272,8 +526,37 @@ function createTraffic(deps) {
     bump("groupMembersDropped", removed.length);
   }
 
+  function noteSystemAggression(list, live, seenOf, alarmOn, now) {
+    const victims = [];
+    for (const ship of list) {
+      if (!ships.has(ship.entityId)) continue;
+      const seenShip = live.get(ship.entityId);
+      if (!seenShip || !noteAggression(ship, seenShip, now, T)) continue;
+      bump("fleeTriggered");
+      if (seenShip.position) victims.push({ entityId: ship.entityId, position: seenShip.position });
+    }
+    if (!alarmOn || victims.length === 0) return;
+    bump("fleeAlarmVictims", victims.length);
+    const candidates = list.filter((s) => ships.has(s.entityId)).map((ship) => ({ ship, seen: seenOf(ship) }));
+    const plan = planAlarm({ now, T, victims, ships: candidates, budget: alarmLeft });
+    for (const id of plan.alarmed) {
+      const ship = ships.get(id);
+      if (!ship) continue;
+      ship.fleeUntil = now + T.fleeWindowMs;
+      ship.alarmedAt = now;
+      bump("fleeAlarmed");
+      alarmLeft -= 1;
+    }
+    bump("fleeAlarmBudgetCut", plan.cut);
+  }
+
   function runSystemLifecycle(systemId, list, now) {
-    const read = call(() => scene.readShips(systemId, list.map((s) => s.entityId)));
+    const fleeOn = T.fleeEnabled === true;
+    const alarmOn = fleeOn && T.fleeAlarmEnabled === true;
+    const ids = list.map((s) => s.entityId);
+    const read = fleeOn && (alarmOn || list.some((s) => FLEE_ROLES.includes(s.role)))
+      ? call(() => scene.readShips(systemId, ids, { aggression: true }))
+      : call(() => scene.readShips(systemId, ids));
     if (!read || read.ok !== true) {
       fail("read", read && read.reason);
       return;
@@ -302,28 +585,122 @@ function createTraffic(deps) {
       }
     }
     if (goneIds.length > 0) call(() => scene.despawn(systemId, goneIds));
+    let nodesRead = false;
+    let nodesMemo = null;
+    const nodesOf = () => {
+      if (nodesRead) return nodesMemo;
+      nodesRead = true;
+      const r = call(() => scene.readNodes(systemId));
+      if (r && r.ok === true) nodesMemo = r;
+      else fail("read", r && r.reason);
+      return nodesMemo;
+    };
+    const seenOf = (ship) => {
+      const seenShip = live.get(ship.entityId);
+      return seenShip ? { live: true, inWarp: seenShip.inWarp === true, position: seenShip.position || null }
+        : { live: false, inWarp: false, position: null };
+    };
+    if (fleeOn) noteSystemAggression(list, live, seenOf, alarmOn, now);
     for (const ship of list) {
       if (!ships.has(ship.entityId)) continue;
-      const seenShip = live.get(ship.entityId);
-      const seen = seenShip ? { live: true, inWarp: seenShip.inWarp === true, position: seenShip.position || null }
-        : { live: false, inWarp: false, position: null };
+      const seen = seenOf(ship);
+      if (fleeOn) {
+        if (!isExpired(ship, now, T)) {
+          const f = fleeStepOf(ship, seen, now, T);
+          if (f.kind === "hold") continue;
+          if (f.kind === "flee") {
+            flee(ship, seen, f.needTarget, nodesOf, now);
+            continue;
+          }
+        }
+      }
       const step = stepShip(ship, seen, now, T);
       if (step.kind === "run") ship.state = SHIP_STATE.RUNNING;
-      else if (step.kind === "warp") warp(ship, now);
-      else if (step.kind === "mine") {
+      else if (step.kind === "warp") warp(ship, now, step.immediate === true);
+      else if (step.kind === "adoptWarp") {
+        ship.preWarpState = ship.state;
+        ship.state = SHIP_STATE.WARPING;
+        ship.warpAt = now;
+        ship.warpMode = WARP_MODE.IMMEDIATE;
+      } else if (step.kind === "mine") {
         ship.state = SHIP_STATE.MINING;
         ship.mineUntil = now + ship.stayMs;
         ship.warpAttempts = 0;
-      } else if (step.kind === "leave") {
-        ship.targetPoint = ship.exitPoint;
-        ship.leg = MINER_LEG.EXIT;
-        warp(ship, now);
-      } else if (step.kind === "arrived") {
+      } else if (step.kind === "dwell") dwell(ship, now);
+      else if (step.kind === "nextLeg") nextLeg(ship, now);
+      else if (step.kind === "explore") explore(ship, seen, now);
+      else if (step.kind === "leave") leave(ship, now);
+      else if (step.kind === "arrived") {
         ship.state = SHIP_STATE.ARRIVED;
         ship.arrivedAt = now;
         bump("arrived");
+        if (T.gateJumpFxEnabled === true && ship.target && ship.target.kind === "stargate") {
+          jumpOut(ship, ship.target.itemId, DESPAWN_REASON.ARRIVED, now);
+        }
+      } else if (step.kind === "jumpOut") {
+        if (!jumpOut(ship, step.gateId, step.reason, now)) despawnShips(systemId, [ship], step.reason);
       } else if (step.kind === "despawn") despawnShips(systemId, [ship], step.reason);
     }
+    if (T.miningBeamsEnabled === true && typeof scene.presentMiningBeams === "function") {
+      stepBeams(systemId, list, live, now);
+    }
+  }
+
+  function stepBeams(systemId, list, live, now) {
+    const st = systemOf(systemId, now);
+    const miners = [];
+    for (const ship of list) {
+      if (!ships.has(ship.entityId) || ship.state !== SHIP_STATE.MINING) continue;
+      const seen = live.get(ship.entityId);
+      if (!seen || !seen.position || seen.inWarp === true) continue;
+      miners.push({ entityId: ship.entityId, position: seen.position,
+        beltId: Number.isSafeInteger(ship.beltId) ? ship.beltId : null });
+    }
+    const beams = st.beams || null;
+    const pending = Boolean(beams && beams.approaching && beams.approaching.size > 0);
+    if (miners.length === 0 && (!beams || beams.shown.size === 0) && !pending) return;
+    if (beamFxLeft <= 0 && !pending) return;
+    const read = call(() => scene.readPlayers(systemId));
+    if (!read || read.ok !== true || !Array.isArray(read.ships)) {
+      if (!(read && read.reason === "SCENE_NOT_LOADED")) fail("read", read && read.reason);
+      return;
+    }
+    const players = read.ships.map((p) => ({ characterId: p && p.characterId, position: (p && p.position) || null,
+      inWarp: Boolean(p && p.inWarp === true) }));
+    const approachOn = T.miningBeamApproachEnabled === true;
+    const plan = planBeams({ now, miners, players, state: beams, viewMeters: T.miningBeamViewMeters,
+      refreshMs: T.miningBeamRefreshMs, ...(approachOn ? { retryMs: T.miningBeamRetryMs } : {}) });
+    if (plan.start.length === 0 && plan.stop.length === 0 && plan.release.length === 0) {
+      st.beams = applyBeams(beams, plan, { ok: true, started: [] });
+      return;
+    }
+    const req = { start: plan.start, stop: plan.stop, rockRangeMeters: T.miningBeamRockMeters,
+      maxFx: Math.max(0, beamFxLeft) };
+    if (approachOn) {
+      req.release = plan.release;
+      req.approach = { startMeters: T.miningBeamStartMeters, followMeters: T.miningBeamApproachMeters };
+    }
+    const r = call(() => scene.presentMiningBeams(systemId, req));
+    if (!r || r.ok !== true) {
+      fail("beams", r && (r.detail ? `${r.reason} ${r.detail}` : r.reason));
+      st.beams = applyBeams(beams, plan, r);
+      return;
+    }
+    const sent = Number.isSafeInteger(r.fxSent) ? r.fxSent : 0;
+    const orders = Number.isSafeInteger(r.ordersSent) ? r.ordersSent : 0;
+    beamFxLeft -= sent + orders;
+    bump("miningBeamFx", sent);
+    bump("miningBeamBudgetCut", Number.isSafeInteger(r.budgetCut) ? r.budgetCut : 0);
+    bump("miningBeamNoRock", Array.isArray(r.noRock) ? r.noRock.length : 0);
+    if (approachOn) {
+      bump("miningBeamApproachOrders", orders);
+      bump("miningBeamApproaching", Array.isArray(r.approaching) ? r.approaching.length : 0);
+      bump("miningBeamApproachBusy", Array.isArray(r.busy) ? r.busy.length : 0);
+      bump("miningBeamApproachRefused", Number.isSafeInteger(r.refused) ? r.refused : 0);
+      bump("miningBeamApproachReleased", Array.isArray(r.released) ? r.released.length : 0);
+    }
+    if (plan.full) bump("miningBeamRefresh");
+    st.beams = applyBeams(beams, plan, r);
   }
 
   function runLifecycle(now) {
@@ -418,7 +795,15 @@ function createTraffic(deps) {
   }
 
   function planOne(systemId, nodes, now) {
-    const role = pickRole(rng, nodes, T);
+    const role = pickRole(rng, nodes, T, { RATTER: rattersIn(systemId), EXPLORER: explorersIn(systemId) });
+    if (role === SHIP_ROLE.RATTER) {
+      const route = pickRatterRoute(nodes, rng, T);
+      return route.ok ? ratterPlanOf(route) : null;
+    }
+    if (role === SHIP_ROLE.EXPLORER) {
+      const route = pickExplorerRoute(nodes, rng, T);
+      return route.ok ? explorerPlanOf(route) : null;
+    }
     if (role === SHIP_ROLE.UNDOCK) {
       const route = pickUndockRoute(nodes, rng);
       if (!route.ok) return null;
@@ -456,6 +841,44 @@ function createTraffic(deps) {
         mineUntil: null, exitPoint: landingPointOf(route.beltPoint, route.exit, T) } };
   }
 
+  function ratterPlanOf(route) {
+    const fromStation = route.start.kind === "station";
+    const spec = fromStation ? { stationId: route.start.node.itemId, undock: true, undockRunMeters: T.undockRunMeters }
+      : { gateId: route.start.node.itemId };
+    const lastPoint = route.legs[route.legs.length - 1].point;
+    return { role: SHIP_ROLE.RATTER, spec, state: SHIP_STATE.SPAWNED,
+      startGateId: fromStation ? null : route.start.node.itemId,
+      startStationId: fromStation ? route.start.node.itemId : null,
+      target: { kind: route.exit.kind, itemId: route.exit.itemId }, targetPoint: route.legs[0].point,
+      docking: false, idleUntil: null, patrol: { legs: route.legs, legIndex: 0, leg: PATROL_LEG.PATROL,
+        dwellUntil: null, orbiting: false, stayMs: route.stayMs, exitPoint: landingPointOf(lastPoint, route.exit, T) } };
+  }
+
+  function explorerPlanOf(route) {
+    const fromStation = route.start.kind === "station";
+    const spec = fromStation ? { stationId: route.start.node.itemId, undock: true, undockRunMeters: T.undockRunMeters }
+      : { gateId: route.start.node.itemId };
+    const safe = route.safePoint || null;
+    const legs = Object.freeze([Object.freeze({ kind: EXPLORER_LEG.SAFE, targetId: 0, point: safe,
+      dwellMs: T.explorerScanMs * T.explorerMaxSites })]);
+    return { role: SHIP_ROLE.EXPLORER, spec, state: SHIP_STATE.SPAWNED,
+      startGateId: fromStation ? null : route.start.node.itemId,
+      startStationId: fromStation ? route.start.node.itemId : null,
+      target: { kind: route.exit.kind, itemId: route.exit.itemId }, targetPoint: safe,
+      docking: false, idleUntil: null, patrol: { legs, legIndex: 0, leg: PATROL_LEG.PATROL, dwellUntil: null,
+        orbiting: false, stayMs: route.stayMs,
+        exitPoint: landingPointOf(safe || route.start.node.position, route.exit, T) } };
+  }
+
+  function noteRole(plan) {
+    if (plan.role === SHIP_ROLE.UNDOCK) bump("undocked");
+    if (plan.role === SHIP_ROLE.MINER) bump("miners");
+    if (plan.role === SHIP_ROLE.RATTER) bump("ratters");
+    if (plan.role !== SHIP_ROLE.EXPLORER) return;
+    bump("explorers");
+    if (!plan.targetPoint) bump("explorerNoSafeSpot");
+  }
+
   function haulerPlanOf(systemId, startGate, target) {
     let targetPoint = landingPointOf(startGate.position, target, T);
     let docking = false;
@@ -486,20 +909,23 @@ function createTraffic(deps) {
     const slimName = T.namesEnabled === true ? pickName(systemId, st) : null;
     const hull = plan.spec.undock === true ? list.find((p) => p.profileId === profileId) : null;
     const shipTypeId = hull && Number.isSafeInteger(hull.shipTypeId) && hull.shipTypeId > 0 ? hull.shipTypeId : null;
-    const r = call(() => scene.spawnCivilian(systemId, { profileId, ...plan.spec,
+    const spec = { profileId, ...plan.spec,
       spawnOffsetMeters: T.spawnOffsetMeters, ...(slimName !== null ? { slimName } : {}),
-      ...(shipTypeId !== null ? { shipTypeId } : {}) }));
+      ...(shipTypeId !== null ? { shipTypeId } : {}), ...jumpInSpec(plan.spec),
+      ...arrivalSpec(plan, gateNodeOf(nodes, plan.spec), T.spawnOffsetMeters) };
+    const r = call(() => scene.spawnCivilian(systemId, spec));
     if (!r || r.ok !== true || !Number.isSafeInteger(r.entityId) || r.entityId <= 0) {
       fail("spawn", r && (r.detail ? `${r.reason} ${r.detail}` : r.reason));
       return;
     }
+    noteJumpIn(r, spec);
     ships.set(r.entityId, { entityId: r.entityId, systemId, state: plan.state, role: plan.role, profileId,
       startGateId: plan.startGateId, startStationId: plan.startStationId, target: plan.target,
       targetPoint: plan.targetPoint, docking: plan.docking, idleUntil: plan.idleUntil, slimName,
-      spawnedAt: now, warpAt: null, arrivedAt: null, warpAttempts: 0, ...(plan.miner || {}) });
+      spawnedAt: now, warpAt: null, arrivedAt: null, warpAttempts: 0, ...(plan.miner || {}),
+      ...(plan.patrol || {}) });
     bump("spawned");
-    if (plan.role === SHIP_ROLE.UNDOCK) bump("undocked");
-    if (plan.role === SHIP_ROLE.MINER) bump("miners");
+    noteRole(plan);
     if (T.namesEnabled === true) bump(slimName !== null ? "named" : "noName");
     metric("count", TRAFFIC_METRICS.spawned, 1);
   }
@@ -552,6 +978,8 @@ function createTraffic(deps) {
       return null;
     }
     if (route.role === SHIP_ROLE.MINER) return minerPlanOf(route.miner);
+    if (route.role === SHIP_ROLE.RATTER) return ratterPlanOf(route.patrol);
+    if (route.role === SHIP_ROLE.EXPLORER) return explorerPlanOf(route.explore);
     if (route.role === SHIP_ROLE.UNDOCK) {
       const station = route.start.node;
       return { role: SHIP_ROLE.UNDOCK, spec: { stationId: station.itemId, undock: true,
@@ -607,6 +1035,14 @@ function createTraffic(deps) {
 
   function spawnPilot(systemId, nodes, now, st, cand, pop, reserve) {
     if (pilotOf.has(cand.pilotId)) return 0;
+    if (cand.role === SHIP_ROLE.RATTER && rattersIn(systemId) >= T.ratterMaxPerSystem) {
+      bump("ratterCapped");
+      return 0;
+    }
+    if (cand.role === SHIP_ROLE.EXPLORER && explorersIn(systemId) >= T.explorerMaxPerSystem) {
+      bump("explorerCapped");
+      return 0;
+    }
     let hullOwn = null;
     if (hullProfiles) {
       const v = verifiedHulls();
@@ -635,33 +1071,36 @@ function createTraffic(deps) {
       const hull = plan.spec.undock !== true ? null
         : hullOwn || list.find((p) => p.profileId === profileId);
       const shipTypeId = hull && Number.isSafeInteger(hull.shipTypeId) && hull.shipTypeId > 0 ? hull.shipTypeId : null;
-      const r = call(() => scene.spawnCivilian(systemId, { profileId, ...plan.spec,
+      const gateNode = gateNodeOf(nodes, plan.spec);
+      const spec = { profileId, ...plan.spec,
         spawnOffsetMeters: T.spawnOffsetMeters, ...(slimName !== null ? { slimName } : {}),
-        ...(shipTypeId !== null ? { shipTypeId } : {}) }));
+        ...(shipTypeId !== null ? { shipTypeId } : {}), ...jumpInSpec(plan.spec),
+        ...arrivalSpec(plan, gateNode, T.spawnOffsetMeters) };
+      const r = call(() => scene.spawnCivilian(systemId, spec));
       if (!r || r.ok !== true || !Number.isSafeInteger(r.entityId) || r.entityId <= 0) {
         const reason = r && r.reason;
         if (backoff && reason !== "SCENE_NPC_BUDGET") backoff.note(key, failureReasonOf(reason, r && r.detail), now);
         fail("spawn", r && (r.detail ? `${r.reason} ${r.detail}` : r.reason));
         return 0;
       }
+      noteJumpIn(r, spec);
       const leaderShip = { entityId: r.entityId, systemId, state: plan.state, role: plan.role, profileId,
         startGateId: plan.startGateId, startStationId: plan.startStationId, target: plan.target,
         targetPoint: plan.targetPoint, docking: plan.docking, idleUntil: plan.idleUntil, slimName,
         spawnedAt: now, warpAt: null, arrivedAt: null, warpAttempts: 0, ...(plan.miner || {}),
-        pilotId: cand.pilotId, token: claim.token, exit: cand.exit };
+        ...(plan.patrol || {}), pilotId: cand.pilotId, token: claim.token, exit: cand.exit };
       ships.set(r.entityId, leaderShip);
       pilotOf.set(cand.pilotId, r.entityId);
       refused = false;
       if (backoff) backoff.clear(key);
       bump("spawned");
       bump("pilotSpawned");
-      if (plan.role === SHIP_ROLE.UNDOCK) bump("undocked");
-      if (plan.role === SHIP_ROLE.MINER) bump("miners");
+      noteRole(plan);
       if (T.namesEnabled === true) bump(slimName !== null ? "named" : "noName");
       metric("count", TRAFFIC_METRICS.spawned, 1);
       if (GS === null || typeof pop.liveGroupOf !== "function") return 1;
       try {
-        return 1 + spawnMembers(systemId, now, st, cand, pop, plan, leaderShip, claim.token, reserve);
+        return 1 + spawnMembers(systemId, now, st, cand, pop, plan, leaderShip, claim.token, reserve, gateNode);
       } catch (err) {
         fail("spawn", messageOf(err));
         return 1 + (Array.isArray(leaderShip.groupShips) ? leaderShip.groupShips.length : 0);
@@ -678,11 +1117,14 @@ function createTraffic(deps) {
     return { list, profileId: own ? own.profileId : pickProfile(list, rng) };
   }
 
-  function spawnMembers(systemId, now, st, cand, pop, plan, leaderShip, token, reserve) {
+  function spawnMembers(systemId, now, st, cand, pop, plan, leaderShip, token, reserve, gateNode) {
     const g = call(() => pop.liveGroupOf(cand.pilotId, systemId, now));
     if (!g || g.ok !== true || !Array.isArray(g.members) || g.members.length === 0) return 0;
     const capRoom = Math.min(T.maxShipsPerSystem - liveIn(systemId), T.maxShipsGlobal - ships.size);
-    const memberRoom = Math.max(0, capRoom - (Number.isSafeInteger(reserve) && reserve > 0 ? reserve : 0));
+    const shipRoom = Math.max(0, capRoom - (Number.isSafeInteger(reserve) && reserve > 0 ? reserve : 0));
+    const roleRoom = plan.role === SHIP_ROLE.RATTER ? T.ratterMaxPerSystem - rattersIn(systemId)
+      : plan.role === SHIP_ROLE.EXPLORER ? T.explorerMaxPerSystem - explorersIn(systemId) : shipRoom;
+    const memberRoom = Math.min(shipRoom, Math.max(0, roleRoom));
     let k = 0;
     for (let i = 0; i < g.members.length; i += 1) {
       if (k >= memberRoom || ships.size >= T.maxShipsGlobal) {
@@ -713,27 +1155,30 @@ function createTraffic(deps) {
       const slimName = T.namesEnabled === true ? pilotName(systemId, st, m.pilotId) : null;
       const shipTypeId = plan.spec.undock === true && hull && Number.isSafeInteger(hull.shipTypeId)
         && hull.shipTypeId > 0 ? hull.shipTypeId : null;
-      const r = call(() => scene.spawnCivilian(systemId, { profileId, ...plan.spec,
-        spawnOffsetMeters: T.spawnOffsetMeters + GS.spacingMeters * (k + 1), ...(slimName !== null ? { slimName } : {}),
-        ...(shipTypeId !== null ? { shipTypeId } : {}) }));
+      const offset = T.spawnOffsetMeters + GS.spacingMeters * (k + 1);
+      const spec = { profileId, ...plan.spec,
+        spawnOffsetMeters: offset, ...(slimName !== null ? { slimName } : {}),
+        ...(shipTypeId !== null ? { shipTypeId } : {}), ...jumpInSpec(plan.spec),
+        ...arrivalSpec(plan, gateNode || null, offset) };
+      const r = call(() => scene.spawnCivilian(systemId, spec));
       if (!r || r.ok !== true || !Number.isSafeInteger(r.entityId) || r.entityId <= 0) {
         fail("spawn", r && (r.detail ? `${r.reason} ${r.detail}` : r.reason));
         if (r && r.reason === "SCENE_NPC_BUDGET") break;
         continue;
       }
+      noteJumpIn(r, spec);
       ships.set(r.entityId, { entityId: r.entityId, systemId, state: plan.state, role: plan.role, profileId,
         startGateId: plan.startGateId, startStationId: plan.startStationId, target: plan.target,
         targetPoint: plan.targetPoint, docking: plan.docking, idleUntil: plan.idleUntil, slimName,
         spawnedAt: now, warpAt: null, arrivedAt: null, warpAttempts: 0, ...(plan.miner || {}),
-        pilotId: m.pilotId, token, leaderPilotId: cand.pilotId, exit: cand.exit });
+        ...(plan.patrol || {}), pilotId: m.pilotId, token, leaderPilotId: cand.pilotId, exit: cand.exit });
       if (!Array.isArray(leaderShip.groupShips)) leaderShip.groupShips = [];
       leaderShip.groupShips.push(r.entityId);
       pilotOf.set(m.pilotId, r.entityId);
       k += 1;
       bump("spawned");
       bump("groupMemberSpawned");
-      if (plan.role === SHIP_ROLE.UNDOCK) bump("undocked");
-      if (plan.role === SHIP_ROLE.MINER) bump("miners");
+      noteRole(plan);
       if (T.namesEnabled === true) bump(slimName !== null ? "named" : "noName");
       metric("count", TRAFFIC_METRICS.spawned, 1);
     }
@@ -962,7 +1407,7 @@ function createTraffic(deps) {
   function aggroSystems(now) {
     const by = new Map();
     for (const ship of ships.values()) {
-      if (!Number.isSafeInteger(ship.pilotId) || armed.has(ship.entityId)) continue;
+      if (!Number.isSafeInteger(ship.pilotId) || armed.has(ship.entityId) || PATROL_ROLES.includes(ship.role)) continue;
       const until = cooldownUntil.get(ship.entityId);
       if (until !== undefined) {
         if (until > now) continue;
@@ -1078,6 +1523,11 @@ function createTraffic(deps) {
     try {
       const now = clock.now();
       const presence = presenceOf();
+      beamFxLeft = T.miningBeamMaxFxPerPass;
+      warpFxLeft = T.visibleWarpMaxFxPerPass;
+      gateEventLeft = T.gateControllerEventMaxPerPass;
+      siteReadsLeft = T.explorerSiteReadsPerPass;
+      alarmLeft = T.fleeAlarmEnabled === true ? T.fleeAlarmMaxPerPass : 0;
       runLifecycle(now);
       runExit(now, presence);
       runSpawn(now, presence);

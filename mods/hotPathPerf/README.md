@@ -225,13 +225,13 @@ Flag `structuresSystemFilter` (`HOTPATH_STRUCTURES_SYSTEM_FILTER`), **off by def
 
 ## Mining drone persist coalescing
 
-Flag `dronePersistCoalesce` (`HOTPATH_DRONE_PERSIST_COALESCE`), **off by default**. `droneRuntime.tickDroneMining` calls `persistDroneEntityState` on every 100 ms tick, i.e. a full `itemStore.updateInventoryItem` (normalisation, clones, `writeItems`) for every mining drone, although between state transitions only movement changes (one player with mining drones: about 21% CPU).
+Flag `dronePersistCoalesce` (`HOTPATH_DRONE_PERSIST_COALESCE`), **off by default**. Obsolete on EveJS 261126.2. On older builds `droneRuntime.tickDroneMining` calls `persistDroneEntityState` on every 100 ms tick, i.e. a full `itemStore.updateInventoryItem` (normalisation, clones, `writeItems`) for every mining drone, although between state transitions only movement changes (one player with mining drones: about 21% CPU).
 
 - The export wrapper of `itemStore.updateInventoryItem` (wrapped on first load, because `droneRuntime` destructures the function) works inside the `droneRuntime.tickScene` scope. Candidate: a scene drone with `droneCommand=MINE` and `activityState` MINING/APPROACHING.
 - Real write (vendor result unchanged): the first write of a drone, a write `dronePersistCoalesceMs` (5 s) after the previous one, any change of a non-movement field (location, launcher, `customInfo`, `mode`, `targetEntityID`, AIR/abyssal/dungeon scope metadata). A deferred movement-only write (`position`, `velocity`, `direction`, `targetPoint`, `speedFraction`, `followRange`, `orbitDistance`, `orbitNormal`, `orbitSign`) returns `{ success: true, coalesced: true }`. `emitDroneStateChange` (client notification) stays immediate.
 - Deferred movement is written as a `spaceState` patch on the current record: before a foreign write of that item (recall, scoop, abandon, reset to idle), by timer (the drone stopped being ticked), before `SpaceRuntime.disposeScene`, in the hook `gameStore.registerShutdownHook("hotPathPerf.dronePersist")`, at the `dronePersistCoalesceMaxItems` limit (oldest first). Before the patch a CAS check: `locationID, flagID, ownerID, typeID, singleton, launcherID, customInfo` and `spaceState` must match our last write; otherwise the movement is dropped (`dropped=cas`).
 - Hard crash: after a restart a drone may stand up to 5 s back on its path. Combat, salvage, repair drones and fighters are unchanged.
-- Disable reasons (deferred movement is written, then passthrough): `order` (someone else wrapped `updateInventoryItem`, or `droneRuntime` loaded before the wrap), `drift`, `error`.
+- Disable reasons (deferred movement is written, then passthrough): `order` (someone else wrapped `updateInventoryItem`, or `droneRuntime` loaded before the wrap), `drift`, `error`, `obsolete` (the vendor checkpoints drone motion itself, nothing is wrapped).
 - Stats: `[hotPathPerf] stats dronePersistCoalesce state=... tracked=... pending=... intercepted=... coalesced=... real=first:n,interval:n,changed:n flushes=timer:n,foreign:n,dispose:n,shutdown:n,limit:n dropped=cas:n,notFound:n,shutdown:n writeErrors=... flushMaxMs=... maxAgeMs=...`.
 - The probe requires 7 points: `itemStore#droneDeps`, `itemStore.updateInventoryItem#droneCoalesce`, `itemStore.updateInventoryItemSuccessOnly#droneCoalesce` (261108.1+), `gameStore#droneDeps`, `droneRuntime#droneDeps`, `droneRuntime.tickScene#droneScope`, `SpaceRuntime.disposeScene#droneFlush` (missing = `DRIFT` and `; dronePersistCoalesce disabled: drift`).
 
@@ -493,6 +493,12 @@ Upstream fixed some of the clones the mod patched. With the flag on, the mod rec
 - **NPC wreck list:** the scoped consumer `listStoredDungeonNativeWreckIDs` calls `listNativeWrecksMatching`, so the scoped mode is `obsolete` (`WARN nativeWreckList scoped disabled: obsolete`). The global mode still works (`voidSystems`, `nativeNpcWreckService`, `sceneDisposal` call `listNativeWrecks`).
 - No behaviour change: the vendor `cloneValue`/`clone` is now `common/clone` (result as a JSON round trip). `persistDroneEntityState` also writes `droneState` (cycle deadlines). Without an active deadline it is `null`, so movement still coalesces; with a deadline every persist is a new object and a real vendor write. Deferred receipt retire: the `retireReceipts`/`retireOperationReceipts`/`pruneFinishedOperationReceipts` fingerprints are unchanged.
 
+### 261126.2
+
+- **Drone persist coalescing: obsolete.** `tickDroneMining` no longer persists on every tick. `tickScene` calls `checkpointDroneMotion` for every drone: a non-movement field change writes at once, movement waits 2 s (`DRONE_MOTION_CHECKPOINT_INTERVAL_MS`), and `flushSceneDroneMotion` writes the rest on `disposeScene` and on `stopTicking`. With the flag on the mod reads `droneRuntime.js` on the first drone target, logs `WARN dronePersistCoalesce disabled: obsolete (EveJS checkpoints it itself: droneRuntime.checkpointDroneMotion)`, wraps nothing and the probe shows no DRIFT.
+- **Dungeon instance ref:** `processGateDefenseHazards` filters the gate defense hints before its first `getInstance`, so sites without gate defense no longer clone the instance. Sites with gate defense still clone two or three times per pass and only read the copy, so the named caller keeps the ref; its fingerprint is updated.
+- No behaviour change: `careerAbyssalSources.reconcileRun` reads through `gameStore.readDurable` (memory rows, falls back to `readPersisted`); the mission mining journal is created by one `settleExtraction` patch for direct and drone deliveries; the shared schema files only map the `incursionLifecycle` table; `taleMgrService` binds `activeTales` on every call; `server/index.js` sets the world role after the startup save check and before any other `require`, so the stall watch waits through the save check and starts on the next module load.
+
 ## Probe
 
 60 s after start, in the game process: `probe: passed (N measurement points)` or `DRIFT: <symbol>, ...`. DRIFT disables only the affected point; the others keep measuring. With `dungeonIndex=true` the probe also expects the `...#deps`, `...#index`, `...#scope` symbols; a disabled index appends `; dungeonIndex disabled: <reason>` (its symbols are then not reported as DRIFT). With `sceneRetention=true` the probe expects `SpaceRuntime.collectEmptySolarSystems#retention`, `sessionRegistry#deps`, `config#deps`; any missing = `DRIFT: ...` with those symbols and `; sceneRetention disabled: drift`. With `careerAbyssalRead=true` it requires `gameStore.readPersisted#gate`, `sqliteStore.loadExistingTableObject#serve`, `sqliteStore#deps` (missing = `DRIFT` and `; careerAbyssalRead disabled: drift`). The points `careerAbyssalSources.reconcile#scope` / `.reconcileRun#scope` are lazy: the career module loads on the first character sync, so before that the probe appends `; careerAbyssalRead waiting` (no DRIFT); loaded and not wrapped = DRIFT. With `templateReadOnlyView=true` it requires `dungeonAuthority#deps` and `dungeonAuthority.getTemplateByID#readOnly` (missing = `; templateReadOnly disabled: drift`); `...#templateScope` behaves like the index scope. EveJS helper processes (chatEdge, redshiftEdge, walletAuthority, imageEdge, durableScheduler) log neither the probe nor stats.
@@ -508,3 +514,11 @@ Upstream fixed some of the clones the mod patched. With the flag on, the mod rec
 - every fix's keys are listed in its own section above.
 
 Process kill switch: `HOTPATH_NO_INSTALL=1`.
+
+## Tests
+
+```
+node mods/hotPathPerf/test/run.js
+```
+
+The tests do not load `server/src` (vendor facts are checked against the source text).

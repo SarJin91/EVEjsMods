@@ -19,6 +19,7 @@ const SCOPE_FLAGS = Object.freeze(["entityInteractionScopeInvalid", "playerCompa
 const COUNTER_NAMES = Object.freeze([
   "board.ok", "board.launchFailed", "board.vendorFailed", "board.error",
   "board.refused.ABYSSAL", "board.refused.SHIP_DEATH_PENDING",
+  "board.refused.CONCORD_PURSUIT", "board.refused.FACTION_POLICE_PURSUIT",
   "board.server",
   "board.ghost.forgotten", "board.ghost.resent", "board.ghost.resendRefused",
   "board.back.stowed", "board.back.tooFar", "board.back.failed",
@@ -78,6 +79,8 @@ function refusalText(reason, config) {
     case "HOST_GONE": return "The ship that launched the copy is gone.";
     case "ABYSSAL": return "You cannot eject, board, launch, or store ships inside Abyssal Deadspace.";
     case "SHIP_DEATH_PENDING": return "The ship is being destroyed.";
+    case "CONCORD_PURSUIT": return "You cannot board another ship while CONCORD is pursuing you.";
+    case "FACTION_POLICE_PURSUIT": return "You cannot board another ship while faction police are pursuing you.";
     case "SCOPE_INVALID": return "The copy's ship cannot be launched here - move away from this site and try again.";
     default: return NOT_AVAILABLE_TEXT;
   }

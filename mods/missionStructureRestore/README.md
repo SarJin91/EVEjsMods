@@ -1,4 +1,4 @@
-# Mission Structure Restore (EveJS loader mod)
+# Mission Structure Restore (EveJS 261108.1 loader mod)
 
 After a server restart, a mission whose objective is a destructible structure
 of a wave that had already spawned gets that structure back the next time the
@@ -85,6 +85,10 @@ Docker: `docker/entrypoint.sh` preloads
 `--require /app/mods/missionStructureRestore/loader.js` in both server blocks.
 Native launcher: activate as a loader mod (`loader_rename`).
 
+## Tests
+
+`node mods/missionStructureRestore/test/run.js` (or `RunTests.bat`). No server
+needed; T1 checks the seam tokens against the real `server/src` files.
 
 ## After an EveJS update
 

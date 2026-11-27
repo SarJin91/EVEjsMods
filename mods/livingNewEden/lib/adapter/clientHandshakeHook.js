@@ -9,6 +9,7 @@ const MOON_KEY = Symbol.for("evejs.moonOreAnomalies.transientNames");
 const HOOK_STATE_KEY = Symbol.for("evejs.lne.boardHook.v1");
 const SEAM_FUNCTION = "function buildTidiSignedFunc(";
 const SEAM_CALL = "[buildTidiSignedFunc(this.clientId, { accountRole: this.accountRole }), 0]";
+const LOGIN_CALL = "buildTidiSignedFunc(this.clientId, { accountRole: this.accountRole })";
 const TAIL_MARKER = "__lneBoardPreviousLogin";
 const LOG_TAG = "LNE_BOARD_UI";
 const HASH_RE = /^[0-9a-f]{64}$/;
@@ -44,6 +45,19 @@ function logLine(logger, line) {
   }
 }
 
+function count(text, token) {
+  return text.split(token).length - 1;
+}
+
+// Peers may wrap the login call site; the tail only needs the declaration and the call through its binding.
+function acceptsSource(content, baseline) {
+  if (typeof content !== "string") return false;
+  if (content.startsWith(baseline)) return true;
+  const declarationEnd = baseline.indexOf("\nfunction ", baseline.indexOf(SEAM_FUNCTION) + 1);
+  return declarationEnd > 0 && content.startsWith(baseline.slice(0, declarationEnd))
+    && count(content, SEAM_FUNCTION) === 1 && count(content, LOGIN_CALL) === 1;
+}
+
 function installBoardHandshakeHook(deps) {
   const { moduleApi, globalObj, root, readFile, hashes, logger } = deps || {};
   if (globalObj && (globalObj[DCB_KEY] || globalObj[MOON_KEY])) {
@@ -77,8 +91,8 @@ function installBoardHandshakeHook(deps) {
       try {
         if (typeof filename === "string" && canonical(filename) === target) {
           done = true;
-          if (typeof content === "string" && content.startsWith(baseline) && !content.includes(TAIL_MARKER)) {
-            state.tailBytes = Buffer.byteLength(content.slice(baseline.length), "utf8");
+          if (acceptsSource(content, baseline) && !content.includes(TAIL_MARKER)) {
+            state.tailBytes = Buffer.byteLength(content, "utf8") - Buffer.byteLength(baseline, "utf8");
             args[0] = content + TAIL;
             state.status = "WRAPPED";
             logLine(logger, `${LOG_TAG}:WRAPPER_READY tail=${state.tailBytes}`);
