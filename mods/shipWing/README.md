@@ -2,7 +2,7 @@
 
 A pilot launches "copies" of the fitted ships in their current ship's Ship Maintenance Bay. Any hull works: the mod has no host or wing-ship type limit. A ship only needs to be assembled and flyable with your skills. A copy follows the pilot, can mine, fight NPCs, salvage and repair, and comes back on command. The real ship stays in the bay and is locked while its copy is in space. If an NPC destroys the copy, the real ship is lost: wreck, killmail, and the ship leaves the bay.
 
-Version 0.2.1 is a test version. The mod is off by default (`enabled=false`), and every feature has its own switch.
+Version 0.2.2 is a test version. The mod is off by default (`enabled=false`), and every feature has its own switch.
 
 ## Warning: test servers first
 
@@ -172,7 +172,7 @@ State: `${EVEJS_DATA_ROOT}/mods/shipWing/wings.json` (Docker: volume `/var/lib/e
 1. In `docker/entrypoint.sh`, in **both** `--require` blocks, add `--require /app/mods/shipWing/loader.js \` before `--require /app/mods/moonOreAnomalies/loader.js \`. Living New Eden stays last.
 2. In `compose.yaml`, service `server`, `environment:`, add `EVEJS_SHIPWING_ENABLED: ${EVEJS_SHIPWING_ENABLED:-0}` (and the feature flags you want, for example `EVEJS_SHIPWING_CLIENT_WINDOW_ENABLED`). Set them in the root `.env`.
 3. `docker compose build init`, then `docker compose up -d`.
-4. `docker compose logs server | grep ShipWing` should show `probe passed (...)`, `bootSweep cleared=0 keptLost=0`, `guards installed (...)`, `chat installed (!wing launch|return|status in Local)` and `ready v0.2.1 ...`.
+4. `docker compose logs server | grep ShipWing` should show `probe passed (...)`, `bootSweep cleared=0 keptLost=0`, `guards installed (...)`, `chat installed (!wing launch|return|status in Local)` and `ready v0.2.2 ...`.
 
 Without `EVEJS_SHIPWING_ENABLED=1` the mod logs nothing and installs no hook.
 

@@ -255,7 +255,7 @@ module.exports = ({ test }) => {
     const budget = resolve(ON).config.inGameMap.maxClientPayloadBytes;
     const payload = D.buildPayload(source, budget, S.PROBE_NAMES);
     assert.strictEqual(payload.ok, true, JSON.stringify(payload));
-    for (const anchor of ["'p.ready=1'", "IsServiceRunning", "OnLneMapProbe", "BUILD = 3396210",
+    for (const anchor of ["'p.ready=1'", "IsServiceRunning", "OnLneMapProbe", "BUILDS = (3396210, 3724492)",
       "'__lne_map_probe_instance'", "'lneMapSvc'"]) {
       assert.ok(source.includes(anchor), anchor);
     }

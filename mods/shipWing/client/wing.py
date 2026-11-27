@@ -6,7 +6,7 @@ try:
 
     PROTO = 1
     WIRE = 2
-    BUILD = 3396210
+    BUILDS = (3396210, 3724492)
     SVC = 'shipWingSvc'
     NOTIFY_STATE = 'OnShipWingState'
     NOTIFY_OPEN = 'OnShipWingOpen'
@@ -1753,6 +1753,7 @@ try:
         def __init__(self, context):
             self.context = context
             self.active = True
+            self.client_no = 0
             self.sm = None
             self.session = None
             self.character = None
@@ -1832,7 +1833,7 @@ try:
                 return
             def send():
                 try:
-                    sm.RemoteSvc(SVC).Report(PROTO, BUILD, fresh[:MAX_REPORT_ITEMS])
+                    sm.RemoteSvc(SVC).Report(PROTO, self.client_no, fresh[:MAX_REPORT_ITEMS])
                 except Exception:
                     pass
             try:
@@ -1886,7 +1887,7 @@ try:
                     self.dispose()
                     return
                 build = self.client_build()
-                if build != BUILD:
+                if build not in BUILDS:
                     try:
                         self.sm.RemoteSvc(SVC).Report(PROTO, max(0, build), ['build=0:UNSUPPORTED_BUILD'])
                     except Exception:
@@ -1894,6 +1895,7 @@ try:
                     print('SHIPWING_UI:UNSUPPORTED_BUILD')
                     self.dispose()
                     return
+                self.client_no = build
                 for event in self.__notifyevents__:
                     self.sm.RegisterForNotifyEvent(self, event)
                     self.registered.append(event)
@@ -1915,7 +1917,7 @@ try:
                 items = self.probe()
                 if not self.current() or generation != self.generation:
                     return
-                svc.Report(PROTO, BUILD, items)
+                svc.Report(PROTO, self.client_no, items)
                 print('SHIPWING_UI:READY')
             except Exception as error:
                 self.fail(error, 'connect')

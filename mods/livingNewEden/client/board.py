@@ -5,7 +5,7 @@ try:
 
     PROTO = 1
     WIRE = 1
-    BUILD = 3396210
+    BUILDS = (3396210, 3724492)
     SVC = 'lneBoardSvc'
     NOTIFY_OPEN = 'OnLneBoardOpen'
     MAX_REPORT_ITEMS = 64
@@ -695,6 +695,7 @@ try:
         def __init__(self, context):
             self.context = context
             self.active = True
+            self.client_no = 0
             self.sm = None
             self.session = None
             self.character = None
@@ -755,7 +756,7 @@ try:
             try:
                 while self.queued and self.current() and generation == self.generation:
                     batch = self.queued[:MAX_REPORT_ITEMS]
-                    answer = self.sm.RemoteSvc(SVC).Report(PROTO, BUILD, batch)
+                    answer = self.sm.RemoteSvc(SVC).Report(PROTO, self.client_no, batch)
                     if not self.current() or generation != self.generation:
                         return
                     if isinstance(answer, dict) and answer.get('ok') is False:
@@ -797,7 +798,7 @@ try:
                     self.dispose()
                     return
                 build = self.client_build()
-                if build != BUILD:
+                if build not in BUILDS:
                     try:
                         self.sm.RemoteSvc(SVC).Report(PROTO, max(0, build), ['build=0:UNSUPPORTED_BUILD'])
                     except Exception:
@@ -805,6 +806,7 @@ try:
                     print('LNE_BOARD_UI:UNSUPPORTED_BUILD')
                     self.dispose()
                     return
+                self.client_no = build
                 for event in self.__notifyevents__:
                     self.sm.RegisterForNotifyEvent(self, event)
                     self.registered.append(event)

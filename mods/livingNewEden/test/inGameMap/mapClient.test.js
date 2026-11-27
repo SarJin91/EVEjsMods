@@ -77,7 +77,7 @@ module.exports = ({ test }) => {
     const cfg = resolve(WINDOW).config;
     const payload = D.buildPayload(source, cfg.inGameMap.maxClientPayloadBytes, S.MAP_NAMES);
     assert.strictEqual(payload.ok, true, JSON.stringify(payload));
-    for (const anchor of ["'m.ready=1'", "'OnLneMapOpen'", "GetMap(", "BUILD = 3396210", "'__lne_map_instance'",
+    for (const anchor of ["'m.ready=1'", "'OnLneMapOpen'", "GetMap(", "BUILDS = (3396210, 3724492)", "'__lne_map_instance'",
       "'lneMapSvc'", "'m.build=0:UNSUPPORTED_BUILD'", "'lneMapWindow1'"]) {
       assert.ok(source.includes(anchor), anchor);
     }
@@ -190,5 +190,30 @@ module.exports = ({ test }) => {
       root: MOD_DIR, readFile: () => baseline, logger: { log() {} } });
     assert.strictEqual(r.ok, true, JSON.stringify(r));
     assert.notStrictEqual(moduleApi.prototype._compile, base, "hook installed (window only)");
+  });
+
+  test("IGC5 client build gate: board.py, map.py and mapProbe.py accept the same BUILDS, which hold the server "
+    + "protocol build; the gate is a membership test and every Report after it sends the checked build", () => {
+    const profile = path.resolve(MOD_DIR, "..", "..", "server", "src", "network", "protocolProfile.js");
+    const served = fs.existsSync(profile) ? /clientBuild:\s*([\d_]+)/.exec(fs.readFileSync(profile, "utf8")) : null;
+    const checks = [
+      [BOARD_PY, "if build not in BUILDS:", "self.client_no = build", "Report(PROTO, self.client_no, batch)"],
+      [MAP_SOURCE, "if build not in BUILDS:", "self.client_no = build", "Report(PROTO, self.client_no, batch)"],
+      [CLIENT_SOURCE, "if b not in BUILDS:", "s.bn=b", "Report(PROTO,s.bn,b)"],
+    ];
+    for (const [file, gate, keep, report] of checks) {
+      const source = lfText(file);
+      const name = path.basename(file);
+      const m = /^ +BUILDS = \(([\d, ]+)\)$/m.exec(source);
+      assert.ok(m, `${name} BUILDS`);
+      const builds = m[1].split(",").map((s) => Number(s.trim()));
+      assert.deepStrictEqual(builds, [3396210, 3724492], name);
+      if (served) assert.ok(builds.includes(Number(served[1].replace(/_/g, ""))), `${name} accepts the server build`);
+      assert.ok(!/\bBUILD\b/.test(source), `${name} has no single-build constant`);
+      const at = source.indexOf(gate);
+      assert.ok(at > 0, `${name} gate`);
+      assert.ok(source.indexOf(keep, at) > at, `${name} keeps the checked build`);
+      assert.ok(source.includes(report), `${name} reports the checked build`);
+    }
   });
 };

@@ -5,7 +5,7 @@ try:
  import hashlib as _H
  X=Exception
  G=getattr
- BUILD = 3396210
+ BUILDS = (3396210, 3724492)
  PROTO=1;SVC='lneMapSvc';KEY='__lne_map_probe_instance';MAX=64;WID='lneMapProbe1';CAP='LNE Map Probe'
  PR='carbonui.primitives.'
  WINS=(('eve','eve.client.script.ui.control.eveWindow'),('carbon','carbonui.control.window'))
@@ -54,7 +54,7 @@ try:
   __notifyevents__=['OnLneMapProbe','OnSessionChanged','OnDisconnect']
   def __init__(s,ctx):
    s.ctx=ctx;s.on=True;s.sm=s.ses=s.char=s.sd=s.win=None
-   s.reg=[];s.gen=0;s.done=set();s.q=[]
+   s.reg=[];s.gen=0;s.bn=0;s.done=set();s.q=[]
   def look(s,n):return s.ctx.get(n,G(_B,n,None))
   def cur(s):return s.on and G(_B,KEY,None) is s
   def close(s):
@@ -83,7 +83,7 @@ try:
    try:
     while s.q and s.cur() and g==s.gen:
      b=s.q[:MAX]
-     r=s.sm.RemoteSvc(SVC).Report(PROTO,BUILD,b)
+     r=s.sm.RemoteSvc(SVC).Report(PROTO,s.bn,b)
      if not s.cur() or g!=s.gen:return
      if isinstance(r,dict) and r.get('ok') is False:
       if r.get('reason')!='RATE_LIMIT' or n>=3:return
@@ -108,10 +108,11 @@ try:
      _P('UNAVAILABLE:WAIT');s.dispose();return
     try:b=int(G(s.look('boot'),'build',0))
     except X:b=0
-    if b!=BUILD:
+    if b not in BUILDS:
      try:s.sm.RemoteSvc(SVC).Report(PROTO,max(0,b),['p.build=0:UNSUPPORTED_BUILD'])
      except X:pass
      _P('UNSUPPORTED_BUILD');s.dispose();return
+    s.bn=b
     for e in s.__notifyevents__:
      s.sm.RegisterForNotifyEvent(s,e);s.reg.append(e)
     s.char=G(s.ses,'charid',None)

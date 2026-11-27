@@ -7,7 +7,7 @@ database (a fleet far from players is a row, not a ship in space), and battles
 far from players are settled by the mod's own resolver. Some effects are
 visible in the game.
 
-Version 0.2.0, for EveJS 261126.2. Runs on Node 24 and newer.
+Version 0.2.1, for EveJS 261126.2. Runs on Node 24 and newer.
 
 ## What you see with the default settings
 

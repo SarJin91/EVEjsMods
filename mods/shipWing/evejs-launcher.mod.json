@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "id": "shipWing",
   "displayName": "Ship Wing",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Launch copies of the fitted ships in your current ship's Ship Maintenance Bay (any hull) as a wing that follows you. Type !wing launch, !wing return or !wing status in Local. The real ship stays locked in the bay while its copy is out. Copies can also mine and fight NPCs (each feature has its own flag, off by default). A destroyed copy is settled: the real ship is removed and leaves a wreck and a killmail. TEST BUILD: do not turn it on for players yet (read the README). Off by default.",
   "kind": "loader",
   "supportedBackends": [

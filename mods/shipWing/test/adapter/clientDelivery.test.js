@@ -90,7 +90,7 @@ module.exports = ({ test }) => {
     + "the server; no eval/exec of server data; own payload <= 32 KB", () => {
     const text = fs.readFileSync(WING_PY, "utf8");
     assert.ok(/^[\x00-\x7f]*$/.test(text) && !text.includes("\t"));
-    for (const needle of [`'${SERVICE_NAME}'`, `'${NOTIFY.STATE}'`, `'${NOTIFY.OPEN}'`, "3396210"]) {
+    for (const needle of [`'${SERVICE_NAME}'`, `'${NOTIFY.STATE}'`, `'${NOTIFY.OPEN}'`, "BUILDS = (3396210, 3724492)"]) {
       assert.ok(text.includes(needle), needle);
     }
     const constant = (name) => {
@@ -101,7 +101,7 @@ module.exports = ({ test }) => {
     assert.strictEqual(constant("PROTO"), REPORT_PROTO);
     assert.strictEqual(constant("WIRE"), WIRE_VERSION);
     assert.strictEqual(SERVICE_WIRE_VERSION, WIRE_VERSION);
-    assert.strictEqual(constant("BUILD"), 3396210);
+    assert.ok(!/\bBUILD\b/.test(text), "no single-build constant");
     assert.strictEqual(constant("MAX_VERB_CHARS"), MAX_VERB_CHARS);
     assert.strictEqual(constant("MAX_REPORT_ITEMS"), MAX_REPORT_ITEMS);
     assert.strictEqual(constant("MAX_REPORT_ITEM_CHARS"), MAX_REPORT_ITEM_CHARS);
@@ -1017,5 +1017,102 @@ module.exports = ({ test }) => {
     assert.deepStrictEqual(out.before, [true, 1]);
     assert.deepStrictEqual(out.reset, [null, 0, {}, [], false],
       "another character: no data, target, folds or show-all of the old one, the window closed");
+  });
+
+  test("CD18 wing.py client build gate: BUILDS holds the server protocol build; run: 3396210 and 3724492 "
+    + "connect and report their own build, another build reports UNSUPPORTED_BUILD and disposes", () => {
+    const text = wingText();
+    const m = /^ {4}BUILDS = \(([\d, ]+)\)$/m.exec(text);
+    assert.ok(m, "BUILDS tuple");
+    const builds = m[1].split(",").map((s) => Number(s.trim()));
+    assert.deepStrictEqual(builds, [3396210, 3724492]);
+    const profile = path.resolve(__dirname, "..", "..", "..", "..", "server", "src", "network", "protocolProfile.js");
+    if (fs.existsSync(profile)) {
+      const served = /clientBuild:\s*([\d_]+)/.exec(fs.readFileSync(profile, "utf8"));
+      assert.ok(served && builds.includes(Number(served[1].replace(/_/g, ""))), "server client build accepted");
+    }
+    const block = (name) => {
+      const at = text.indexOf(`\n        def ${name}(`);
+      assert.ok(at >= 0, name);
+      const next = /\n {0,8}\S/.exec(text.slice(at + 1));
+      return text.slice(at + 1, at + 1 + next.index);
+    };
+    const cmd = python();
+    if (!cmd) return;
+    const dedent = (lines) => lines.split("\n").map((l) => l.slice(Math.min(4, l.length - l.trimStart().length)))
+      .join("\n");
+    const source = [
+      `BUILDS = (${m[1]})`, "PROTO = 1", "SVC = 'shipWingSvc'", "MAX_REPORT_ITEMS = 64", "_SW_MAX_REPORTED = 256",
+      "import json, sys",
+      "class _U(object):",
+      "    @staticmethod",
+      "    def new(fn, *args):",
+      "        fn(*args)",
+      "_sw_uthread = _U",
+      "class Boot(object):",
+      "    pass",
+      "class Svc(object):",
+      "    def __init__(self, calls):",
+      "        self.calls = calls",
+      "    def GetState(self):",
+      "        return {'v': 2}",
+      "    def Report(self, proto, build, items):",
+      "        self.calls.append([proto, build, list(items)])",
+      "        return True",
+      "class SM(object):",
+      "    def __init__(self):",
+      "        self.calls = []",
+      "        self.events = []",
+      "    def RemoteSvc(self, name):",
+      "        return Svc(self.calls)",
+      "    def RegisterForNotifyEvent(self, owner, event):",
+      "        self.events.append(event)",
+      "class Session(object):",
+      "    charid = 90000001",
+      "class C(object):",
+      "    __notifyevents__ = ['OnShipWingState']",
+      "    def __init__(self, build):",
+      "        boot = Boot(); boot.build = build",
+      "        self.context = {'boot': boot}",
+      "        self.client_no = 0",
+      "        self.generation = 0",
+      "        self.registered = []",
+      "        self.reported = set()",
+      "        self.reported_generation = 0",
+      "        self.disposed = False",
+      "        self.sm = SM()",
+      "        self.session = Session()",
+      "    def lookup(self, name):",
+      "        return self.context.get(name)",
+      "    def wait_for_session(self):",
+      "        return True",
+      "    def current(self):",
+      "        return not self.disposed",
+      "    def take_state(self, state):",
+      "        return True",
+      "    def probe(self):",
+      "        return ['win.carbon=1']",
+      "    def dispose(self):",
+      "        self.disposed = True",
+      "    def fail(self, error, where):",
+      "        raise error",
+      dedent(block("client_build")), dedent(block("report")), dedent(block("run")), dedent(block("connect")),
+      "out = {}",
+      "for build in (3396210, 3724492, 3800000):",
+      "    c = C(build)",
+      "    c.run()",
+      "    c.report(['ui.open=1'])",
+      "    out[str(build)] = [c.sm.calls, c.sm.events, c.disposed]",
+      "sys.stdout.write(json.dumps(out))",
+    ].join("\n");
+    const r = spawnSync(cmd, ["-I", "-"], { input: source, encoding: "utf8", timeout: 10000, windowsHide: true });
+    assert.strictEqual(r.status, 0, r.stderr);
+    const out = JSON.parse(r.stdout.slice(r.stdout.lastIndexOf("{\"")));
+    for (const build of [3396210, 3724492]) {
+      assert.deepStrictEqual(out[build], [[[1, build, ["win.carbon=1"]], [1, build, ["ui.open=1"]]],
+        ["OnShipWingState"], false], String(build));
+    }
+    assert.deepStrictEqual(out[3800000], [[[1, 3800000, ["build=0:UNSUPPORTED_BUILD"]], [1, 0, ["ui.open=1"]]],
+      [], true], "unsupported build: no handlers, disposed");
   });
 };

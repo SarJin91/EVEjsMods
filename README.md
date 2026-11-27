@@ -10,8 +10,8 @@ at startup and change no EveJS file.
 
 | Mod | Version | What it does |
 |---|---|---|
-| [livingNewEden](mods/livingNewEden/README.md) | 0.2.0 | A living universe: NPC factions hold territory, move fleets, run an economy and fight wars while you play; civilian traffic, miners, ratters and explorers fill the systems around you. |
-| [shipWing](mods/shipWing/README.md) | 0.2.1 | Launch copies of the fitted ships in your current ship's Ship Maintenance Bay (any hull) as a wing that follows you; docked, it lists the bay read-only. Test build, off by default. |
+| [livingNewEden](mods/livingNewEden/README.md) | 0.2.1 | A living universe: NPC factions hold territory, move fleets, run an economy and fight wars while you play; civilian traffic, miners, ratters and explorers fill the systems around you. |
+| [shipWing](mods/shipWing/README.md) | 0.2.2 | Launch copies of the fitted ships in your current ship's Ship Maintenance Bay (any hull) as a wing that follows you; docked, it lists the bay read-only. Test build, off by default. |
 | [hotPathPerf](mods/hotPathPerf/README.md) | 0.24.2 | Measures slow EveJS calls; optional fixes for long server stalls. |
 | [sharedStorePerfFix](mods/sharedStorePerfFix/README.md) | 1.1.0 | Keeps the structures table save linear at startup (one SQLite planner statistic) and skips sovereignty mirror saves that change nothing. Workaround for EveJS bugs, changes no data. |
 | [scenePerfFix](mods/scenePerfFix/README.md) | 1.0.0 | Faster busy systems on older EveJS builds (resting wrecks, name lookups). Mostly inactive on current EveJS. |
