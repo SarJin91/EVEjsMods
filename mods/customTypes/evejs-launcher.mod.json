@@ -13,6 +13,9 @@
     "strategy": "loader_rename"
   },
   "restart": "game_server",
+  "loadBefore": [
+    "planetaryDrill"
+  ],
   "compatibility": {
     "evejsVersions": [
       "261126.2"
