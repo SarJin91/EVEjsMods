@@ -10,8 +10,8 @@ at startup and change no EveJS file.
 
 | Mod | Version | What it does |
 |---|---|---|
-| [livingNewEden](mods/livingNewEden/README.md) | 0.1.0 | A living universe: NPC factions hold territory, move fleets, run an economy and fight wars while you play; civilian traffic, miners, ratters and explorers fill the systems around you. |
-| [shipWing](mods/shipWing/README.md) | 0.2.0 | Launch copies of the fitted ships in your current ship's Ship Maintenance Bay (any hull) as a wing that follows you; docked, it lists the bay read-only. Test build, off by default. |
+| [livingNewEden](mods/livingNewEden/README.md) | 0.2.0 | A living universe: NPC factions hold territory, move fleets, run an economy and fight wars while you play; civilian traffic, miners, ratters and explorers fill the systems around you. |
+| [shipWing](mods/shipWing/README.md) | 0.2.1 | Launch copies of the fitted ships in your current ship's Ship Maintenance Bay (any hull) as a wing that follows you; docked, it lists the bay read-only. Test build, off by default. |
 | [hotPathPerf](mods/hotPathPerf/README.md) | 0.24.2 | Measures slow EveJS calls; optional fixes for long server stalls. |
 | [sharedStorePerfFix](mods/sharedStorePerfFix/README.md) | 1.1.0 | Keeps the structures table save linear at startup (one SQLite planner statistic) and skips sovereignty mirror saves that change nothing. Workaround for EveJS bugs, changes no data. |
 | [scenePerfFix](mods/scenePerfFix/README.md) | 1.0.0 | Faster busy systems on older EveJS builds (resting wrecks, name lookups). Mostly inactive on current EveJS. |
@@ -29,7 +29,7 @@ at startup and change no EveJS file.
 - EveJS **261126.2** (the version in `server/package.json`). Other versions
   may work, but are not tested; each mod checks the EveJS code it hooks and
   stays inactive (`DRIFT` in the log) if it does not match.
-- EVE Online client build **3396210** (the build EveJS supports).
+- EVE Online client build **3724492** (the build EveJS supports).
 - Node.js as required by EveJS.
 
 ## Installation
@@ -91,7 +91,8 @@ the launcher before the launcher can manage it.
 The mod folders in this repository are the full development tree: runtime
 files, documentation, tests (`test/`, `RunTests.bat`), data generators and
 operator tools (`tools/`). Tests, generators and tools are not needed to run a
-mod.
+mod. The release ZIPs leave out the tests (`test/`, `RunTests.bat`); some
+developer tools that read test scenarios need a clone of this repository.
 
 ## Configuration
 

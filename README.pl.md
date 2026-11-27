@@ -10,8 +10,8 @@ się pod EveJS przy starcie i nie zmieniają żadnego pliku EveJS.
 
 | Mod | Wersja | Co robi |
 |---|---|---|
-| [livingNewEden](mods/livingNewEden/README.md) | 0.1.0 | Żywy wszechświat: frakcje NPC trzymają terytorium, przesuwają floty, prowadzą gospodarkę i wojny, kiedy grasz; ruch cywilny, górnicy, ratterzy i eksploratorzy wypełniają systemy wokół ciebie. |
-| [shipWing](mods/shipWing/README.md) | 0.2.0 | Kopie zafitowanych statków z Ship Maintenance Bay twojego obecnego statku (dowolny kadłub) lecą za tobą jako skrzydło; w doku pokazuje zawartość SMB tylko do odczytu. Wersja testowa, domyślnie wyłączona. |
+| [livingNewEden](mods/livingNewEden/README.md) | 0.2.0 | Żywy wszechświat: frakcje NPC trzymają terytorium, przesuwają floty, prowadzą gospodarkę i wojny, kiedy grasz; ruch cywilny, górnicy, ratterzy i eksploratorzy wypełniają systemy wokół ciebie. |
+| [shipWing](mods/shipWing/README.md) | 0.2.1 | Kopie zafitowanych statków z Ship Maintenance Bay twojego obecnego statku (dowolny kadłub) lecą za tobą jako skrzydło; w doku pokazuje zawartość SMB tylko do odczytu. Wersja testowa, domyślnie wyłączona. |
 | [hotPathPerf](mods/hotPathPerf/README.md) | 0.24.2 | Mierzy wolne wywołania EveJS; opcjonalne poprawki długich zawieszeń serwera. |
 | [sharedStorePerfFix](mods/sharedStorePerfFix/README.md) | 1.1.0 | Zapis tabeli struktur przy starcie zostaje liniowy (jedna statystyka planera SQLite), a zapisy lustra suwerenności bez zmian są pomijane. Obejście błędów EveJS, nie zmienia danych. |
 | [scenePerfFix](mods/scenePerfFix/README.md) | 1.0.0 | Szybsze zatłoczone systemy na starszych wersjach EveJS (stojące wraki, wyszukiwanie po nazwie). Na obecnym EveJS w większości nieaktywny. |
@@ -31,7 +31,7 @@ Opisy poszczególnych modów (README w folderach) są po angielsku.
 - EveJS **261126.2** (wersja w `server/package.json`). Inne wersje mogą
   działać, ale nie są testowane; każdy mod sprawdza kod EveJS, pod który się
   podpina, i przy niezgodności pozostaje nieaktywny (`DRIFT` w logu).
-- Klient EVE Online w buildzie **3396210** (build obsługiwany przez EveJS).
+- Klient EVE Online w buildzie **3724492** (build obsługiwany przez EveJS).
 - Node.js w wersji wymaganej przez EveJS.
 
 ## Instalacja
@@ -94,7 +94,9 @@ robi launcher przy starcie natywnym. Mod skopiowany ręcznie może wymagać
 Foldery modów w tym repozytorium to pełne drzewo deweloperskie: pliki
 uruchomieniowe, dokumentacja, testy (`test/`, `RunTests.bat`), generatory
 danych i narzędzia operatora (`tools/`). Testy, generatory i narzędzia nie są
-potrzebne do działania moda.
+potrzebne do działania moda. Pliki ZIP z wydań nie zawierają testów (`test/`,
+`RunTests.bat`); część narzędzi deweloperskich, które czytają scenariusze
+testowe, wymaga klona tego repozytorium.
 
 ## Konfiguracja
 

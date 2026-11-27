@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "id": "livingNewEden",
   "displayName": "Living New Eden",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A living universe for EveJS: NPC factions that hold territory, move fleets and fight wars while you play. Most of this runs as records in the mod's own database, but the mod changes the game: belt rats take the faction that holds the system, empire navy fleets guard belts in empire-held nullsec, killing pirates in pirate-held systems gives standing, and factions post buy contracts at their stations. Fleets as real ships in space, combat sites and sovereignty are in the Danger group and are off by default; newer features are off by default too. Trade prices are read over HTTPS from market.fuzzwork.co.uk unless you turn that off in the .env file. A read-only page in your browser at http://127.0.0.1:26410/ shows what the mod is doing. Settings saved here are overridden by the same setting in the mod's .env file or the environment, if set, and the console window says so.",
   "kind": "loader",
   "supportedBackends": [

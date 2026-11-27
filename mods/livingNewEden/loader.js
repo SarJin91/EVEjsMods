@@ -4,7 +4,7 @@ const Module = require("node:module");
 const workerThreads = require("node:worker_threads");
 const defaultLogger = require("./lib/log");
 
-const MOD_VERSION = "0.1.0";
+const MOD_VERSION = "0.2.0";
 const MOD_DIR = __dirname;
 
 const INSTALL_FLAG = "__livingNewEdenLoaderInstalled";
