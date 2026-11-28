@@ -802,6 +802,71 @@ function createHighsecTrafficScene(deps) {
     }
   };
 
+  function stopRatting(systemId, pilotId, engagement) {
+    const stopped = disarmPilotTarget(systemId, pilotId, engagement.borrowed);
+    const npc = aggroNpcOf();
+    if (npc && npc.getControllerByEntityID(pilotId)) {
+      npc.issueManualOrder(pilotId, { type: "stop" });
+      npc.setBehaviorOverrides(pilotId, { ...data.TRAFFIC_BEHAVIOR });
+    }
+    return stopped;
+  }
+
+  function ratterStep(systemId, pilotId, engagement, simulation = {}, beltId) {
+    const sc = sceneOf(systemId);
+    const npc = aggroNpcOf();
+    if (!sc.ok || !npc) return { ok: false };
+    const pilot = sc.scene.getEntityByID(pilotId);
+    const position = pointOf(pilot?.position);
+    if (!position) return { ok: false };
+    const condition = pilot.conditionState;
+    if (Number(condition?.damage) >= (simulation.ratterHullLoss ?? 0.15) ||
+      Number(condition?.armorDamage) >= (simulation.ratterArmorLoss ?? 0.5)) {
+      return { ok: true, flee: true };
+    }
+    if (engagement) {
+      return { ok: true, active: Boolean(sc.scene.getEntityByID(engagement.targetId)) };
+    }
+
+    const kind = "asteroidBeltRat";
+    let targetId = 0;
+    const range = simulation.ratterRangeMeters ?? 150000;
+    let nearest = range;
+    let ratPresent = false;
+    for (const entity of sc.scene.dynamicEntities.values()) {
+      if (kindOf(entity) !== kind) continue;
+      const point = pointOf(entity.position);
+      const distance = point ? distanceOf(point, position) : Infinity;
+      if (distance < range) ratPresent = true;
+      if (distance >= nearest || !isRatCandidate(entity, npc.getControllerByEntityID(entity.itemID), kind)) continue;
+      targetId = entity.itemID;
+      nearest = distance;
+    }
+    const patrol = () => {
+      if (ratPresent && isPositiveInt(beltId) && sc.scene.getEntityByID(beltId) &&
+        (pilot.mode !== "ORBIT" || pilot.targetEntityID !== beltId)) {
+        sc.scene.orbitShipEntity?.(pilot, beltId, 12000, { queueHistorySafeContract: true });
+      }
+      return { ok: true, active: false, ratPresent };
+    };
+    if (!targetId) return patrol();
+
+    const armed = armPilotRatTarget(systemId, pilotId, [targetId], kind);
+    if (!armed.ok) return patrol();
+    const duel = { targetId, borrowed: armed.borrowed };
+    let ordered = false;
+    try {
+      const set = npc.setBehaviorOverrides(pilotId, { ...data.COMBAT_BEHAVIOR_MANUAL,
+        autoAggroTargetClasses: [], [ALLOW_FRIENDLY_KEY]: true });
+      ordered = set?.success === true && npc.issueManualOrder(pilotId,
+        { type: "attack", targetID: targetId, allowPodKill: false })?.success === true;
+      if (ordered) ordered = npc.wakeNpcController(pilotId, 0)?.success === true;
+      return ordered ? { ok: true, active: true, engagement: duel } : { ok: false, ratPresent: true };
+    } finally {
+      if (!ordered) stopRatting(systemId, pilotId, duel);
+    }
+  }
+
   const releaseEngagedRats = (systemId, pilotShipId, borrowed) => {
     if (!isPositiveInt(systemId) || !isPositiveInt(pilotShipId) || !isBorrowedList(borrowed)) {
       return { ok: false, reason: "INVALID_INPUT" };
@@ -938,7 +1003,7 @@ function createHighsecTrafficScene(deps) {
 
   return Object.freeze({ readNodes, readPlayers, spawnCivilian, warpTo, readShips, despawn, listTrafficIds,
     dockPointOf, readThreats, armPilotTarget, disarmPilotTarget, armPilotRatTarget, releaseEngagedRats,
-    presentGateJumpOut, presentMiningBeams, presentGateDeparture, presentPatrolOrbit, releasePatrolMotion,
+    presentGateJumpOut, presentMiningBeams, presentGateDeparture, presentPatrolOrbit, releasePatrolMotion, ratterStep, stopRatting,
     readExplorerSites });
 }
 

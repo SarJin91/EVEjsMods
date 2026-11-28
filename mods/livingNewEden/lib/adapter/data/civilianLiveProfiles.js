@@ -45,6 +45,17 @@ const PILOT_HULLS = deepFreeze([
   hull("charon", "Charon", 20185, 53561, ["PILOT"], 1),
 ]);
 
+const RATTER_LOADOUTS = Object.freeze({ catalyst: "serpentis_small_blaster_frigate", brutix: "serpentis_medium_blaster_battlecruiser" });
+const ARMED_RATTERS = deepFreeze(CIVILIAN_HULLS.filter((row) => Object.hasOwn(RATTER_LOADOUTS, row.key)).map((row) => ({
+  ...row, key: "ratter_" + row.key, loadoutId: RATTER_LOADOUTS[row.key], roles: ["RATTER"],
+})));
+function armedRatterProfileOf(profileId) {
+  for (const key of Object.keys(RATTER_LOADOUTS)) {
+    if (profileId === civilianProfileId(key)) return civilianProfileId("ratter_" + key);
+  }
+  return null;
+}
+
 const CIVILIAN_HARDWARE_FAMILY = "miningOps";
 const CIVILIAN_SECURITY_STATUS = 0;
 
@@ -55,6 +66,10 @@ function civilianProfileId(key) {
 let withPilotHulls = null;
 
 function civilianDataOf(opts) {
+  if (opts?.armedRatters === true) {
+    const rows = opts.pilotHulls === true ? [...CIVILIAN_HULLS, ...PILOT_HULLS] : CIVILIAN_HULLS;
+    return Object.freeze({ ...module.exports, CIVILIAN_HULLS: Object.freeze([...rows, ...ARMED_RATTERS]) });
+  }
   if (!opts || opts.pilotHulls !== true) return module.exports;
   if (!withPilotHulls) {
     withPilotHulls = Object.freeze({ ...module.exports,
@@ -66,5 +81,5 @@ function civilianDataOf(opts) {
 module.exports = {
   CIVILIAN_PROFILE_PREFIX, CIVILIAN_HULLS, CIVILIAN_CORPORATION_ID, CIVILIAN_FACTION_ID, CIVILIAN_LOADOUT_ID,
   CIVILIAN_BEHAVIOR_PROFILE_ID, CIVILIAN_HARDWARE_FAMILY, CIVILIAN_SECURITY_STATUS, civilianProfileId,
-  PILOT_HULLS, civilianDataOf,
+  PILOT_HULLS, civilianDataOf, armedRatterProfileOf,
 };
