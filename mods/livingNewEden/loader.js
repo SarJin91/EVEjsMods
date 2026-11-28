@@ -1537,7 +1537,30 @@ function onBootModule(ctx, exportsObject, request, parent) {
 }
 
 function buildHooks(ctx) {
+  const dscanNames = require("./lib/adapter/dscanNames").createDscanNames(() => {
+    const src = ctx.state.serverSrc;
+    return src ? require(require("node:path").join(src, "space", "runtime")) : null;
+  });
   return [
+    {
+      name: "dscanNpcNames",
+      match(request, exports) {
+        return request.includes("scanMgrService") && typeof exports?.prototype?.Handle_ConeScan === "function";
+      },
+      run(exports) {
+        exports.prototype.Handle_ConeScan = dscanNames.wrapScan(exports.prototype.Handle_ConeScan);
+      },
+    },
+    {
+      name: "dscanNpcLocationNames",
+      match(request, exports) {
+        return request.includes("configService") && typeof exports?.prototype?.Handle_GetMultiLocationsEx === "function";
+      },
+      run(exports) {
+        const proto = exports.prototype;
+        proto.Handle_GetMultiLocationsEx = dscanNames.wrapLocations(proto.Handle_GetMultiLocationsEx);
+      },
+    },
     {
       name: "stallDiagTimers",
       match() {
