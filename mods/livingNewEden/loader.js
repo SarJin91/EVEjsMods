@@ -1539,6 +1539,49 @@ function onBootModule(ctx, exportsObject, request, parent) {
 function buildHooks(ctx) {
   return [
     {
+      name: "npcFitLoot",
+      match(request, exports) {
+        return /(?:^|[\\/])npcLoot(?:\.js)?$/.test(request)
+          && exportHas(exports, "rollNpcLootEntries", "function");
+      },
+      run(exports) {
+        const cfg = getConfig(ctx);
+        if (cfg.ok && cfg.config.enabled === true) {
+          require("./lib/adapter/npcFitLoot").installLootRoll(exports);
+        }
+      },
+    },
+    {
+      name: "npcEscape",
+      match(request, exports) {
+        return request.endsWith("nativeNpcWreckService")
+          && exportHas(exports, "destroyNativeNpcEntityWithWreck", "function");
+      },
+      run(exports, request, parent) {
+        const cfg = getConfig(ctx);
+        if (!cfg.ok || cfg.config.enabled !== true) return;
+        const source = require("node:path").resolve(require("node:path").dirname(
+          ctx.moduleApi._resolveFilename(request, parent)), "../..");
+        const loadGame = (relative) => require(require("node:path").join(source, relative));
+        require("./lib/adapter/npcFitLoot").installDestruction(exports, loadGame, ctx.logger);
+        require("./lib/adapter/npcEscape").installEscape(exports, loadGame, ctx.logger);
+      },
+    },
+    {
+      name: "trafficCrimewatch",
+      match(request, exports) {
+        return request.endsWith("crimewatchState")
+          && exportHas(exports, "evaluateOffensiveAggression", "function")
+          && exportHas(exports, "recordHighSecCriminalAggression", "function");
+      },
+      run(exports) {
+        const cfg = getConfig(ctx);
+        if (cfg.ok && cfg.config.enabled === true) {
+          require("./lib/adapter/npcEscape").installTrafficCrimewatch(exports);
+        }
+      },
+    },
+    {
       name: "stallDiagTimers",
       match() {
         return true;
