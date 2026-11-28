@@ -32,7 +32,8 @@ function chooseChannel(offer, station, flags) {
   const contract = f.contractsEnabled === true ? S.CHANNEL_CONTRACT : null;
   if (!offer) return contract;
   if (offer.side === S.SIDE_SELL) {
-    const sellOk = f.sellOrdersEnabled === true && f.marketDown !== true
+    const atHub = !f.sellHubSystems || (station && f.sellHubSystems.has(station.systemId));
+    const sellOk = f.sellOrdersEnabled === true && f.marketDown !== true && atHub
       && (offer.itemKind === S.ITEM_KIND_MINERAL || offer.itemKind === S.ITEM_KIND_MOON
         || offer.itemKind === S.ITEM_KIND_PI)
       && !isPosId(offer.assigneeCharacterId)

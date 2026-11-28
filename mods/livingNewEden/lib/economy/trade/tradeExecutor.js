@@ -1,6 +1,7 @@
 "use strict";
 
 const { defaultSetTimer } = require("../../presence/poller");
+const { parseHubSystemIds } = require("../../highsecLife/schema");
 const S = require("./schema");
 const { closeWanted, buildIssuePayload, fundIskOf, abortAllowed, planIntake, contractTtlOf, issuerOf, issuerOfPayload, stationGate, npcIssuerGate, pickIssuer } = require("./executorRules");
 const { transitionKey, issueOutboxKey, walletCommandId, contractTag, EVENT_OUTBOX_ISSUE, intakeOutboxKey, voidKey, deliverKey } = require("./schema");
@@ -128,6 +129,8 @@ function createTradeExecutor(deps) {
   const maxBuyOrderPollsPerPass = cfgInt(tradeCfg, "maxBuyOrderPollsPerPass");
   const maxBuyOrderClosesPerPass = cfgInt(tradeCfg, "maxBuyOrderClosesPerPass");
   const wtsEnabled = tradeCfg.wtsEnabled === true;
+  const sellHubSystems = tradeCfg.marketSellHubRoutingEnabled === true
+    ? new Set(parseHubSystemIds(config.highsecLife?.hubSystemIds) || []) : null;
   const wtsTtlMs = Math.max(WTS_TTL_ROW.min, Math.trunc(tradeCfg.wtsTtlMs || WTS_TTL_ROW.default));
   const isSell = (offer) => Boolean(offer) && offer.side === S.SIDE_SELL;
   const sellGateSeen = new Set();
@@ -434,7 +437,7 @@ function createTradeExecutor(deps) {
           const station = stations.get(offer.stationId);
           const channel = chooseChannel(offer, station, { buyOrdersEnabled, contractsEnabled, marketReady,
             marketDown: marketSteps.isDown() || marketSteps.isTripped(), hullBuyOrdersEnabled,
-            commodityBuyOrdersEnabled, sellOrdersEnabled });
+            commodityBuyOrdersEnabled, sellOrdersEnabled, sellHubSystems });
           if (channel === null) {
             continue;
           }
