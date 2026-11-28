@@ -1,5 +1,7 @@
 "use strict";
 
+const ratterAnomalies = require("./ratterAnomalies");
+
 const data = require("./data/liveProfiles");
 const { factionResolverOf } = require("./huntScene");
 const { GATE_EVENT, jumpInOptionsOf, broadcastJumpIn, broadcastJumpOut, broadcastGateEvent } = require("./gateJumpFx");
@@ -924,6 +926,22 @@ function createHighsecTrafficScene(deps) {
     }
   };
 
+  const readRatterAnomalies = (systemId) => {
+    const sc = sceneOf(systemId);
+    if (!sc.ok) return [];
+    const signatures = requireGame(explorerSites.SIGNATURE_RUNTIME_PATH)?.exports;
+    const dungeon = requireGame("services/dungeon/dungeonRuntime")?.exports;
+    return ratterAnomalies.listRatterAnomalies(signatures, dungeon, systemId);
+  };
+
+  const closeRatterAnomaly = (systemId, site, now) => {
+    const sc = sceneOf(systemId);
+    if (!sc.ok) return false;
+    const dungeon = requireGame("services/dungeon/dungeonRuntime")?.exports;
+    const occupied = requireGame("services/dungeon/dungeonUniverseSiteService")?.exports?._testing?.anyPlayerShipPresentAtSite;
+    return ratterAnomalies.closeRatterAnomaly(dungeon, occupied, sc.scene, systemId, site, now);
+  };
+
   const readExplorerSites = (systemId, opts) => {
     if (!isPositiveInt(systemId)) return { ok: false, reason: "INVALID_INPUT" };
     try {
@@ -939,7 +957,7 @@ function createHighsecTrafficScene(deps) {
   return Object.freeze({ readNodes, readPlayers, spawnCivilian, warpTo, readShips, despawn, listTrafficIds,
     dockPointOf, readThreats, armPilotTarget, disarmPilotTarget, armPilotRatTarget, releaseEngagedRats,
     presentGateJumpOut, presentMiningBeams, presentGateDeparture, presentPatrolOrbit, releasePatrolMotion,
-    readExplorerSites });
+    readExplorerSites, readRatterAnomalies, closeRatterAnomaly });
 }
 
 module.exports = { PATHS, FUNCTIONS, UNDOCK_PATHS, UNDOCK_FUNCTIONS, SEAM_METHODS, AGGRO_PATHS, AGGRO_FUNCTIONS,

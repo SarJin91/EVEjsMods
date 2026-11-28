@@ -199,6 +199,7 @@ function createTraffic(deps) {
       bump(leg.kind === EXPLORER_LEG.SITE ? "explorerSites" : "explorerScans");
       return;
     }
+    if (leg.anomaly) return;
     bump("ratterBelts");
     if (typeof scene.presentPatrolOrbit !== "function") return;
     const r = call(() => scene.presentPatrolOrbit(ship.systemId, ship.entityId, leg.targetId,
@@ -629,7 +630,15 @@ function createTraffic(deps) {
       } else if (step.kind === "dwell") dwell(ship, now);
       else if (step.kind === "nextLeg") nextLeg(ship, now);
       else if (step.kind === "explore") explore(ship, seen, now);
-      else if (step.kind === "leave") leave(ship, now);
+      else if (step.kind === "leave") {
+        const leg = ship.role === SHIP_ROLE.RATTER && ship.leg === PATROL_LEG.PATROL
+          ? ship.legs[ship.legIndex] : null;
+        if (leg?.anomaly && seen.position && !seen.inWarp
+          && Math.hypot(seen.position.x - leg.point.x, seen.position.y - leg.point.y, seen.position.z - leg.point.z) <= T.arrivalMeters) {
+          call(() => scene.closeRatterAnomaly(systemId, leg.anomaly, now));
+        }
+        leave(ship, now);
+      }
       else if (step.kind === "arrived") {
         ship.state = SHIP_STATE.ARRIVED;
         ship.arrivedAt = now;
@@ -798,7 +807,7 @@ function createTraffic(deps) {
     const role = pickRole(rng, nodes, T, { RATTER: rattersIn(systemId), EXPLORER: explorersIn(systemId) });
     if (role === SHIP_ROLE.RATTER) {
       const route = pickRatterRoute(nodes, rng, T);
-      return route.ok ? ratterPlanOf(route) : null;
+      return route.ok ? ratterPlanOf(route, systemId) : null;
     }
     if (role === SHIP_ROLE.EXPLORER) {
       const route = pickExplorerRoute(nodes, rng, T);
@@ -841,17 +850,35 @@ function createTraffic(deps) {
         mineUntil: null, exitPoint: landingPointOf(route.beltPoint, route.exit, T) } };
   }
 
-  function ratterPlanOf(route) {
+  function pickRatterAnomaly(systemId) {
+    if (!(T.ratterAnomalyPermille > 0) || siteReadsLeft <= 0 || typeof scene.readRatterAnomalies !== "function"
+      || typeof scene.closeRatterAnomaly !== "function" || rng() * PERMILLE >= T.ratterAnomalyPermille) return null;
+    siteReadsLeft -= 1;
+    const sites = call(() => scene.readRatterAnomalies(systemId));
+    if (!Array.isArray(sites)) return null;
+    const reserved = new Set();
+    for (const ship of ships.values()) {
+      if (ship.systemId !== systemId || ship.role !== SHIP_ROLE.RATTER || ship.leg !== PATROL_LEG.PATROL) continue;
+      const anomaly = ship.legs?.[ship.legIndex]?.anomaly;
+      if (anomaly) reserved.add(anomaly.instanceId);
+    }
+    const available = sites.filter((site) => !reserved.has(site.instanceId));
+    return available.length > 0 ? available[Math.floor(rng() * available.length)] : null;
+  }
+
+  function ratterPlanOf(route, systemId) {
+    const anomaly = pickRatterAnomaly(systemId);
+    const legs = anomaly ? [{ anomaly, targetId: anomaly.siteId, point: anomaly.point, dwellMs: T.ratterAnomalyDwellMs }] : route.legs;
     const fromStation = route.start.kind === "station";
     const spec = fromStation ? { stationId: route.start.node.itemId, undock: true, undockRunMeters: T.undockRunMeters }
       : { gateId: route.start.node.itemId };
-    const lastPoint = route.legs[route.legs.length - 1].point;
+    const lastPoint = legs[legs.length - 1].point;
     return { role: SHIP_ROLE.RATTER, spec, state: SHIP_STATE.SPAWNED,
       startGateId: fromStation ? null : route.start.node.itemId,
       startStationId: fromStation ? route.start.node.itemId : null,
-      target: { kind: route.exit.kind, itemId: route.exit.itemId }, targetPoint: route.legs[0].point,
-      docking: false, idleUntil: null, patrol: { legs: route.legs, legIndex: 0, leg: PATROL_LEG.PATROL,
-        dwellUntil: null, orbiting: false, stayMs: route.stayMs, exitPoint: landingPointOf(lastPoint, route.exit, T) } };
+      target: { kind: route.exit.kind, itemId: route.exit.itemId }, targetPoint: legs[0].point,
+      docking: false, idleUntil: null, patrol: { legs, legIndex: 0, leg: PATROL_LEG.PATROL,
+        dwellUntil: null, orbiting: false, stayMs: anomaly ? T.ratterAnomalyDwellMs : route.stayMs, exitPoint: landingPointOf(lastPoint, route.exit, T) } };
   }
 
   function explorerPlanOf(route) {
@@ -978,7 +1005,7 @@ function createTraffic(deps) {
       return null;
     }
     if (route.role === SHIP_ROLE.MINER) return minerPlanOf(route.miner);
-    if (route.role === SHIP_ROLE.RATTER) return ratterPlanOf(route.patrol);
+    if (route.role === SHIP_ROLE.RATTER) return ratterPlanOf(route.patrol, systemId);
     if (route.role === SHIP_ROLE.EXPLORER) return explorerPlanOf(route.explore);
     if (route.role === SHIP_ROLE.UNDOCK) {
       const station = route.start.node;
