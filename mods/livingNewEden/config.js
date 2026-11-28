@@ -6131,6 +6131,8 @@ const SCHEMA = deepFreeze([
     "Moon / PI buy offers of NPC stations may go out as market buy orders (needs commodityOffersEnabled and buyOrdersEnabled); false = contract WTB"),
   tradeRow("marketSellOrdersEnabled", "MARKET_SELL_ORDERS_ENABLED", "boolean", false, undefined, undefined,
     "Public mineral / moon / PI sell offers of NPC stations may go out as market sell orders with vendor escrow (needs wtsEnabled); false = WTS contracts only"),
+  tradeRow("marketSellHubRoutingEnabled", "MARKET_SELL_HUB_ROUTING_ENABLED", "boolean", true, undefined, undefined,
+    "Post market sell orders in highsecLife.hubSystemIds; use sell contracts elsewhere"),
   tradeRow("sellOrderDurationDays", "SELL_ORDER_DURATION_DAYS", "integer", 7, 1, 90,
     "Market sell order duration in days, one of 1/3/7/14/30/90 and >= wtsTtlMs + 1 day (W210)"),
   tradeRow("maxCommodityTypes", "MAX_COMMODITY_TYPES", "integer", 96, 0, 128,

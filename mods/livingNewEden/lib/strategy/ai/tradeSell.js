@@ -86,7 +86,7 @@ function sellCandidates(args) {
     }
   }
   for (const x of args.production && Array.isArray(args.production.reserve) ? args.production.reserve : []) {
-    if (!x || x.ladder !== true) continue;
+    if (!x) continue;
     for (const [k, qty] of Object.entries(x.minerals || {})) {
       const t = mineralOf(k);
       if (t !== null) addOut(outMinerals, x.stationId, t, qty);
@@ -198,7 +198,13 @@ function planSellOffers(args) {
     const unit = unitOf(c, q);
     priced.push({ c, q, unit, value: c.surplus * unit });
   }
-  priced.sort((a, b) => b.value - a.value || byId(a.c.stationId, b.c.stationId) || byId(a.c.itemKey, b.c.itemKey));
+  const openByKind = new Map();
+  for (const offer of [...trade.open, ...newOffers]) {
+    if (offer.side !== SIDE_SELL || (offer.state && !OPEN_OFFER_STATES.includes(offer.state))) continue;
+    openByKind.set(offer.itemKind, (openByKind.get(offer.itemKind) || 0) + 1);
+  }
+  priced.sort((a, b) => (openByKind.get(a.c.itemKind) || 0) - (openByKind.get(b.c.itemKind) || 0)
+    || b.value - a.value || byId(a.c.stationId, b.c.stationId) || byId(a.c.itemKey, b.c.itemKey));
 
   const { factionCap, targetOn, galaxy } = factionCapOf(trade, T);
   let galaxyLeft = targetOn ? T.targetOpenContracts - galaxy.open - state.offersCreated : Infinity;

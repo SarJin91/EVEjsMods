@@ -725,11 +725,6 @@ function planTrade(snapshot, params, production, logistics) {
   const state = { budgetLeft, openFactionCount, openPerStation, offersCreated };
   planHullOffers({ trade, T, at, candidates: hulls.candidates, newOffers, tiers, state, intents, notes, volCap });
 
-  if (T.stockpileEnabled === true && T.stockpileRuns > 0) {
-    planStockpile({ trade, T, at, desired, recipes, stationsData: snapshot.production?.stations || [],
-      incomingMinerals, intents, notes, newOffers, tiers, chosenStationIds, state });
-  }
-
   const commodityOn = T.commodityOffersEnabled === true && Boolean(trade.commodity) && trade.commodity.ok === true;
   let usedBuys = 0;
   if (commodityOn) {
@@ -749,6 +744,11 @@ function planTrade(snapshot, params, production, logistics) {
   if (commodityOn && T.wtsEnabled === true && trade.commodity.sellQuotes && trade.mode === "ready") {
     planCommoditySells({ trade, T, at, newOffers, state, intents, notes, volCap,
       stationsData: snapshot.production?.stations || [], usedBuys });
+  }
+
+  if (T.stockpileEnabled === true && T.stockpileRuns > 0) {
+    planStockpile({ trade, T, at, desired, recipes, stationsData: snapshot.production?.stations || [],
+      incomingMinerals, intents, notes, newOffers, tiers, chosenStationIds, state });
   }
 
   return { intents, notes };
