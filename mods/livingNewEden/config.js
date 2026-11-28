@@ -8731,6 +8731,8 @@ const SCHEMA = deepFreeze([
     "Scan stop per planned site at the safe spot"),
   highsecTrafficRow("explorerSiteDwellMs", "EXPLORER_SITE_DWELL_MS", "integer", 60000, 5000, 600000,
     "Stay at one site"),
+  highsecTrafficRow("explorerClosePublicSitesEnabled", "EXPLORER_CLOSE_PUBLIC_SITES_ENABLED", "boolean", false, undefined, undefined,
+    "Allow NPC explorers to close unoccupied public data and relic sites after a visit"),
   highsecTrafficRow("explorerSiteOffsetMeters", "EXPLORER_SITE_OFFSET_METERS", "integer", 5000, 0, 50000,
     "Landing distance from the site"),
   highsecTrafficRow("explorerNpcClearMeters", "EXPLORER_NPC_CLEAR_METERS", "integer", 150000, 10000, 1000000,

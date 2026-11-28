@@ -78,4 +78,26 @@ function readExplorerSites(signatureRuntime, scene, systemId, opts) {
   return { ok: true, sites: sites.slice(0, opts.maxSites * SITE_POOL_FACTOR), read: list.length, npcBlocked };
 }
 
-module.exports = { EXPLORER_READ_OPTIONS, SIGNATURE_RUNTIME_PATH, readExplorerSites };
+function closePublicSite(signatureRuntime, dungeonRuntime, occupied, scene, systemId, siteId, now) {
+  if (!scene || !Number.isSafeInteger(systemId) || systemId <= 0 || !Number.isSafeInteger(siteId) || siteId <= 0
+    || !Number.isFinite(now) || typeof occupied !== "function"
+    || typeof signatureRuntime?.listSystemSignatureSites !== "function"
+    || typeof dungeonRuntime?.getInstanceRef !== "function" || typeof dungeonRuntime?.setLifecycleState !== "function") return false;
+  const rows = signatureRuntime.listSystemSignatureSites(systemId, { ...EXPLORER_READ_OPTIONS });
+  if (!Array.isArray(rows)) return false;
+  const site = rows.find((row) => row && Number(row.siteID) === siteId);
+  if (!Number.isSafeInteger(site?.instanceID) || site.instanceID <= 0) return false;
+  const instance = dungeonRuntime.getInstanceRef(site.instanceID);
+  const flags = instance?.runtimeFlags;
+  if (instance?.solarSystemID !== systemId || Number(instance.metadata?.siteID) !== siteId
+    || flags?.universeSeeded !== true || flags.manualSpawn || flags.missionRuntime || flags.generatedMining
+    || String(instance.templateID || "").startsWith("evejs-fw:")
+    || instance.ownership?.visibilityScope !== "public" || instance.ownership.characterID || instance.ownership.corporationID
+    || (instance.siteFamily !== "data" && instance.siteFamily !== "relic")
+    || (instance.lifecycleState !== "active" && instance.lifecycleState !== "seeded")) return false;
+  if (occupied(scene, instance, siteId)) return false;
+  return dungeonRuntime.setLifecycleState(site.instanceID, "despawned",
+    { nowMs: now, lifecycleReason: "lne_npc_explorer" })?.lifecycleState === "despawned";
+}
+
+module.exports = { EXPLORER_READ_OPTIONS, SIGNATURE_RUNTIME_PATH, readExplorerSites, closePublicSite };
