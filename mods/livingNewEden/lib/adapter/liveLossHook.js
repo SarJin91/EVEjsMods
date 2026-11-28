@@ -70,6 +70,22 @@ function install(killmailExports) {
   return { ok: true, installed: true, methods };
 }
 
+function noteNativeWreckLoss(targetEntity, destroyResult, options) {
+  if (sink === null) return;
+  const boundSink = sink;
+  const killer = killerOf(options);
+  // Let the normal killmail notification run first when it is available.
+  // The materialization trackers consume each entity ID only once.
+  setImmediate(() => {
+    if (sink === boundSink) {
+      try {
+        sink(targetEntity, destroyResult, killer);
+      } catch (_err) {
+      }
+    }
+  }).unref();
+}
+
 function bindSink(fn) {
   if (typeof fn !== "function") return { ok: false, reason: "SINK_INVALID" };
   if (sink !== null) return { ok: false, reason: "SINK_BOUND" };
@@ -140,5 +156,5 @@ function checkHookInstalled(killmailExports) {
   return METHODS.every((m) => typeof killmailExports[m] === "function" && killmailExports[m][WRAPPED] === true);
 }
 
-module.exports = { install, bindSink, checkHookInstalled, addListener, removeListener, listenerStats, lossFactsOf,
+module.exports = { install, bindSink, noteNativeWreckLoss, checkHookInstalled, addListener, removeListener, listenerStats, lossFactsOf,
   WRAPPED, METHODS, PRIMARY_METHOD };

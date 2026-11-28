@@ -1,6 +1,6 @@
 "use strict";
 
-const { createRng, deriveSeed } = require("../util/rng");
+const { createRng, deriveSeed, deterministicUnit } = require("../util/rng");
 const { ARCHETYPE, INTENT, STATE, BANDS } = require("./schema");
 const { ARCHETYPES } = require("./data/archetypes");
 const { ATTRACT_BOOST, KIND_OF_ARCHETYPE, KIND_OF_INTENT } = require("./data/contextWeights");
@@ -259,7 +259,8 @@ function podRespawn(p, S, rng, nowMs, table) {
 }
 
 function killed(p, S, nowMs) {
-  return { next: { destId: 0, state: STATE.POD, dueAt: nowMs + S.live.cloneDelayMs } };
+  const extra = Math.floor(deterministicUnit(p.pilotId, nowMs, "clone") * (S.live.cloneJitterMs || 0));
+  return { next: { destId: 0, state: STATE.POD, dueAt: nowMs + S.live.cloneDelayMs + extra } };
 }
 
 function rollIntent(p, table, S, rng, findRoute, nowMs, opts) {

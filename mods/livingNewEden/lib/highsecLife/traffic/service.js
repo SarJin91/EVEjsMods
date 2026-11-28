@@ -1,6 +1,7 @@
 "use strict";
 
 const { performance } = require("node:perf_hooks");
+const { takeTrafficDeath } = require("../../adapter/npcEscape");
 const { createRng, randomSeed } = require("../../util/rng");
 const { TRAFFIC_METRICS, TRAFFIC_COUNTER_NAMES, AGGRO_COUNTER_NAMES, RAT_AGGRO_COUNTER_NAMES } = require("../schema");
 const { SHIP_STATE, DESPAWN_REASON, SHIP_ROLE, MINER_LEG, PATROL_LEG, PATROL_ROLES, EXPLORER_LEG, WARP_MODE,
@@ -286,7 +287,10 @@ function createTraffic(deps) {
   }
 
   function releasePilot(ship, outcome) {
-    if (!PL || !ship || !Number.isSafeInteger(ship.pilotId)) return;
+    if (!ship) return;
+    const destroyed = takeTrafficDeath(ship.systemId, ship.entityId);
+    if (!PL || !Number.isSafeInteger(ship.pilotId)) return;
+    if (destroyed) outcome = "KILLED";
     if (pilotOf.get(ship.pilotId) === ship.entityId) pilotOf.delete(ship.pilotId);
     forgetAggro(ship.entityId);
     if (Number.isSafeInteger(ship.leaderPilotId)) {
