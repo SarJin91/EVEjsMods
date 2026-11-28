@@ -1537,7 +1537,42 @@ function onBootModule(ctx, exportsObject, request, parent) {
 }
 
 function buildHooks(ctx) {
+  let npcService = null;
+  const beltRatTargeting = require("./lib/adapter/beltRatTargets").createBeltRatTargeting(
+    () => npcService, Math.random, () => getConfig(ctx).config.population?.simulation || {});
   return [
+    {
+      name: "beltRatTargetControllers",
+      match(request, exports) {
+        return request.includes("npcService") && exportHas(exports, "getControllerByEntityID", "function")
+          && exportHas(exports, "setBehaviorOverrides", "function");
+      },
+      run(exports) {
+        npcService = exports;
+      },
+    },
+    {
+      name: "beltRatTargetSpawn",
+      match(request, exports) {
+        return request.includes("nativeNpcService") && exportHas(exports, "spawnNativeDefinitionsInContext", "function");
+      },
+      run(exports) {
+        exports.spawnNativeDefinitionsInContext = beltRatTargeting.wrapSpawn(exports.spawnNativeDefinitionsInContext);
+      },
+    },
+    {
+      name: "beltRatTargetCleanup",
+      match(request, exports) {
+        return request.includes("beltRatRuntime") && exportHas(exports, "tickScene", "function");
+      },
+      run(exports) {
+        const tick = exports.tickScene;
+        exports.tickScene = function tickWithBeltTargets(scene, ...args) {
+          beltRatTargeting.prune(scene);
+          return tick.call(this, scene, ...args);
+        };
+      },
+    },
     {
       name: "stallDiagTimers",
       match() {
