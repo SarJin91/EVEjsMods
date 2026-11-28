@@ -1,6 +1,7 @@
 "use strict";
 
 const R = require("../fleetExposure/rules");
+const { evacuationPending } = require("../adapter/civilianAlert");
 const { exposureIdOf } = require("../fleetExposure/schema");
 const { parseHullGroupList } = require("../fleets/schema");
 const { createYieldingBudget } = require("./yieldingBudget");
@@ -33,6 +34,8 @@ const COUNTER_NAMES = Object.freeze(["scans", "scanRefused", "startedConvoy", "s
 const WORK_CLASS_NEW = "OPERATIONAL";
 const CONVOY = "CONVOY";
 const MINER = "MINER";
+const MINING_BEAM_REFRESH_MS = 30000;
+const MINING_VIEW_DISTANCE_SQ = 150000 ** 2;
 const PHASE = Object.freeze({ VISIBLE: "VISIBLE", HELD: "HELD", EXITING: "EXITING", ENDING: "ENDING" });
 const ESCORT_CREDIT_ENDS = Object.freeze(["TRANSIT_DONE", "QUIET"]);
 const PERMANENT_END = Object.freeze(["EXPOSURE_NOT_FOUND", "FLEET_NOT_FOUND", "FLEET_NOT_MATERIALIZED",
@@ -437,7 +440,7 @@ function createExposureStep(deps) {
     const ids = liveIdsOf(e);
     let alive = [];
     if (ids.length > 0) {
-      const own = seam.readShips(e.systemId, ids);
+      const own = seam.readShips(e.systemId, ids, { civilianAlert: true });
       if (!own || own.ok !== true) return null;
       alive = own.ships;
     }
@@ -514,6 +517,10 @@ function createExposureStep(deps) {
         && e.pendingDestroyed.includes(m.memberKey)).length);
     }
     refuse(out, reason, null, detail);
+    if (e.kind === MINER && e.evacuating) {
+      e.evacuationClaimFailure = `CLAIM_${reason}`;
+      return;
+    }
     despawnAndRelease(e);
     forget(e);
     cooldown.set(e.fleetId, { at: now, ms: PERMANENT_CLAIM.includes(reason) ? S.permanentRefusalCooldownMs
@@ -609,6 +616,30 @@ function createExposureStep(deps) {
     bump("exited");
   }
 
+
+  function refreshMinerPresentation(e, facts, seam, now) {
+    if (e.kind !== MINER || typeof seam.refreshMiningBeams !== "function") return;
+    const previous = e.miningBeamTargets || new Map();
+    const nearby = new Set();
+    if (e.phase === PHASE.VISIBLE && facts.sceneLoaded && facts.aggressors.length === 0) {
+      for (const player of facts.players) {
+        if (player.position && player.inWarp !== true && facts.alive.some((ship) => ship.position
+          && distanceSq(player.position, ship.position) <= MINING_VIEW_DISTANCE_SQ)) nearby.add(player.characterId);
+      }
+    }
+    const arrived = [...nearby].some((id) => !e.miningViewers?.has(id));
+    e.miningViewers = nearby;
+    if (nearby.size === 0 && previous.size === 0) return;
+    if (nearby.size > 0 && !arrived && now < (e.nextMiningBeamsAt || 0)) return;
+    const ids = nearby.size > 0 ? facts.alive.map((ship) => ship.entityId) : [];
+    try {
+      e.miningBeamTargets = seam.refreshMiningBeams(e.systemId, ids, previous);
+    } catch (err) {
+      logLimited(now, "fleetExposure: mining presentation - " + messageOf(err));
+    }
+    e.nextMiningBeamsAt = now + (e.miningBeamTargets instanceof Map && e.miningBeamTargets.size < ids.length ? 5000 : MINING_BEAM_REFRESH_MS);
+  }
+
   function stepEntries(now, out) {
     const seam = safeCall(getHuntScene);
     const list = [...entries.values()].filter((e) => e.phase !== PHASE.ENDING)
@@ -630,6 +661,7 @@ function createExposureStep(deps) {
       }
       if (facts === null) continue;
       if (facts.playerSeen) e.lastPlayerSeenAt = now;
+      if (S.minerBeamsEnabled !== true) refreshMinerPresentation(e, facts, seam, now);
       if (e.escort) sampleEscort(e, facts, seam);
       if (ambushOn && e.kind === CONVOY) {
         try {
@@ -638,7 +670,23 @@ function createExposureStep(deps) {
           logLimited(now, `fleetExposure: ambush ${e.key} threw - ${messageOf(err)}`);
         }
       }
+      const alert = facts.alive.find((ship) => ship.civilianAlert)?.civilianAlert;
+      if (e.kind === MINER && alert && !e.evacuating) {
+        e.evacuating = true;
+        cooldown.set(e.fleetId, { at: now, ms: S.permanentRefusalCooldownMs });
+      }
+      if (e.evacuationClaimFailure) {
+        if (!facts.alive.some((ship) => evacuationPending(ship, now))) {
+          despawnVisible(e, e.evacuationClaimFailure, now);
+        }
+        continue;
+      }
       if (e.phase === PHASE.VISIBLE) {
+        if (alert) {
+          const directVictim = e.members.some((member) => member.entityId === alert.targetId);
+          claimEntry(e, directVictim ? alert.characterId : null, now, out);
+          continue;
+        }
         const sig = aggressionSigOf(facts);
         const d = R.decideVisible({ now, kind: e.kind, pendingKill: e.pendingDestroyed.length > 0,
           playerAggression: sig !== "" && sig !== e.aggressionSig,
@@ -653,11 +701,23 @@ function createExposureStep(deps) {
       }
       const newAggression = facts.sceneLoaded ? newAggressionOf(e, facts.alive) : false;
       if (newAggression) e.lastAggressionAt = now;
+      if (e.evacuating) {
+        if (facts.alive.some((ship) => evacuationPending(ship, now))) continue;
+        if (facts.alive.length > 0) {
+          endEntry(e, "QUIET", now);
+          continue;
+        }
+      }
       const d = R.decideHeld({ now, phase: e.phase, allDestroyed: e.members.every((m) => m.destroyed),
         sceneLoaded: facts.sceneLoaded, alive: facts.alive, lastPlayerSeenAt: e.lastPlayerSeenAt,
         claimedAt: e.claimedAt, lastAggressionAt: e.lastAggressionAt, newAggression, exitAt: e.exitAt,
         exitPoint: e.exitPoint }, P);
       if (d.action === R.ACTION.END) endEntry(e, d.reason, now);
+      else if (e.kind === MINER && e.phase === PHASE.HELD && facts.alive.length > 0 &&
+          e.members.some((member) => member.destroyed)) {
+        cooldown.set(e.fleetId, { at: now, ms: S.permanentRefusalCooldownMs });
+        startExit(e, seam, facts.alive, now);
+      }
       else if (d.action === R.ACTION.EXIT) startExit(e, seam, facts.alive, now);
       else if (e.phase === PHASE.EXITING && newAggression) {
         e.phase = PHASE.HELD;
@@ -934,7 +994,7 @@ function createExposureStep(deps) {
       const spawnDistanceMeters = spawnDistanceOf(where.anchor);
       for (let i = 0; i < members.length; i += 1) {
         const r = npcSpawn.spawnShip(c.systemId, { profileId: profiles[i], anchorDescriptor: anchor,
-          spawnDistanceMeters, behavior: "search" });
+          spawnDistanceMeters, behavior: "search", civilianOperation: { fleetId: key } });
         if (!r || r.ok !== true) throw new StepError((r && r.reason) || "SPAWN_FAILED", r && r.detail);
         e.members.push({ ...members[i], entityId: r.entityId, profileId: profiles[i], destroyed: false });
       }
@@ -948,7 +1008,8 @@ function createExposureStep(deps) {
         if (!m || m.ok !== true) bump("convoyMarkFailed");
       }
       if (where.exit) {
-        const w = seam.warpShips(c.systemId, ids, where.exit.position, { spreadMeters: warpSpread });
+        const w = seam.warpShips(c.systemId, ids, where.exit.position,
+          { spreadMeters: warpSpread, alignBeforeWarp: true, visibleDeparture: true });
         if (!w || w.ok !== true) throw new StepError((w && w.reason) || "WARP_FAILED", w && w.detail);
       }
       if (S.cargoLootEnabled === true && c.kind === CONVOY && c.convoy) seedCarriers(e, c.convoy, now);
@@ -1148,7 +1209,7 @@ function createExposureStep(deps) {
   }
 
   function yieldPool(systemId, global) {
-    return [...entries.values()].filter((e) => e.phase === PHASE.VISIBLE && !e.despawned
+    return [...entries.values()].filter((e) => e.phase === PHASE.VISIBLE && !e.despawned && !e.evacuating
       && e.pendingDestroyed.length === 0 && !ambush.blocksYield(e) && (global || e.systemId === systemId));
   }
 

@@ -1539,6 +1539,21 @@ function onBootModule(ctx, exportsObject, request, parent) {
 function buildHooks(ctx) {
   return [
     {
+      name: "civilianAlert",
+      match(request, exports) {
+        return request.endsWith("targetDamageApplication")
+          && exportHas(exports, "applyWeaponDamageToTarget", "function");
+      },
+      run(exports, request, parent) {
+        const cfg = getConfig(ctx);
+        if (!cfg.ok || cfg.config.enabled !== true) return;
+        const path = require("node:path");
+        const source = path.resolve(path.dirname(ctx.moduleApi._resolveFilename(request, parent)), "../..");
+        require("./lib/adapter/civilianAlert").install(exports, (relative) => require(path.join(source, relative)),
+          ctx.logger);
+      },
+    },
+    {
       name: "stallDiagTimers",
       match() {
         return true;
