@@ -1276,7 +1276,8 @@ function createPresenceStep(deps) {
       if (list.length === 0 || !e.transit || !e.transit.exit) continue;
       let w;
       try {
-        w = seam.warpShips(p.sys, list.map((m) => m.entityId), e.transit.exit.position, { spreadMeters: warpSpread });
+        w = seam.warpShips(p.sys, list.map((m) => m.entityId), e.transit.exit.position,
+          { spreadMeters: warpSpread, alignBeforeWarp: true, visibleDeparture: true });
       } catch (err) {
         w = { ok: false, reason: "WARP_THREW", detail: messageOf(err) };
       }

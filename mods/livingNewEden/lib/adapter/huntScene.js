@@ -3,6 +3,7 @@
 "use strict";
 
 const dormancyGuard = require("./dormancyGuard");
+const { alertOf } = require("./civilianAlert");
 const { attackLockFields } = require("./attackLock");
 const { presentBeams, motionOf } = require("./miningBeams");
 const { queueWarpingFx } = require("./ballUpdates");
@@ -323,7 +324,7 @@ function createHuntScene({ requireGame, data, attackLock }) {
     }
   };
 
-  const readShips = (systemId, entityIds) => {
+  const readShips = (systemId, entityIds, options = {}) => {
     if (!isPositiveInt(systemId) || !isIdList(entityIds)) return { ok: false, reason: "INVALID_INPUT" };
     try {
       const loaded = load(["runtime"]);
@@ -338,7 +339,14 @@ function createHuntScene({ requireGame, data, attackLock }) {
         const position = pointOf(entity && entity.position);
         if (!entity || position === null) continue;
         const ship = { entityId, position, inWarp: isInWarp(entity) };
+        if (options.civilianAlert === true) ship.civilianAlert = alertOf(entity);
         const controller = npc ? npc.getControllerByEntityID(entityId) : null;
+        if (options.playerAggression === true) {
+          ship.aligning = isAligningToWarp(entity);
+          const aggressorId = toPositiveInt(controller && controller.lastAggressorID);
+          const aggressor = aggressorId ? scene.getEntityByID(aggressorId) : null;
+          if (aggressor && aggressor.session) ship.playerAggressionAt = Number(controller.lastAggressedAtMs) || 0;
+        }
         if (controller && typeof controller === "object") {
           const order = controller.manualOrder;
           const attack = order && typeof order === "object" && String(order.type || "").toLowerCase() === "attack";
@@ -387,7 +395,7 @@ function createHuntScene({ requireGame, data, attackLock }) {
     return aligned;
   };
 
-  const warpShips = (systemId, entityIds, point, options = {}) => {
+  const warpShipsUpstream = (systemId, entityIds, point, options = {}) => {
     const center = pointOf(point);
     const spread = options && options.spreadMeters !== undefined ? Number(options.spreadMeters) : 0;
     const align = options ? options.align : undefined;
@@ -452,6 +460,59 @@ function createHuntScene({ requireGame, data, attackLock }) {
       return { ok: false, reason: "WARP_FAILED", detail: messageOf(err) };
     }
   };
+
+
+  const warpShips = (systemId, entityIds, point, options = {}) => {
+    const center = pointOf(point);
+    const spread = options && options.spreadMeters !== undefined ? Number(options.spreadMeters) : 0;
+    if (options?.visibleDeparture !== true && options?.alignBeforeWarp === undefined) {
+      return warpShipsUpstream(systemId, entityIds, point, options);
+    }
+    if (!isPositiveInt(systemId) || !isIdList(entityIds) || center === null
+      || !Number.isFinite(spread) || spread < 0) {
+      return { ok: false, reason: "INVALID_INPUT" };
+    }
+    try {
+      const loaded = load(["runtime", "npcRuntime"]);
+      if (!loaded.ok) return loaded;
+      if (!sceneLoadedIn(loaded.mods.runtime, systemId)) return { ok: false, reason: "SCENE_NOT_LOADED" };
+      const inScene = splitInScene(loaded.mods.runtime, systemId, entityIds);
+      if (!inScene.ok) return inScene;
+      const npcRuntime = loaded.mods.npcRuntime;
+      const scene = sceneOf(loaded.mods.runtime, systemId);
+      if (options.visibleDeparture === true && typeof scene?.warpDynamicEntityToPoint !== "function") {
+        return { ok: false, reason: "VISIBLE_WARP_UNAVAILABLE" };
+      }
+      let warped = 0;
+      const failed = [...inScene.missing];
+      let detail = inScene.missing.length > 0 ? NOT_IN_SCENE : null;
+      for (let i = 0; i < entityIds.length; i += 1) {
+        const entityId = entityIds[i];
+        if (inScene.missing.includes(entityId)) continue;
+        try {
+          const destination = landingPoint(center, i, entityIds.length, spread);
+          const warpOptions = { ...data.HUNT_WARP_OPTIONS, forceImmediateStart: options.alignBeforeWarp !== true };
+          // The ingress helper manages acquisition at the destination. A ship already on grid
+          // needs the ordinary warp order, including its WarpTo and Warping FX updates.
+          const result = options.visibleDeparture === true
+            ? scene.warpDynamicEntityToPoint(entityId, destination, warpOptions)
+            : npcRuntime.warpToPoint(entityId, destination, warpOptions);
+          if (result && result.success === true) {
+            warped += 1;
+            continue;
+          }
+          if (detail === null) detail = String((result && result.errorMsg) || "WARP_FAILED").slice(0, MAX_DETAIL);
+        } catch (err) {
+          if (detail === null) detail = messageOf(err);
+        }
+        failed.push(entityId);
+      }
+      return detail === null ? { ok: true, warped, failed } : { ok: true, warped, failed, detail };
+    } catch (err) {
+      return { ok: false, reason: "WARP_FAILED", detail: messageOf(err) };
+    }
+  };
+
 
   const orderEach = (systemId, entityIds, overridesOf, orderOf) => {
     const loaded = load(["runtime", "npc"]);
@@ -644,6 +705,54 @@ function createHuntScene({ requireGame, data, attackLock }) {
     }
   };
 
+
+  // Presentation only, using the effect from the AIR mining tutorial.
+  const refreshMiningBeams = (systemId, ids, previous) => {
+    const loaded = load(["runtime"]);
+    const scene = loaded.ok ? sceneOf(loaded.mods.runtime, systemId) : null;
+    if (!scene || typeof scene.broadcastSpecialFx !== "function") return previous;
+    const rocks = ids.length === 0 ? [] : [...(scene.staticEntities || [])]
+      .filter((rock) => rock.kind === "asteroid" && !rock.generatedMiningSiteAnchor
+        && toPositiveInt(rock.itemID) && pointOf(rock.position));
+    const next = new Map();
+    const emit = (ship, targetID, start, duration) => scene.broadcastSpecialFx(ship.itemID, "effects.Mining", {
+      moduleID: ship.itemID, targetID, exactArgs: true, isOffensive: false, start, active: 0,
+      duration, repeat: start ? 99 : null, startTime: null, timeFromStart: 0, graphicInfo: null,
+      stopAfterTargetRemoved: !start,
+    }, ship);
+    for (const [shipId, targetId] of previous) {
+      const ship = scene.getEntityByID(shipId);
+      if (ship) emit(ship, targetId, false, null);
+    }
+    for (const shipId of ids) {
+      const ship = scene.getEntityByID(shipId);
+      const pos = pointOf(ship && ship.position);
+      if (!pos || isWarpMode(ship)) continue;
+      let nearest = null;
+      let distance = 150000;
+      for (const rock of rocks) {
+        const p = rock.position;
+        const candidate = Math.max(0, Math.hypot(pos.x - p.x, pos.y - p.y, pos.z - p.z)
+          - (Number(ship.radius) || 0) - (Number(rock.radius) || 0));
+        if (candidate >= distance) continue;
+        nearest = rock;
+        distance = candidate;
+      }
+      if (!nearest) continue;
+      if (distance > 10000) {
+        if (ship.mode !== "FOLLOW" || ship.targetEntityID !== nearest.itemID || ship.speedFraction !== 1) {
+          scene.followShipEntity?.(ship, nearest.itemID, 7500, {
+            speedFraction: 1, queueHistorySafeContract: true, suppressFreshAcquireReplay: true,
+          });
+        }
+        continue;
+      }
+      emit(ship, nearest.itemID, true, 30000);
+      next.set(shipId, nearest.itemID);
+    }
+    return next;
+  };
+
   const presentMiningBeams = (systemId, req) => {
     if (!isPositiveInt(systemId)) return { ok: false, reason: "INVALID_INPUT" };
     try {
@@ -659,7 +768,7 @@ function createHuntScene({ requireGame, data, attackLock }) {
     }
   };
 
-  return { listSystemObjects, readPlayerShips, readShips, warpShips, setSearch, attackTargets, readAggressors,
+  return { listSystemObjects, readPlayerShips, readShips, refreshMiningBeams, warpShips, setSearch, attackTargets, readAggressors,
     explainShips, armNpcCombat, presentMiningBeams };
 }
 
