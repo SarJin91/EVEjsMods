@@ -8,6 +8,7 @@ const KEYS = Object.freeze({
   enabled: "EVEJS_SSPF_ENABLED",
   pinRows: "EVEJS_SSPF_PIN_ROWS",
   busyTimeoutMs: "EVEJS_SSPF_BUSY_TIMEOUT_MS",
+  ownerBusyTimeoutMs: "EVEJS_SSPF_OWNER_BUSY_TIMEOUT_MS",
   mirrorSkip: "EVEJS_SSPF_MIRROR_SKIP",
 });
 
@@ -15,12 +16,14 @@ const DEFAULTS = Object.freeze({
   enabled: true,
   pinRows: DEFAULT_PIN_ROWS,
   busyTimeoutMs: 0,
+  ownerBusyTimeoutMs: 15000,
   mirrorSkip: true,
 });
 
 const INTEGER_RANGES = Object.freeze({
   pinRows: Object.freeze([MIN_PIN_ROWS, MAX_PIN_ROWS]),
   busyTimeoutMs: Object.freeze([0, 120000]),
+  ownerBusyTimeoutMs: Object.freeze([0, 20000]),
 });
 
 function readEnvFile(file) {

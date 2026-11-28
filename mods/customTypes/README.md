@@ -483,7 +483,7 @@ outside the valid hubs logs `shop: officer hub <id> skipped - not a shop hub`.
    environment of the server.
 2. `docker compose build init`, `docker compose up -d server`.
 3. `docker compose logs server | grep customTypes` shows the lines of "Guards"
-   above plus `[customTypes] v1.0.0 active - wrapped referenceData.readStaticTable/readStaticRows (probe ok)`.
+   above plus `[customTypes] v1.1.0 active - wrapped referenceData.readStaticTable/readStaticRows (probe ok)`.
 4. Client (see "Client data" below): `client\ApplyClientData.bat apply --client "<client folder>"`.
 5. In game, docked: the `/createitem` examples below.
 

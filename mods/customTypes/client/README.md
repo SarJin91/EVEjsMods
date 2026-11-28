@@ -16,7 +16,7 @@ index backup and one rollback: one command does it all.
 
 | Client resource | Change |
 |---|---|
-| `res:/staticdata/types.fsdbinary`, `typedogma.fsdbinary` | per pack type, a clone of its source type (for example Spatial Attunement Unit Blueprint 33196 for the 68 PI blueprints 340365-340435, Orbital Skyhook 81080 for 340100 and the 15 Planetary Drill (<P0>) variants 340102-340116, 33196 with group 1045 for 340101 and the variant blueprints 340202-340216, the small starbase batteries 16631/16690/17167/16696 for Mobile Sentry 340500-340503 (group kept; no iconID in the source, so the client keeps the battery look) and 33196 with the battery blueprint groups 854/855/853/871 for 340510-340513, 33196 with the parent module's blueprint group and the officer's icon for the 593 officer blueprints 341000-341592, Organic Mortar Applicators 2870 (group kept) for Triglavian Conduit Core 341640 and 33196 for its blueprint 341641; every source needs a `typeDogma` record, the tool refuses one without it up front: `source <id> has no typeDogma record`) with the new typeID, name ID, group and base price, compiled by Elysian Item Forge's `ItemFsdEncoder` and read back by the client's own FSD loader before anything is written |
+| `res:/staticdata/types.fsdbinary`, `typedogma.fsdbinary` | per pack type, a clone of its source type (for example Spatial Attunement Unit Blueprint 33196 for the 68 PI blueprints 340365-340435, Orbital Skyhook 81080 for 340100 and the 15 Planetary Drill (<P0>) variants 340102-340116, 33196 with group 1045 for 340101 and the variant blueprints 340202-340216, the small starbase batteries 16631/16690/17167/16696 for Mobile Sentry 340500-340503 (group kept; no iconID in the source, so the client keeps the battery look) and 33196 with the battery blueprint groups 854/855/853/871 for 340510-340513, 33196 with the parent module's blueprint group and the officer's icon for the 593 officer blueprints 341000-341592, Organic Mortar Applicators 2870 (group kept) for Triglavian Conduit Core 341640 and 33196 for its blueprint 341641; every source needs a `typeDogma` record, the tool refuses one without it up front: `source <id> has no typeDogma record`) with the new typeID, name ID, group and base price, compiled by the tool's own encoder (`fsd/`) and read back by the client's own FSD loader before anything is written |
 | `res:/localizationfsd/localization_fsd_*.pickle` | the name and description of the new type (message IDs from 2000000) |
 | `res:/staticdata/blueprints.static` (SQLite) | one `cache` row per blueprint (clone of the 971 row: the pack's activities only, `blueprintTypeID`, `maxProductionLimit`) and one `indexes` row `productTypeID.<product>` |
 | `tq/resfileindex.txt`, `tq/resfileindex_prefetch.txt` | the entries above point at the new files (new hash and size) |
@@ -25,18 +25,55 @@ New payloads are new content-addressed files under `ResFiles\`; no existing
 file in `ResFiles\` is changed. Only the two index files are replaced, after a
 backup.
 
-Item Forge itself cannot do this: its **Validate** blocks every blueprint
-(category 9) source with "Missing server adapter: blueprint/industry adapter".
-That adapter is the `customTypes` server mod, so the tool calls the encoder
-directly and skips Validate. It does not touch EveJS server data, the
-market database, or Item Forge's own installation records.
+The tool is standalone: the cFSD reader and encoder, the resource index, the
+localization patch and the native read-back live in `fsd/` (ported from the
+Elysian FSD and Item Forge tools shipped with EveJS, see `../CREDITS.md`); it
+imports nothing from `tools\` or another mod. It does not touch EveJS server
+data or the market database.
+
+## Client builds (profiles)
+
+The tool writes only to a client build it has a profile for:
+`profiles/build-<build>.json` (the build number comes from `tq\start.ini`).
+A profile lists the five item tables (`types`, `typedogma`,
+`requiredskillsfortypes`, `typematerials`, `iconids`) with their logical
+path, generated loader and schema fingerprint, and the result of the encoder
+proof. `plan`/`apply` refuse a build without a profile, a table whose loader,
+path or fingerprint differs from the profile, and a fingerprint the encoder
+has no native layout for:
+
+- `REFUSED: no profile for client build <n> ... run ApplyClientData.bat profile`
+- `REFUSED: client build <n> is not supported: typedogma: schema fingerprint ... has no known native layout`
+
+Shipped: 3396210 (24.01) and 3724492 (24.02). Build 3724492 has 151 FSD
+tables (149 in 3396210; new `academyship`, `fittings`; changed schema
+`dungeons`, `itemtraderrecipes`, `missions`, `spacecomponentsbytype`), but the
+five item tables keep the 3396210 schemas, loaders and content hash.
+
+After a client update to a new build, derive its profile (writes only to
+`profiles\`, nothing to the client; about 20 s):
+
+```bat
+ApplyClientData.bat profile --client "D:\EVE Online"
+```
+
+`profile` checks the layouts and the stored content hash of each table, then
+clones type 447 (and icon 3433) into all five tables twice in a temporary
+folder and reads the copies back with the client's own loaders (identity,
+dogma overrides, effects, skills, materials, icon file). A changed schema
+fingerprint is refused: that build needs a code change in `fsd/`, not only a
+profile.
 
 ## Before you start
 
 - Close the EVE client (and the launcher). The tool refuses while
   `exefile.exe` runs.
-- The Elysian suite venv must exist: start `tools\Launch-Elysian-Tools.bat`
-  once if `tools\.elysian-suite\venv` is missing.
+- Python 3.11+ with Pillow: `ApplyClientData.bat` uses `CUSTOMTYPES_PYTHON`
+  or `tools\.elysian-suite\venv` (start `tools\Launch-Elysian-Tools.bat` once
+  if it is missing).
+- Python 2.7 for the client loaders (native read-back): `--python27 <exe>`,
+  env `EVEJS_CLIENT_PYTHON27`, default
+  `tools\.elysian-suite\runtime\python27\python.exe`.
 - Disk: about 600 MB free in `_local\customTypes-client\` during a run (the
   localization files are staged there; removed after the run) and about 600 MB
   in the client's `ResFiles\` (the new payloads).
@@ -52,27 +89,32 @@ ApplyClientData.bat status
 ApplyClientData.bat rollback
 ```
 
-- `plan` builds everything, checks it (encoder proof, native read of the new
-  type), writes `plan.json`, the new index files and the new
+- `plan` builds everything, checks it (build profile, native read of the new
+  types), writes `plan.json`, the new index files and the new
   `blueprints.static` under `_local\customTypes-client\plan-<time>\`.
   **Nothing is written to the client.**
 - `apply` does the same, then backs up both index files to
   `_local\customTypes-client\backup-<time>\`, writes the new payload files and
-  the new index files. The state is in `_local\customTypes-client\state.json`.
-  See "Re-apply" for a second `apply`.
+  the new index files. The state is in `_local\customTypes-client\state.json`
+  with the client build. A state of another build (the client was updated
+  since) is moved to `state.<build>.json` by the next `apply`, which then
+  starts fresh. See "Re-apply" for a second `apply`.
 - `status` shows what is applied and whether the client index still matches.
 - `rollback` puts the backed-up index files back (the client sees vanilla data
   again) and deletes the payload files the tool created. It refuses when the
   index changed after `apply` (client update, launcher repair, another tool),
-  because the backup would undo that change. `--force` overrides it.
+  because the backup would undo that change. `--force` overrides it. A state
+  of another client build is never rolled back, not even with `--force` (its
+  backup is an index of the old build).
+- `profile` derives `profiles/build-<build>.json` (see "Client builds").
 
 Options: `--client <dir>` (default: env `EVEJS_CLIENT_PATH`), `--pack <file>`
 (repeatable; only these packs instead of every `data/*.json`),
 `--state-dir <dir>`, `--dogma-overlays <file>` (default: `dogma-overlays.json`
 next to the tool), `--sde <dir>` (SDE folder for the dogma overlay, see
-below), `--skip-proof` (skip the encoder proof and the native
-read; not recommended), `--force` (rollback, and the rollback step of a
-re-apply, even when the index changed after apply).
+below), `--skip-proof` (skip the native read of the compiled tables; not
+recommended), `--force` (rollback, and the rollback step of a re-apply, even
+when the index changed after apply), `--python27 <exe>`, `--profiles-dir <dir>`.
 
 Two packs that declare the same typeID, packID or blueprint product are refused
 together before anything is built (the server would refuse the later one).
@@ -112,7 +154,8 @@ per phase: `encoder`, `nativeCheck`, `dogmaOverlays`, `localization`,
 `blueprints`, `indexes`, `total`); `plan` prints them, `apply` prints them
 after `Applied packs`. Measured on client 3396210 with about 700 types:
 `apply` 141 s total (encoder 48 s, nativeCheck 0.8 s, dogmaOverlays 18 s,
-localization 64 s, blueprints 0.2 s, indexes 3.4 s).
+localization 64 s, blueprints 0.2 s, indexes 3.4 s); on client 3724492 with
+the 9 packs and the SMB overlay: `apply` (on a copy) 109 s.
 
 `plan` while an apply is active reads the current (already patched) index and
 therefore refuses the applied types; use it on a vanilla client or after
@@ -128,7 +171,7 @@ therefore refuses the applied types; use it on a vanilla client or after
   `blueprints.static` is still a clone of the Vexor Blueprint 971 row (only the
   row template; activities come from the pack).
 - **Sources need a `typeDogma` record**: the encoder clones the `typedogma`
-  record of every source (`ItemFsdEncoder.compile`), so a source without one
+  record of every source (`compile_tables`), so a source without one
   (e.g. Orbital Skyhook Blueprint 81086, SDE 3396210) is refused before
   encoding: `REFUSED: source 81086 has no typeDogma record - ...`. The drill
   blueprint 340101 is therefore a clone of 33196 with `groupID` 1045
@@ -146,9 +189,11 @@ therefore refuses the applied types; use it on a vanilla client or after
 - `res:/staticdata/blueprintsbymaterialtypeids.pickle` ("used in" lists in Show
   Info) is not updated: cosmetic.
 - A client update or "repair" from the CCP launcher replaces the index files:
-  run `apply` again afterwards (`status` shows `CHANGED since apply`; then
-  `rollback --force` only if the backup is still the right base, otherwise
-  delete `state.json` and apply again).
+  run `apply` again afterwards (`status` shows `CHANGED since apply`). After
+  an update to a new build, `apply` moves the old state aside itself (a new
+  build without a profile needs `profile` first); after a repair of the same
+  build, `rollback --force` only if the backup is still the right base,
+  otherwise delete `state.json` and apply again.
 - Item Forge / Serenity bundles applied **after** this tool make `rollback`
   refuse (drift). Roll back in reverse order.
 
@@ -170,8 +215,8 @@ attribute 907 `hasShipMaintenanceBay` = 1 and 908
 (limit `maxCapacityM3` > 0 never cuts the type value) - the same rule as the
 server. Myrmidon: 202 500 m3; Orca: 7 687 500 m3. Ships without a typedogma
 record are skipped (count in `plan.json`, `dogmaOverlays`). The ship list and
-volumes come from the SDE (`--sde <dir>`, default
-`_local\sde\eve-online-static-data-3396210-jsonl`). After the overlay, the
+volumes come from the SDE of the client build (`--sde <dir>`, default
+`_local\sde\eve-online-static-data-<client build>-jsonl`). After the overlay, the
 changed records are read back (all of them by the tool, up to 40 by the
 client's own FSD loader).
 
@@ -257,13 +302,17 @@ window.
 ## Tests
 
 `tools\.elysian-suite\venv\Scripts\python.exe -B mods\customTypes\client\test_apply_client_data.py`
-(from the repo root, no client needed, < 1 s): default pack set and order,
+(from the repo root, about 1 s): default pack set and order,
 the Planetary Drill Blueprint client row, refusal of a typeID or product in
 two packs, re-apply detection (also for an old single-pack state), the SMB
 dogma overlay on a synthetic typedogma table (CO1-CO4: attributes added in
-order and byte-identical to Elysian's `append_type_dogma_attributes`, larger
-value kept, disabled overlay = same bytes, overlay file change = re-apply),
-pack v2 (CT1-CT5: batch clones byte-identical to the vendor's
-`clone_integer_record` sequence and `ItemFsdEncoder.compile`, unknown keys
-refused, dogma overrides only on carried attributes, icon PNG checks and the
-new index line, icon change = re-apply).
+order and byte-identical to `append_type_dogma_attributes`, larger value kept,
+disabled overlay = same bytes, overlay file change = re-apply), pack v2
+(CT1-CT6: batch clones byte-identical to a sequence of single
+`clone_integer_record` calls, unknown keys refused, dogma overrides only on
+carried attributes, icon PNG checks and the new index line, icon change =
+re-apply), standalone (ST1: no `elysian*` import), build profiles (BP1-BP3:
+unknown build, changed layout or loader refused, shipped profiles), state per
+build (SB1), and with a 3724492 client at `EVEJS_CLIENT_PATH` (default
+`H:\EVE Online - 3396210`, skipped without it) an encoder round trip on its
+`typedogma` and `types` tables (CB1).

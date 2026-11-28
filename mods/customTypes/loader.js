@@ -5,7 +5,7 @@ const Module = require("node:module");
 const path = require("node:path");
 const { isMainThread } = require("node:worker_threads");
 
-const MOD_VERSION = "1.0.0";
+const MOD_VERSION = "1.1.0";
 const MOD_DIR = __dirname;
 const DATA_DIR = path.join(MOD_DIR, "data");
 const RUNTIME_ROOT = path.resolve(MOD_DIR, "../..");

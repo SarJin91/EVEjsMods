@@ -42,6 +42,22 @@ The mod wraps `structureState.upsertStructureRecord` for records with
 Counters: `globalThis[Symbol.for("evejs.sharedStorePerfFix.mirrorSkip")]`
 (`skipped`, `written`, `keptStartedAt`, `errors`, `drift`).
 
+## Scheduler and wallet lock wait
+
+World, wallet and scheduler are separate processes that write the same SQLite
+file, and SQLite lets one writer in at a time. Even with the statistic, one
+save of the `structures` table holds the write lock for about 4.5 to 5 s
+(834 structures). EveJS gives every connection a lock wait of 5000 ms. When
+the startup sovereignty repair saves the table while the scheduler commits a
+job, the scheduler gets `database is locked`, the job commit fails with
+`FLUSH_ERROR` and the server exits during "starting production owners".
+
+The scheduler and wallet processes run no game loop, so the mod gives their
+connections (main thread and persistence worker) a longer lock wait, 15000 ms
+by default. World connections keep the server default. The value stays below
+20000 so a waiting process still renews its 30 s owner lease in time. Each of
+the two processes logs `lock wait 15000ms for the <role> owner connections`.
+
 ## Settings
 
 | Key (environment) | settings.json | Default | Meaning |
@@ -50,6 +66,7 @@ Counters: `globalThis[Symbol.for("evejs.sharedStorePerfFix.mirrorSkip")]`
 | `EVEJS_SSPF_NO_INSTALL` | - | empty | Any value skips installing the hook |
 | `EVEJS_SSPF_PIN_ROWS` | `pinRows` | `100000` | Row count in the statistic |
 | `EVEJS_SSPF_BUSY_TIMEOUT_MS` | `busyTimeoutMs` | `0` | Lock wait of writing connections, 0 = server default |
+| `EVEJS_SSPF_OWNER_BUSY_TIMEOUT_MS` | `ownerBusyTimeoutMs` | `15000` | Lock wait of the scheduler and wallet process connections, 0..20000 |
 | `EVEJS_SSPF_MIRROR_SKIP` | `mirrorSkip` | `1` | Off = every sovereignty mirror save rewrites the table |
 
 ## Offline tool

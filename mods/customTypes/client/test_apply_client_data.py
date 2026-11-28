@@ -1,14 +1,17 @@
-"""Tests of the client tool's pack handling (no EVE client needed, nothing written outside a temp dir).
+"""Tests of the client tool (nothing written outside a temp dir).
 
-Run with the Elysian suite venv (the tool imports elysian_fsd / elysian_item_forge):
+The client tests read EVEJS_CLIENT_PATH (default H:\\EVE Online - 3396210) and are skipped without it.
     tools\\.elysian-suite\\venv\\Scripts\\python.exe -B mods\\customTypes\\client\\test_apply_client_data.py
 """
 
 from __future__ import annotations
 
+import ast
+import contextlib
 import hashlib
 import io
 import json
+import os
 import struct
 import sys
 import tempfile
@@ -18,9 +21,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import apply_client_data as tool
-from elysian_fsd.cfsd_shadow import clone_integer_record
-from elysian_fsd.item_encoding import ItemFsdEncoder, _patch_dogma, append_type_dogma_attributes
+from fsd import profile as fsd_profile
+from fsd.cfsd import _split, clone_integer_record, clone_record_in_body, contains_root_key
+from fsd.items import _patch_dogma, append_type_dogma_attributes
 from PIL import Image
+
+CLIENT_TOOL_DIR = Path(__file__).resolve().parent
+REAL_CLIENT = Path(os.environ.get("EVEJS_CLIENT_PATH") or r"H:\EVE Online - 3396210")
 
 VEXOR_MINERALS = [
     {"typeID": 34, "quantity": 540000}, {"typeID": 35, "quantity": 180000}, {"typeID": 36, "quantity": 36000},
@@ -303,8 +310,35 @@ def icon_pack(directory: Path, payload: bytes, icon_id: int = 950000) -> Path:
     })
 
 
+def single_clone_sequence(tables: dict[str, bytes], requests: list) -> tuple[dict[str, bytes], dict[str, str]]:
+    """One clone_integer_record per request and table, each with its own split and hash."""
+    from fsd.items import _patch_icon_file, _patch_types
+
+    current = dict(tables)
+    skipped: dict[str, str] = {}
+    for item in requests:
+        current["types"] = clone_integer_record(current["types"], item.source_type_id, item.target_type_id, 152,
+                                                lambda body, context, item=item: _patch_types(body, context, item))
+        current["typedogma"] = clone_integer_record(
+            current["typedogma"], item.source_type_id, item.target_type_id, 24,
+            lambda body, context, item=item: _patch_dogma(body, context, item.dogma_overrides))
+        for name, stride in (("requiredskillsfortypes", 24), ("typematerials", 32)):
+            if contains_root_key(current[name], item.source_type_id, stride):
+                current[name] = clone_integer_record(current[name], item.source_type_id, item.target_type_id, stride)
+            else:
+                skipped[name] = f"source {item.source_type_id} has no identity record"
+    for item in requests:
+        if item.custom_icon_file:
+            current["iconids"] = clone_integer_record(
+                current["iconids"], item.source_icon_id, item.icon_id, 32,
+                lambda body, context, path=item.custom_icon_file: _patch_icon_file(body, context, path))
+    changed = {name: payload for name, payload in current.items()
+               if name in ("types", "typedogma") or payload != tables[name]}
+    return changed, skipped
+
+
 class PackV2(unittest.TestCase):
-    def test_ct1_batch_clones_equal_the_vendor_sequence(self) -> None:
+    def test_ct1_batch_clones_equal_the_single_clone_sequence(self) -> None:
         set_38 = lambda body, context: _patch_dogma(body, context, {38: 999.0})
         clones = [(24700, 340000, set_38), (24702, 340001, None), (5, 340004, set_38),
                   (24700, 340002, None), (5, 340003, None)]
@@ -322,12 +356,11 @@ class PackV2(unittest.TestCase):
                   "typematerials": dogma_table(SOURCES, 32), "iconids": dogma_table({21: [(0.0, 1)]}, 32)}
         requests = [request(24700, 340000, dogma_overrides={38: 420.0}, field_overrides={"mass": 5.0}),
                     request(5, 340004, 950000, source_icon_id=21, custom_icon_file=tool.icon_logical_path(950000))]
-        vendor = object.__new__(ItemFsdEncoder)
-        vendor._source = tables.__getitem__
-        expected = vendor.compile(requests)
+        expected, skipped = single_clone_sequence(tables, requests)
         actual = tool.compile_tables(tables.__getitem__, requests)
-        self.assertEqual(actual.resources, expected.resources)
-        self.assertEqual((actual.changed_tables, actual.skipped_tables), (expected.changed_tables, expected.skipped_tables))
+        self.assertEqual(actual.resources, expected)
+        self.assertEqual((actual.changed_tables, actual.skipped_tables), (sorted(expected), skipped))
+        self.assertEqual(skipped, {"requiredskillsfortypes": "source 5 has no identity record"})
         self.assertIn("iconids", actual.resources)
 
     def test_ct2_unknown_key_is_refused_by_name(self) -> None:
@@ -343,7 +376,7 @@ class PackV2(unittest.TestCase):
                 with self.assertRaisesRegex(tool.ToolError, f"unknown key {key}"):
                     tool.load_pack(write_pack(directory, f"{key}.json", pack))
             tool.load_pack(write_pack(directory, "ok.json", base))
-        self.assertEqual(len(tool.load_packs(tool.default_pack_paths())["packIDs"]), 7)
+        self.assertEqual(len(tool.load_packs(tool.default_pack_paths())["packIDs"]), 9)
 
     def test_ct3_dogma_override_only_on_carried_attributes(self) -> None:
         table = dogma_table(SOURCES)
@@ -413,6 +446,194 @@ class PackV2(unittest.TestCase):
             tool.compile_tables(tables.__getitem__, [
                 request(24700, 340000, 950000, **icon),
                 request(5, 340004, 950000, source_icon_id=21, custom_icon_file=tool.icon_logical_path(950001))])
+
+
+LOADERS = {"types": "typesLoader", "typedogma": "typeDogmaLoader", "requiredskillsfortypes": "requiredSkillsForTypesLoader",
+           "typematerials": "typeMaterialsLoader", "iconids": "iconIDsLoader"}
+
+
+def fake_client(directory: Path, build: int, fingerprints: dict[str, str] | None = None) -> Path:
+    """A client folder with the five item tables (synthetic payloads, header fingerprints of the known layouts)."""
+    client = directory / "client"
+    (client / "tq" / "bin64").mkdir(parents=True)
+    (client / "tq" / "start.ini").write_text(f"[main]\nversion = 99.01\nbuild = {build}\n", "utf-8")
+    rows = []
+    for name, loader in LOADERS.items():
+        (client / "tq" / "bin64" / f"{loader}.pyd").write_bytes(b"")
+        fingerprint = (fingerprints or {}).get(name) or next(iter(fsd_profile.LAYOUTS[name]))
+        payload = bytes.fromhex(fingerprint) + dogma_table(SOURCES)[16:]
+        hashed = f"aa/{name}_{tool.md5_bytes(payload)}"
+        (client / "ResFiles" / "aa").mkdir(parents=True, exist_ok=True)
+        (client / "ResFiles" / hashed).write_bytes(payload)
+        rows.append(f"res:/staticdata/{name}.fsdbinary,{hashed},{tool.md5_bytes(payload)},{len(payload)},{len(payload)}")
+    for filename in tool.INDEX_FILES:
+        (client / "tq" / filename).write_text("\n".join(rows) + "\n", "utf-8")
+    return client
+
+
+class Standalone(unittest.TestCase):
+    def test_st1_no_import_outside_the_mod(self) -> None:
+        sources = [CLIENT_TOOL_DIR / "apply_client_data.py", *sorted((CLIENT_TOOL_DIR / "fsd").glob("*.py"))]
+        self.assertGreater(len(sources), 6)
+        for path in sources:
+            tree = ast.parse(path.read_text("utf-8"))
+            names = [alias.name for node in ast.walk(tree) if isinstance(node, ast.Import) for alias in node.names]
+            names += [node.module or "" for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) and node.level == 0]
+            self.assertEqual([name for name in names if name.startswith("elysian")], [], str(path))
+            self.assertNotIn("sys.path.append", path.read_text("utf-8"), str(path))
+        self.assertEqual(sorted(name for name in sys.modules if name.startswith("elysian")), [])
+
+
+class BuildProfiles(unittest.TestCase):
+    def test_bp1_unknown_build_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            client = fake_client(Path(temporary), 9999999)
+            index = tool.ResourceIndex.load(client)
+            with self.assertRaisesRegex(tool.ToolError, r"no profile for client build 9999999 in .*ApplyClientData\.bat profile"):
+                tool.supported_profile(index)
+
+    def test_bp2_changed_layout_or_profile_is_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            client = fake_client(Path(temporary), 3724492, {"typedogma": "00" * 16})
+            with self.assertRaisesRegex(tool.ToolError, "typedogma: schema fingerprint 0+ has no known native layout"):
+                tool.supported_profile(tool.ResourceIndex.load(client))
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            client = fake_client(directory, 3724492)
+            (client / "tq" / "bin64" / "typesLoader.pyd").rename(client / "tq" / "bin64" / "typesV2Loader.pyd")
+            with self.assertRaisesRegex(tool.ToolError, "types: no generated loader"):
+                tool.supported_profile(tool.ResourceIndex.load(client))
+            stored = json.loads((tool.PROFILES_DIR / "build-3724492.json").read_text("utf-8"))
+            stored["tables"]["types"]["loaderModule"] = "typesV2Loader"
+            profiles = directory / "profiles"
+            profiles.mkdir()
+            (profiles / "build-3724492.json").write_text(json.dumps(stored), "utf-8")
+            (client / "tq" / "bin64" / "typesV2Loader.pyd").rename(client / "tq" / "bin64" / "typesLoader.pyd")
+            with self.assertRaisesRegex(tool.ToolError, "types: loaderModule is 'typesLoader', the profile says 'typesV2Loader'"):
+                tool.supported_profile(tool.ResourceIndex.load(client), profiles)
+
+    def test_bp3_shipped_profiles_match_the_known_layouts(self) -> None:
+        for build in (3396210, 3724492):
+            stored = fsd_profile.load_build_profile(tool.PROFILES_DIR, build)
+            self.assertTrue(stored["proof"]["success"])
+            for name in fsd_profile.ITEM_TABLES:
+                self.assertIn(stored["tables"][name]["schemaFingerprint"], fsd_profile.LAYOUTS[name])
+        with tempfile.TemporaryDirectory() as temporary:
+            client = fake_client(Path(temporary), 3724492)
+            profile = tool.supported_profile(tool.ResourceIndex.load(client))
+            self.assertEqual((profile.build, sorted(profile.tables)), (3724492, sorted(fsd_profile.ITEM_TABLES)))
+            self.assertEqual(tool.default_sde_dir(profile.build).name, "eve-online-static-data-3724492-jsonl")
+
+
+class StatePerBuild(unittest.TestCase):
+    def test_sb1_other_build_state_is_archived_and_never_rolled_back(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            client = fake_client(directory, 3724492)
+            state_dir = directory / "state"
+            old = {"status": "applied", "build": 3396210, "client": str(client), "appliedAt": "x",
+                   "tqRoot": str(client / "tq"), "backupDir": str(directory), "indexFiles": {}, "createdPayloads": []}
+            tool.write_state(state_dir, old)
+            self.assertFalse(tool.other_build_state({**old, "build": 3724492}, 3724492))
+            self.assertTrue(tool.other_build_state({"status": "applied"}, 3724492))
+            self.assertTrue(tool.other_build_state(old, tool.client_build(client)))
+            args = tool.argparse.Namespace(state_dir=state_dir, force=True)
+            with self.assertRaisesRegex(tool.ToolError, "belongs to client build 3396210, the client is build 3724492"):
+                tool.command_rollback(args)
+            archived = tool.archive_state(state_dir, old)
+            self.assertEqual(archived.name, "state.3396210.json")
+            self.assertIsNone(tool.read_state(state_dir))
+            tool.write_state(state_dir, old)
+            self.assertNotEqual(tool.archive_state(state_dir, old).name, "state.3396210.json", "an older archive is kept")
+
+    def test_sb2_unreadable_client_is_refused_before_the_state_is_touched(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            client = fake_client(directory, 3724492)
+            state_dir = directory / "state"
+            tool.write_state(state_dir, {"status": "applied", "build": 3396210, "client": str(client), "appliedAt": "x",
+                                         "tqRoot": str(client / "tq"), "backupDir": str(directory), "indexFiles": {},
+                                         "createdPayloads": []})
+            before = (state_dir / tool.STATE_FILE).read_bytes()
+            no_build = fake_client(directory / "no-start-ini", 3724492)
+            (no_build / "tq" / "start.ini").unlink()
+            unknown = fake_client(directory / "unknown-build", 9999999)
+            cases = {"typo": (directory / "typo-no-client", "cannot read the client folder"),
+                     "no start.ini": (no_build, "names no client build"),
+                     "no profile": (unknown, "no profile for client build 9999999")}
+            for name, (folder, reason) in cases.items():
+                for command in ("apply", "plan"):
+                    stderr = io.StringIO()
+                    with contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(io.StringIO()):
+                        code = tool.main([command, "--client", str(folder), "--state-dir", str(state_dir)])
+                    self.assertEqual(code, 2, f"{command} {name}")
+                    self.assertRegex(stderr.getvalue(), f"^REFUSED: .*{reason}", f"{command} {name}")
+                    self.assertEqual(sorted(path.name for path in state_dir.iterdir()), [tool.STATE_FILE], name)
+                    self.assertEqual((state_dir / tool.STATE_FILE).read_bytes(), before, name)
+
+    def test_sb3_state_without_build_is_refused_unless_its_plan_names_the_build(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            client = fake_client(directory, 3724492)
+            state_dir = directory / "state"
+            legacy = {"status": "applied", "client": str(client), "appliedAt": "20261030-121818-757176",
+                      "tqRoot": str(client / "tq"), "backupDir": str(directory),
+                      "indexFiles": {"resfileindex.txt": {"originalSha256": "0" * 64, "appliedSha256": "1" * 64}},
+                      "createdPayloads": []}
+            tool.write_state(state_dir, legacy)
+            before = (state_dir / tool.STATE_FILE).read_bytes()
+            for argv in (["rollback", "--force"], ["rollback"], ["apply", "--client", str(client)]):
+                stderr = io.StringIO()
+                with contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(io.StringIO()):
+                    code = tool.main([*argv, "--state-dir", str(state_dir)])
+                self.assertEqual(code, 2, argv)
+                self.assertRegex(stderr.getvalue(), r"REFUSED: .*records no client build.*not even with --force.*"
+                                                    r"rename it to state\.<old build>\.json", argv)
+                self.assertEqual(sorted(path.name for path in state_dir.iterdir()), [tool.STATE_FILE], argv)
+                self.assertEqual((state_dir / tool.STATE_FILE).read_bytes(), before, argv)
+            plan_dir = state_dir / f"apply-{legacy['appliedAt']}"
+            plan_dir.mkdir()
+            (plan_dir / "plan.json").write_text(json.dumps({"client": str(client), "build": 3396210}), "utf-8")
+            self.assertEqual(tool.state_with_build(state_dir, legacy)["build"], 3396210)
+            with self.assertRaisesRegex(tool.ToolError, "belongs to client build 3396210, the client is build 3724492"):
+                tool.command_rollback(tool.argparse.Namespace(state_dir=state_dir, force=True))
+            self.assertEqual((state_dir / tool.STATE_FILE).read_bytes(), before)
+            self.assertEqual(tool.archive_state(state_dir, tool.state_with_build(state_dir, legacy)).name,
+                             "state.3396210.json")
+            (plan_dir / "plan.json").write_text(json.dumps({"client": str(directory / "other"), "build": 3396210}),
+                                                "utf-8")
+            self.assertIsNone(tool.recorded_build(state_dir, legacy), "a plan of another client folder is ignored")
+
+
+def real_client_build() -> int:
+    return tool.client_build(REAL_CLIENT) if (REAL_CLIENT / "tq" / "start.ini").is_file() else 0
+
+
+@unittest.skipUnless(real_client_build() == 3724492, f"client build 3724492 not found at {REAL_CLIENT}")
+class ClientBuild3724492(unittest.TestCase):
+    def test_cb1_encoder_roundtrip_on_the_client_tables(self) -> None:
+        index = tool.ResourceIndex.load(REAL_CLIENT)
+        profile = tool.supported_profile(index)
+        dogma = profile.table("typedogma").resource_path.read_bytes()
+        header, body = _split(dogma)
+        source = tool.read_dogma_attributes(body, 24700)
+        attribute = min(source)
+        clone_record_in_body(body, 24700, 349999, tool.TYPEDOGMA_STRIDE,
+                             lambda payload, context: _patch_dogma(payload, context, {attribute: 1234.0}))
+        self.assertEqual(tool.read_dogma_attributes(body, 349999), {**source, attribute: 1234.0})
+        self.assertEqual(tool.read_dogma_attributes(body, 24700), source, "source unchanged")
+        self.assertTrue(tool.body_contains_root_key(body, 349999, tool.TYPEDOGMA_STRIDE))
+        self.assertEqual(struct.unpack_from("<Q", body, 8)[0], struct.unpack_from("<Q", dogma, 40)[0] + 1)
+        types = profile.table("types").resource_path.read_bytes()
+        _header, types_body = _split(types)
+        request = tool.ItemCloneRequest(source_type_id=24700, target_type_id=349999, name_message_id=2999998,
+                                        description_message_id=2999999, icon_id=0, market_group_id=None,
+                                        field_overrides={"mass": 5.0})
+        from fsd.items import _patch_types
+        clone_record_in_body(types_body, 24700, 349999, tool.TYPES_STRIDE,
+                             lambda payload, context: _patch_types(payload, context, request))
+        self.assertTrue(tool.body_contains_root_key(types_body, 349999, tool.TYPES_STRIDE))
+        self.assertFalse(tool.body_contains_root_key(types[32:], 349999, tool.TYPES_STRIDE))
 
 
 if __name__ == "__main__":

@@ -6,14 +6,17 @@ const path = require("node:path");
 const { isMainThread } = require("node:worker_threads");
 const { createMirrorSkip } = require("./lib/mirrorSkip");
 
-const MOD_VERSION = "1.1.0";
+const MOD_VERSION = "1.2.0";
 const MOD_DIR = __dirname;
 const RUNTIME_ROOT = path.resolve(MOD_DIR, "../..");
 const LOG_PREFIX = "[sharedStorePerfFix]";
 const INSTALL_FLAG = "__sharedStorePerfFixLoaderInstalled";
 const API_SYMBOL = "evejs.sharedStorePerfFix";
 const NO_INSTALL_ENV = "EVEJS_SSPF_NO_INSTALL";
+const ROLE_ENV = "EVEJS_GAMESTORE_OWNER_ROLE";
 const WRAPPED = Symbol.for("evejs.sharedStorePerfFix.wrapped");
+// The scheduler and wallet owners run no game loop, so a longer lock wait cannot stall the simulation.
+const OFF_LOOP_OWNER_ROLES = Object.freeze(["scheduler", "wallet"]);
 
 const TARGET = "server/src/gameStore/sqliteStore.js";
 const MIRROR_TARGET = "server/src/services/structure/structureState.js";
@@ -102,6 +105,12 @@ function describe(result, vendorVersion) {
   return parts.join(" ");
 }
 
+function lockWaitMs(config, role) {
+  const base = config.busyTimeoutMs > 0 ? config.busyTimeoutMs : 0;
+  const owner = OFF_LOOP_OWNER_ROLES.includes(role) && config.ownerBusyTimeoutMs > 0 ? config.ownerBusyTimeoutMs : 0;
+  return Math.max(base, owner);
+}
+
 function createRuntime({
   runtimeRoot = RUNTIME_ROOT,
   config,
@@ -110,11 +119,23 @@ function createRuntime({
   logErrorFn = logError,
   vendorFacts = null,
   applyPin = null,
+  roleFn = () => String(process.env[ROLE_ENV] || "").trim(),
+  mainThread = isMainThread,
 } = {}) {
-  const stats = { inits: 0, errors: 0 };
+  const stats = { inits: 0, errors: 0, lockWaitMs: 0 };
   for (const name of Object.values(COUNTERS)) stats[name] = 0;
   const state = { inert: false, wrapped: false, facts: vendorFacts, logged: new Set(), settled: new WeakMap(), cache: {} };
   const pin = applyPin || require("./lib/plannerPin").applyPlannerPin;
+
+  function applyLockWait(db, role) {
+    const waitMs = lockWaitMs(config, role);
+    if (waitMs <= 0) return;
+    db.pragma(`busy_timeout = ${waitMs}`);
+    if (stats.lockWaitMs !== waitMs && mainThread && waitMs !== config.busyTimeoutMs) {
+      logFn(`v${MOD_VERSION} lock wait ${waitMs}ms for the ${role} owner connections`);
+    }
+    stats.lockWaitMs = waitMs;
+  }
 
   function drift(detail) {
     state.inert = true;
@@ -153,7 +174,7 @@ function createRuntime({
     stats.inits += 1;
     if (state.inert || !db || typeof db.prepare !== "function" || typeof db.pragma !== "function") return;
     const readOnly = Boolean(options && options.readOnly === true);
-    if (!readOnly && config.busyTimeoutMs > 0) db.pragma(`busy_timeout = ${config.busyTimeoutMs}`);
+    if (!readOnly) applyLockWait(db, roleFn());
     if (state.settled.has(db)) return;
     const vendor = facts();
     if (!vendor.ok) {
@@ -303,10 +324,12 @@ module.exports = {
   MOD_DIR,
   MOD_VERSION,
   NO_INSTALL_ENV,
+  OFF_LOOP_OWNER_ROLES,
+  ROLE_ENV,
   RUNTIME_ROOT,
   TARGET,
   WRAPPED,
   install,
   installResult,
-  _testing: Object.freeze({ canonicalize, createRuntime, describe, installModuleHook, loadVendorFacts }),
+  _testing: Object.freeze({ canonicalize, createRuntime, describe, installModuleHook, loadVendorFacts, lockWaitMs }),
 };

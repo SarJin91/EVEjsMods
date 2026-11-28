@@ -309,7 +309,9 @@ test("config: defaults, environment wins, invalid values and disabled switch", (
   const missing = { settingsPath: path.join(tmpRoot, "none.json"), envFilePath: path.join(tmpRoot, "none.env") };
   const defaults = config.load(modDir, {}, missing);
   assert.deepStrictEqual({ ...defaults, problems: [...defaults.problems] },
-    { enabled: true, pinRows: 100000, busyTimeoutMs: 0, mirrorSkip: true, problems: [] });
+    { enabled: true, pinRows: 100000, busyTimeoutMs: 0, ownerBusyTimeoutMs: 15000, mirrorSkip: true, problems: [] });
+  assert.strictEqual(config.load(modDir, { EVEJS_SSPF_OWNER_BUSY_TIMEOUT_MS: "0" }, missing).ownerBusyTimeoutMs, 0);
+  assert.strictEqual(config.load(modDir, { EVEJS_SSPF_OWNER_BUSY_TIMEOUT_MS: "20001" }, missing).problems.length, 1);
   assert.strictEqual(config.load(modDir, { EVEJS_SSPF_MIRROR_SKIP: "0" }, missing).mirrorSkip, false);
   const custom = config.load(modDir, { EVEJS_SSPF_PIN_ROWS: "50000", EVEJS_SSPF_BUSY_TIMEOUT_MS: "15000" }, missing);
   assert.strictEqual(custom.pinRows, 50000);
@@ -320,6 +322,76 @@ test("config: defaults, environment wins, invalid values and disabled switch", (
   const off = loader.install({ environment: { EVEJS_SSPF_ENABLED: "0" }, configOptions: missing, logFn: () => {} });
   assert.strictEqual(off.active, false);
   assert.strictEqual(off.reason, "disabled");
+});
+
+test("owner-lock-wait: scheduler and wallet connections wait longer, world and read-only keep the default", () => {
+  const { lockWaitMs } = loader._testing;
+  const owner = { busyTimeoutMs: 0, ownerBusyTimeoutMs: 15000 };
+  assert.strictEqual(lockWaitMs(owner, "scheduler"), 15000);
+  assert.strictEqual(lockWaitMs(owner, "wallet"), 15000);
+  assert.strictEqual(lockWaitMs(owner, "world"), 0);
+  assert.strictEqual(lockWaitMs(owner, ""), 0);
+  assert.strictEqual(lockWaitMs({ busyTimeoutMs: 20000, ownerBusyTimeoutMs: 15000 }, "scheduler"), 20000);
+  assert.strictEqual(lockWaitMs({ busyTimeoutMs: 8000, ownerBusyTimeoutMs: 0 }, "scheduler"), 8000);
+
+  const lines = [];
+  const role = { value: "scheduler" };
+  const runtimeFor = (mainThread) => loader._testing.createRuntime({
+    config: { enabled: true, pinRows: PIN_ROWS, ...owner },
+    vendorFacts: { ok: true, applicationId: APPLICATION_ID, vendorSchemaSql: structuresSchema, vendorVersion: "test" },
+    applyPin: () => ({ ok: true, reason: "ALREADY_PINNED", ms: 0 }),
+    roleFn: () => role.value,
+    mainThread,
+    logFn: (line) => lines.push(line),
+  });
+  const file = path.join(tmpRoot, "owner-wait.sqlite");
+  const opened = [];
+  const exportsObject = {
+    init(target, options) {
+      const db = new Database(target, options && options.readOnly ? { readonly: true, fileMustExist: true } : undefined);
+      db.pragma("busy_timeout = 5000");
+      opened.push(db);
+      return db;
+    },
+  };
+  const rawInit = exportsObject.init;
+  const main = runtimeFor(true);
+  main.wrapInit(exportsObject);
+  const wait = (db) => db.pragma("busy_timeout", { simple: true });
+  assert.strictEqual(wait(exportsObject.init(file)), 15000);
+  assert.strictEqual(wait(exportsObject.init(file, { readOnly: true })), 5000);
+  role.value = "world";
+  assert.strictEqual(wait(exportsObject.init(file)), 5000);
+  assert.deepStrictEqual(lines, ["v1.2.0 lock wait 15000ms for the scheduler owner connections"]);
+
+  const worker = runtimeFor(false);
+  const workerExports = { init: rawInit };
+  worker.wrapInit(workerExports);
+  role.value = "wallet";
+  assert.strictEqual(wait(workerExports.init(file)), 15000);
+  assert.strictEqual(lines.length, 1);
+  for (const db of opened) db.close();
+});
+
+test("owner-lock-wait-vendor-facts: role set before the store loads, worker inherits it, lease leaves room", () => {
+  for (const [relative, role] of [
+    ["src/services/scheduler/durableSchedulerProcess.worker.js", "scheduler"],
+    ["src/services/account/walletAuthorityProcess.worker.js", "wallet"],
+  ]) {
+    const source = readVendor(relative);
+    const roleAt = source.indexOf(`process.env.${loader.ROLE_ENV} = "${role}";`);
+    assert.ok(roleAt >= 0, `${relative} sets the ${role} role`);
+    const storeAt = source.search(/require\([^)]*gameStore/u);
+    assert.ok(storeAt > roleAt, `${relative} sets the role before it loads the game store`);
+  }
+  const roles = readVendor("src/gameStore/persistenceRoles.js");
+  for (const role of loader.OFF_LOOP_OWNER_ROLES) assert.ok(roles.includes(`: "${role}",`), `persistenceRoles has ${role}`);
+  const worker = readVendor("src/gameStore/persistenceWorker.js");
+  const create = worker.slice(worker.indexOf("nextState.worker = createWorker("), worker.indexOf("state = nextState;"));
+  assert.ok(create.length > 0 && !/\benv\s*:/u.test(create), "persistence worker inherits the process environment");
+  assert.ok(readVendor("src/gameStore/sqliteStore.js").includes("db.pragma(\"busy_timeout = 5000\");"), "server default lock wait");
+  assert.ok(readVendor("src/gameStore/persistenceLeasePolicy.js").includes("const DEFAULT_LEASE_MS = 30_000;"), "30 s owner lease");
+  assert.ok(config.INTEGER_RANGES.ownerBusyTimeoutMs[1] <= 20000, "lock wait stays below lease minus renew interval");
 });
 
 test("cli: status reports would pin, apply pins, remove deletes the row", () => {

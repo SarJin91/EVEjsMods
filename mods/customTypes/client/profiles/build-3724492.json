@@ -1,0 +1,54 @@
+{
+  "format": "customtypes-client-profile",
+  "version": 1,
+  "build": 3724492,
+  "clientVersion": "24.02",
+  "tables": {
+    "iconids": {
+      "logicalPath": "res:/staticdata/iconids.fsdbinary",
+      "loaderModule": "iconIDsLoader",
+      "schemaFingerprint": "e62746ff0dc540cc73e06fca63926f29"
+    },
+    "requiredskillsfortypes": {
+      "logicalPath": "res:/staticdata/requiredskillsfortypes.fsdbinary",
+      "loaderModule": "requiredSkillsForTypesLoader",
+      "schemaFingerprint": "3c9734f16d5daed7dcac978954601dc7"
+    },
+    "typedogma": {
+      "logicalPath": "res:/staticdata/typedogma.fsdbinary",
+      "loaderModule": "typeDogmaLoader",
+      "schemaFingerprint": "817d560b9962768e1a4b18598e9a1761"
+    },
+    "typematerials": {
+      "logicalPath": "res:/staticdata/typematerials.fsdbinary",
+      "loaderModule": "typeMaterialsLoader",
+      "schemaFingerprint": "988a9edbbd5a0f3dfdc5b37b067d183f"
+    },
+    "types": {
+      "logicalPath": "res:/staticdata/types.fsdbinary",
+      "loaderModule": "typesLoader",
+      "schemaFingerprint": "4f25d0f64115864bd8c4f58da09c1758"
+    }
+  },
+  "proof": {
+    "success": true,
+    "deterministic": true,
+    "realContentHashes": true,
+    "nativeTables": {
+      "types": true,
+      "typedogma": true,
+      "requiredskillsfortypes": true,
+      "typematerials": true,
+      "iconids": true
+    },
+    "assertions": {
+      "typesIdentity": true,
+      "dogmaOverrides": true,
+      "effectsPreserved": true,
+      "skillsPreserved": true,
+      "materialsPreserved": true,
+      "iconMapping": true
+    },
+    "errors": []
+  }
+}

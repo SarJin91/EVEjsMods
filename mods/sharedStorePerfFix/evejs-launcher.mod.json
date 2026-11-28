@@ -2,7 +2,7 @@
   "schemaVersion": 3,
   "id": "sharedStorePerfFix",
   "displayName": "Shared Store Performance Fix",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Saving the structures table got slower with the square of the structure count (about 3 minutes for 819 structures), so the server lost its database lease at startup. After each game database open this mod stores one SQLite planner statistic that makes the save linear (about 4 s for 819). It also skips sovereignty mirror saves that change nothing, which the startup sovereignty repair otherwise repeats hundreds of times. It changes no data and no schema. Workaround for EveJS bugs; it removes its statistic by itself once EveJS fixes the query plan.",
   "kind": "loader",
   "supportedBackends": [
@@ -70,6 +70,22 @@
         "file": "settings",
         "key": [
           "busyTimeoutMs"
+        ],
+        "advanced": true
+      },
+      {
+        "id": "ownerBusyTimeoutMs",
+        "label": "Scheduler and wallet lock wait (ms)",
+        "description": "Lock wait of the scheduler and wallet process connections, which run no game loop. One structures save of the world holds the database lock for about 5 s, so the server default of 5000 makes a scheduler save fail at startup and the server exit. Keep it below 20000 so the 30 s owner lease is renewed in time. 0 = use the lock wait above. Default: 15000.",
+        "type": "integer",
+        "default": 15000,
+        "minimum": 0,
+        "maximum": 20000,
+        "step": 1000,
+        "restart": "game_server",
+        "file": "settings",
+        "key": [
+          "ownerBusyTimeoutMs"
         ],
         "advanced": true
       },

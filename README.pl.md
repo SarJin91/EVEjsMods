@@ -13,10 +13,10 @@ się pod EveJS przy starcie i nie zmieniają żadnego pliku EveJS.
 | [livingNewEden](mods/livingNewEden/README.md) | 0.2.1 | Żywy wszechświat: frakcje NPC trzymają terytorium, przesuwają floty, prowadzą gospodarkę i wojny, kiedy grasz; ruch cywilny, górnicy, ratterzy i eksploratorzy wypełniają systemy wokół ciebie. |
 | [shipWing](mods/shipWing/README.md) | 0.2.2 | Kopie zafitowanych statków z Ship Maintenance Bay twojego obecnego statku (dowolny kadłub) lecą za tobą jako skrzydło; w doku pokazuje zawartość SMB tylko do odczytu. Wersja testowa, domyślnie wyłączona. |
 | [hotPathPerf](mods/hotPathPerf/README.md) | 0.24.2 | Mierzy wolne wywołania EveJS; opcjonalne poprawki długich zawieszeń serwera. |
-| [sharedStorePerfFix](mods/sharedStorePerfFix/README.md) | 1.1.0 | Zapis tabeli struktur przy starcie zostaje liniowy (jedna statystyka planera SQLite), a zapisy lustra suwerenności bez zmian są pomijane. Obejście błędów EveJS, nie zmienia danych. |
+| [sharedStorePerfFix](mods/sharedStorePerfFix/README.md) | 1.2.0 | Zapis tabeli struktur przy starcie zostaje liniowy (jedna statystyka planera SQLite), a zapisy lustra suwerenności bez zmian są pomijane. Obejście błędów EveJS, nie zmienia danych. |
 | [scenePerfFix](mods/scenePerfFix/README.md) | 1.0.0 | Szybsze zatłoczone systemy na starszych wersjach EveJS (stojące wraki, wyszukiwanie po nazwie). Na obecnym EveJS w większości nieaktywny. |
 | [planetaryDrill](mods/planetaryDrill/README.md) | 1.1.0 | Orbital Skyhook poza sov null-sec wydobywa surowiec P0 planety. Wymaga skyhookOrphanFix i customTypes. |
-| [customTypes](mods/customTypes/README.md) | 1.0.0 | Własne typy przedmiotów i blueprinty z paczek danych, z narzędziem do danych klienta. |
+| [customTypes](mods/customTypes/README.md) | 1.1.0 | Własne typy przedmiotów i blueprinty z paczek danych, z narzędziem do danych klienta. |
 | [blueprintDrops](mods/blueprintDrops/README.md) | 1.0.0 | Wraki NPC mogą zawierać blueprinty; opcjonalnie rezonatory piratów i łupy frakcji. |
 | [dailyGoalsPersist](mods/dailyGoalsPersist/README.md) | 1.0.0 | Postęp i odebrane nagrody celów dziennych przetrwają restart serwera. |
 | [industryOrphanCleanup](mods/industryOrphanCleanup/README.md) | 1.0.0 | Usuwa osierocone rekordy stanu blueprintów po usunięciu postaci. |

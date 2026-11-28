@@ -1,12 +1,11 @@
+# SPDX-License-Identifier: AGPL-3.0-only
 """customTypes client data tool: the client half of mods/customTypes/data/*.json packs.
 
 The server half is the customTypes loader mod (in memory, no files). The client needs, per pack:
 
 1. the item type rows (``types`` and ``typedogma`` .fsdbinary, localization pickles for the name),
-   compiled by Elysian Item Forge's ``ItemFsdEncoder`` (tools/ElysianFSD) WITHOUT Item Forge's
-   ``validate``: validate blocks every category-9 (blueprint) source with "Missing server adapter:
-   blueprint/industry adapter" (dependencies.py:157-166, compiler.py:557-559), and that adapter is
-   the customTypes mod;
+   cloned from a source type by the encoder in ``fsd/`` and read back by the client's own generated
+   loader; the client build must have a profile in ``profiles/`` (``profile`` derives one);
 2. the blueprint activity rows, added to a COPY of ``res:/staticdata/blueprints.static`` (SQLite:
    ``cache(key, value JSON, time)`` + ``indexes('productTypeID.<id>' -> '<blueprintTypeID>')``),
    each row a clone of the Vexor Blueprint (971) row with the pack's activities;
@@ -25,8 +24,10 @@ All data/*.json packs are applied together by default (one plan, one backup, one
 --pack (repeatable) selects packs.
     rollback  restore the backed-up index files, delete the created payloads
     status    show the recorded state and whether the client index still matches it
+    profile   derive the item-table profile of the client's build (layout check, content hash, encoder
+              proof read back by the client loader from a temporary folder); writes only to profiles/
 
-Run with the Elysian suite venv (it has elysian_fsd and elysian_item_forge): ApplyClientData.bat.
+Needs Python 3.11+ with Pillow and a Python 2.7 runtime for the client loaders: ApplyClientData.bat.
 """
 
 from __future__ import annotations
@@ -49,71 +50,61 @@ import time
 from pathlib import Path
 from typing import Any, Callable
 
-MOD_DIR = Path(__file__).resolve().parent.parent
-REPO_ROOT = MOD_DIR.parent.parent
-for relative in ("tools/ElysianFSD", "tools/ElysianItemForge"):
-    candidate = str(REPO_ROOT / relative)
-    if candidate not in sys.path:
-        sys.path.append(candidate)
+CLIENT_TOOL_DIR = Path(__file__).resolve().parent
+if str(CLIENT_TOOL_DIR) not in sys.path:
+    sys.path.insert(0, str(CLIENT_TOOL_DIR))
 
-from elysian_fsd.cfsd_shadow import (  # noqa: E402
+from fsd.cfsd import (  # noqa: E402
     CfsdEncodingError,
     Mutator,
-    ShadowContext,
-    _append_padding_for_pointer,
-    _bucket_end,
-    _find_record,
     _finish,
-    _put_u64,
-    _relocate_region,
-    _root,
     _shadow_existing_bucket,
     _split,
-    _u64,
     append_vector,
+    body_contains_root_key,
+    clone_record_in_body,
+    contains_root_key,
     integer_root_keys,
 )
-from elysian_fsd.discovery import discover_build_profile  # noqa: E402
-from elysian_fsd.hashing import md5_bytes, sha256_file  # noqa: E402
-from elysian_fsd.item_encoding import (  # noqa: E402
+from fsd.items import (  # noqa: E402
+    ICONIDS_STRIDE,
+    REQUIRED_SKILLS_STRIDE,
+    TYPE_MATERIALS_STRIDE,
+    TYPEDOGMA_STRIDE,
+    TYPES_STRIDE,
     ItemCloneRequest,
     ItemCompileResult,
-    ItemFsdEncoder,
-    _contains_root_key,
     _patch_dogma,
     _patch_icon_file,
     _patch_types,
 )
-from elysian_fsd.item_verification import ensure_item_encoder_verified  # noqa: E402
-from elysian_fsd.native_loader import NativeLoaderHost  # noqa: E402
-from elysian_fsd.resource_index import ResourceIndex, ResourceRecord  # noqa: E402
-from elysian_item_forge.allocation import MESSAGE_RANGE, TYPE_RANGE  # noqa: E402
-from elysian_item_forge.localization import (  # noqa: E402
-    localization_records,
-    patch_language_payload,
-    used_message_ids,
-)
-from elysian_item_forge.models import CustomItem, ItemPack  # noqa: E402
+from fsd.localization import LocalizedItem, localization_records, patch_language_payload, used_message_ids  # noqa: E402
+from fsd.native_loader import NativeLoaderHost  # noqa: E402
+from fsd.profile import ClientProfile, ProfileError, derive_profile, discover, require_supported, write_profile  # noqa: E402
+from fsd.resource_index import INDEX_FILES, ResourceIndex, ResourceRecord, md5_bytes, sha256_file  # noqa: E402
 
+MOD_DIR = CLIENT_TOOL_DIR.parent
+REPO_ROOT = MOD_DIR.parent.parent
 DATA_DIR = MOD_DIR / "data"
+PROFILES_DIR = CLIENT_TOOL_DIR / "profiles"
 DEFAULT_STATE_DIR = REPO_ROOT / "_local" / "customTypes-client"
+SDE_ROOT = REPO_ROOT / "_local" / "sde"
+PYTHON27_ENV = "EVEJS_CLIENT_PYTHON27"
+DEFAULT_PYTHON27 = REPO_ROOT / "tools" / ".elysian-suite" / "runtime" / "python27" / "python.exe"
+TYPE_RANGE = range(340_000, 350_000)
+MESSAGE_RANGE = range(2_000_000, 3_000_000)
 BLUEPRINTS_LOGICAL = "res:/staticdata/blueprints.static"
 TEMPLATE_BLUEPRINT_TYPE_ID = 971
-INDEX_FILES = ("resfileindex.txt", "resfileindex_prefetch.txt")
 CLIENT_PROCESS = "exefile.exe"
 STATE_FILE = "state.json"
-TYPEDOGMA_STRIDE = 24
+ACTIVE_STATUSES = ("applied", "applying")
 CLIENT_ACTIVITY_FIELDS = ("skills", "materials", "products", "time")
 CLIENT_ITEM_FIELDS = {
     "skills": ("typeID", "level"),
     "materials": ("typeID", "quantity"),
     "products": ("typeID", "probability", "quantity"),
 }
-
-
-CLIENT_TOOL_DIR = Path(__file__).resolve().parent
 DOGMA_OVERLAYS_FILE = CLIENT_TOOL_DIR / "dogma-overlays.json"
-DEFAULT_SDE_DIR = REPO_ROOT / "_local" / "sde" / "eve-online-static-data-3396210-jsonl"
 ROOT_ENV_FILE = REPO_ROOT / ".env"
 SMB_OVERLAY_ID = "overlay:smbForEveryShip"
 ATTRIBUTE_HAS_SMB = 907
@@ -137,7 +128,6 @@ ICON_RANGE_CUSTOM = range(950_000, 960_000)
 ICON_LOGICAL = "res:/ui/texture/icons/customtypes/{icon_id}.png"
 ICONS_DIR = CLIENT_TOOL_DIR / "icons"
 ICON_SIZE = (64, 64)
-ICONIDS_STRIDE = 32
 SHA256_HEX = re.compile(r"[0-9a-f]{64}")
 ATTRIBUTE_KEY = re.compile(r"[0-9]+")
 
@@ -441,101 +431,6 @@ def content_path(logical_path: str, payload: bytes, original: ResourceRecord | N
     return f"{directory}/{prefix}_{content_hash}"
 
 
-def _clone_record_in_body(
-    body: bytearray,
-    source_key: int,
-    target_key: int,
-    stride: int,
-    mutator: Mutator | None = None,
-    protected_values: set[int] | None = None,
-) -> None:
-    """Port of tools/ElysianFSD cfsd_shadow.clone_integer_record (body between _split and _finish),
-    working on an already split body: the next clone reads the root from the current body, so a
-    target bucket shadowed by an earlier clone is the starting point of the next one."""
-    root_offset, row_count, bucket_count, offsets = _root(body)
-    if not (0 <= source_key <= 0xFFFFFFFF and 0 <= target_key <= 0xFFFFFFFF):
-        raise CfsdEncodingError("profiled integer keys are unsigned 32-bit")
-    try:
-        target_pointer = offsets[target_key % bucket_count]
-        target_count = _u64(body, target_pointer - 8)
-        _find_record(body, target_pointer, target_count, stride, target_key)
-    except KeyError:
-        pass
-    else:
-        raise KeyError(f"target key already exists: {target_key}")
-
-    source_pointer = offsets[source_key % bucket_count]
-    source_count = _u64(body, source_pointer - 8)
-    source_record = _find_record(body, source_pointer, source_count, stride, source_key)
-    source_nested = source_pointer + source_count * stride
-    source_end = _bucket_end(body, offsets, source_pointer)
-    if source_nested > source_end:
-        raise CfsdEncodingError("source fixed records overlap the next bucket")
-
-    target_nested = target_pointer + target_count * stride
-    target_end = _bucket_end(body, offsets, target_pointer)
-    if target_nested > target_end:
-        raise CfsdEncodingError("target fixed records overlap the next bucket")
-
-    target_fixed = bytes(body[target_pointer:target_nested])
-    source_fixed = bytes(body[source_record:source_record + stride])
-    target_graph = bytes(body[target_nested:target_end])
-    source_graph = bytes(body[source_nested:source_end])
-
-    new_pointer = _append_padding_for_pointer(body, target_pointer % 8)
-    body.extend(struct.pack("<Q", target_count + 1))
-    if len(body) != new_pointer:
-        raise AssertionError("shadow bucket pointer drifted")
-    body.extend(target_fixed)
-    new_record = len(body)
-    body.extend(source_fixed)
-    new_target_nested = len(body)
-    body.extend(target_graph)
-    new_target_end = len(body)
-
-    while len(body) % 8 != source_nested % 8:
-        body.append(0)
-    new_source_nested = len(body)
-    body.extend(source_graph)
-    new_end = len(body)
-
-    target_segments = [(target_nested, target_end, new_target_nested)]
-    source_segments = [(source_nested, source_end, new_source_nested)]
-    target_fixed_changes = _relocate_region(
-        body, new_pointer, new_record, target_segments,
-        {new_pointer + index * stride for index in range(target_count)},
-    )
-    source_fixed_changes = _relocate_region(body, new_record, new_target_nested, source_segments, {new_record})
-    target_count_locations = {new - 8 for _location, _old, new in target_fixed_changes}
-    source_count_locations = {new - 8 for _location, _old, new in source_fixed_changes}
-    target_graph_changes = _relocate_region(
-        body, new_target_nested, new_target_end, target_segments, target_count_locations, protected_values,
-    )
-    source_graph_changes = _relocate_region(
-        body, new_source_nested, new_end, source_segments, source_count_locations, protected_values,
-    )
-    relocated = [*target_fixed_changes, *source_fixed_changes, *target_graph_changes, *source_graph_changes]
-    struct.pack_into("<I", body, new_record, target_key)
-    _put_u64(body, root_offset + (target_key % bucket_count) * 8, new_pointer)
-    _put_u64(body, 8, row_count + 1)
-
-    context = ShadowContext(
-        key=target_key,
-        record_offset=new_record,
-        bucket_offset=new_pointer,
-        bucket_count=target_count + 1,
-        fixed_stride=stride,
-        old_bucket_offset=source_pointer,
-        old_nested_start=source_nested,
-        old_bucket_end=source_end,
-        nested_start=new_source_nested,
-        nested_end=new_end,
-        relocated_pointers=relocated,
-    )
-    if mutator:
-        mutator(body, context)
-
-
 def clone_integer_records(payload: bytes, clones: list[tuple[int, int, Mutator | None]], stride: int) -> bytes:
     """Byte for byte the same as one clone_integer_record(payload, s, t, stride, m) per (s, t, m) in
     order, with one _split and one _finish (the pure-Python content hash of the whole table once).
@@ -544,25 +439,15 @@ def clone_integer_records(payload: bytes, clones: list[tuple[int, int, Mutator |
         return payload
     header, body = _split(payload)
     for source_key, target_key, mutator in clones:
-        _clone_record_in_body(body, source_key, target_key, stride, mutator)
+        clone_record_in_body(body, source_key, target_key, stride, mutator)
     return _finish(header, body)
-
-
-def body_contains_root_key(body: bytes | bytearray, key: int, stride: int) -> bool:
-    """item_encoding._contains_root_key on a cFSD body (payload without the 32-byte header)."""
-    if len(body) < 24:
-        return False
-    root_offset, _total, bucket_count = struct.unpack_from("<QQQ", body, 0)
-    pointer = struct.unpack_from("<Q", body, root_offset + (key % bucket_count) * 8)[0]
-    count = struct.unpack_from("<Q", body, pointer - 8)[0]
-    return any(struct.unpack_from("<I", body, pointer + index * stride)[0] == key for index in range(count))
 
 
 def _identity_clones(
     payload: bytes, pairs: list[tuple[int, int]], stride: int, table: str, skipped: dict[str, str]
 ) -> list[tuple[int, int, Mutator | None]]:
-    """Clones of the sources that have a record (ItemFsdEncoder.compile requiredskillsfortypes /
-    typematerials): the check sees earlier targets of the same batch, as the vendor's sequence does."""
+    """Clones of the sources that have a record (requiredskillsfortypes / typematerials): the check
+    sees earlier targets of the same batch, as a sequence of single clones does."""
     body = payload[32:]
     cloned: set[int] = set()
     clones: list[tuple[int, int, Mutator | None]] = []
@@ -576,9 +461,9 @@ def _identity_clones(
 
 
 def compile_tables(source: Callable[[str], bytes], requests: list[ItemCloneRequest]) -> ItemCompileResult:
-    """ItemFsdEncoder.compile (tools/ElysianFSD item_encoding.py) for our requests, one batch per table.
-    Not ported: dynamic_memberships / type_list_memberships / manufacturable_sources (packs do not use
-    them). source(name) = the client payload of a table."""
+    """Every request cloned into the item tables, one batch per table. Dynamic item, type list and
+    manufacturable memberships are not written (packs do not use them). source(name) = the client
+    payload of a table."""
     if not requests:
         return ItemCompileResult({}, [], {})
     resources: dict[str, bytes] = {}
@@ -589,7 +474,7 @@ def compile_tables(source: Callable[[str], bytes], requests: list[ItemCloneReque
         (request.source_type_id, request.target_type_id,
          lambda body, context, item=request: _patch_types(body, context, item))
         for request in requests
-    ], 152)
+    ], TYPES_STRIDE)
     resources["typedogma"] = clone_integer_records(sources["typedogma"], [
         (request.source_type_id, request.target_type_id,
          lambda body, context, item=request: _patch_dogma(body, context, item.dogma_overrides))
@@ -599,12 +484,12 @@ def compile_tables(source: Callable[[str], bytes], requests: list[ItemCloneReque
         sources["requiredskillsfortypes"],
         [(request.source_type_id if request.skills_source_type_id is None else request.skills_source_type_id,
           request.target_type_id) for request in requests],
-        24, "requiredskillsfortypes", skipped,
-    ), 24)
+        REQUIRED_SKILLS_STRIDE, "requiredskillsfortypes", skipped,
+    ), REQUIRED_SKILLS_STRIDE)
     materials = clone_integer_records(sources["typematerials"], _identity_clones(
         sources["typematerials"], [(request.source_type_id, request.target_type_id) for request in requests],
-        32, "typematerials", skipped,
-    ), 32)
+        TYPE_MATERIALS_STRIDE, "typematerials", skipped,
+    ), TYPE_MATERIALS_STRIDE)
     if skills != sources["requiredskillsfortypes"]:
         resources["requiredskillsfortypes"] = skills
     if materials != sources["typematerials"]:
@@ -632,11 +517,9 @@ def compile_tables(source: Callable[[str], bytes], requests: list[ItemCloneReque
     return ItemCompileResult(resources, sorted(resources), skipped)
 
 
-def compile_items(profile, requests: list[ItemCloneRequest]) -> ItemCompileResult:
-    """ItemFsdEncoder(profile) still guards the schema fingerprints of the item tables; the clones are
-    ours (compile_tables), read from the encoder's own sources."""
-    encoder = ItemFsdEncoder(profile)
-    return compile_tables(encoder._source, requests)
+def compile_items(profile: ClientProfile, requests: list[ItemCloneRequest]) -> ItemCompileResult:
+    """compile_tables on the client's item tables (the profile was checked by require_supported)."""
+    return compile_tables(lambda name: profile.table(name).resource_path.read_bytes(), requests)
 
 
 def load_dogma_overlays(path: Path = DOGMA_OVERLAYS_FILE) -> dict[str, Any] | None:
@@ -749,7 +632,7 @@ def read_dogma_attributes(body: bytes | bytearray, type_id: int) -> dict[int, fl
 
 def _set_dogma_attributes(body: bytearray, context: Any, type_id: int, wanted: dict[int, float]) -> None:
     """Rewrites the attributes vector of the shadowed record: wanted IDs overwritten or added, sorted by
-    attribute ID (the layout of append_type_dogma_attributes, tools/ElysianFSD item_encoding.py)."""
+    attribute ID (the layout of fsd.items.append_type_dogma_attributes)."""
     location = context.record_offset + 8
     old_pointer = struct.unpack_from("<Q", body, location)[0]
     if old_pointer < max(8, context.nested_start) or old_pointer > context.nested_end:
@@ -782,7 +665,7 @@ def apply_smb_overlay(
 ) -> tuple[bytes, dict[str, Any]]:
     """907 = 1 and 908 = smb_capacity on every ship record of a typedogma payload.
 
-    Batch form of `rewrite_integer_record` (cfsd_shadow.py): the same shadow-and-append per record,
+    Batch form of `rewrite_integer_record` (fsd/cfsd.py): the same shadow-and-append per record,
     but one split and one content hash for the whole table (the pure-Python hash per record would take
     hours for ~500 ships). Byte-identical to calling append_type_dogma_attributes per ship."""
     header, body = _split(payload)
@@ -870,20 +753,25 @@ def apply_dogma_overlays(
     return apply_smb_overlay(dogma_payload, ships_loader(sde_dir), overlay["config"])
 
 
-def verify_smb_natively(profile, payload: bytes, report: dict[str, Any], staging: Path) -> None:
+def native_read(host: NativeLoaderHost, profile: ClientProfile, table: str, payload: bytes, keys: list[int],
+                staging: Path):
+    """The records of keys in payload, read by the client's own generated loader of the table."""
+    path = staging / f"{table}.verify.fsdbinary"
+    path.write_bytes(payload)
+    try:
+        return host.verify_table(profile.table(table).loader_module, path, [{"key": key} for key in keys])
+    finally:
+        path.unlink(missing_ok=True)
+
+
+def verify_smb_natively(host: NativeLoaderHost, profile: ClientProfile, payload: bytes, report: dict[str, Any],
+                        staging: Path) -> None:
     """Reads changed ship records back with the client's own FSD loader (as verify_types_natively)."""
     changed = report.get("changedTypeIDs") or []
     if not changed:
         return
     sample = sorted({*changed[:SMB_NATIVE_PROBES], *(key for key in (24700, 28606) if key in changed)})
-    path = staging / "typedogma.verify.fsdbinary"
-    path.write_bytes(payload)
-    try:
-        native = NativeLoaderHost(profile).verify_table(
-            "typedogma", resource_path=path, probes=[{"key": key} for key in sample], persist=False, semantic=False,
-        )
-    finally:
-        path.unlink(missing_ok=True)
+    native = native_read(host, profile, "typedogma", payload, sample, staging)
     if not native.success:
         raise ToolError(f"native loader could not read the overlaid typedogma table: {native.error}")
     expected = {int(key): value for key, value in report["examples"].items()}
@@ -910,21 +798,10 @@ def allocate_messages(index: ResourceIndex, count: int) -> list[int]:
     raise ToolError("localization message ID range exhausted")
 
 
-def verify_types_natively(profile, payload: bytes, requests: list[ItemCloneRequest], staging: Path) -> list[str]:
-    """Reads the compiled types table back with the client's own FSD loader (Elysian native host,
-    as ItemEncoderVerifier does) and checks every custom record."""
-    path = staging / "types.verify.fsdbinary"
-    path.write_bytes(payload)
-    try:
-        report = NativeLoaderHost(profile).verify_table(
-            "types",
-            resource_path=path,
-            probes=[{"key": request.target_type_id} for request in requests],
-            persist=False,
-            semantic=False,
-        )
-    finally:
-        path.unlink(missing_ok=True)
+def verify_types_natively(host: NativeLoaderHost, profile: ClientProfile, payload: bytes,
+                          requests: list[ItemCloneRequest], staging: Path) -> list[str]:
+    """Reads the compiled types table back with the client's own FSD loader and checks every custom record."""
+    report = native_read(host, profile, "types", payload, [request.target_type_id for request in requests], staging)
     if not report.success:
         raise ToolError(f"native loader could not read the compiled types table: {report.error}")
     warnings: list[str] = []
@@ -954,20 +831,13 @@ def verify_types_natively(profile, payload: bytes, requests: list[ItemCloneReque
     return warnings
 
 
-def verify_icons_natively(profile, payload: bytes, requests: list[ItemCloneRequest], staging: Path) -> None:
+def verify_icons_natively(host: NativeLoaderHost, profile: ClientProfile, payload: bytes,
+                          requests: list[ItemCloneRequest], staging: Path) -> None:
     """Reads the new iconids records back with the client's FSD loader: iconFile = the new logical path."""
     custom = [request for request in requests if request.custom_icon_file]
     if not custom:
         return
-    path = staging / "iconids.verify.fsdbinary"
-    path.write_bytes(payload)
-    try:
-        report = NativeLoaderHost(profile).verify_table(
-            "iconids", resource_path=path, probes=[{"key": request.icon_id} for request in custom],
-            persist=False, semantic=False,
-        )
-    finally:
-        path.unlink(missing_ok=True)
+    report = native_read(host, profile, "iconids", payload, [request.icon_id for request in custom], staging)
     if not report.success:
         raise ToolError(f"native loader could not read the compiled iconids table: {report.error}")
     for request in custom:
@@ -977,8 +847,8 @@ def verify_icons_natively(profile, payload: bytes, requests: list[ItemCloneReque
 
 
 def require_dogma_attributes(dogma_payload: bytes, requests: list[ItemCloneRequest]) -> None:
-    """dogma.attributes may only change attributes the source's typeDogma record carries (vendor
-    _patch_dogma raises CfsdEncodingError otherwise); refused up front with a readable message."""
+    """dogma.attributes may only change attributes the source's typeDogma record carries (_patch_dogma
+    raises CfsdEncodingError otherwise); refused up front with a readable message."""
     body = dogma_payload[32:]
     problems: list[str] = []
     for request in requests:
@@ -1062,10 +932,10 @@ def stage_payloads(
 def require_dogma_sources(
     dogma_payload: bytes,
     requests: list[ItemCloneRequest],
-    has_record: Callable[[bytes, int, int], bool] = _contains_root_key,
+    has_record: Callable[[bytes, int, int], bool] = contains_root_key,
 ) -> None:
-    """ItemFsdEncoder.compile clones the typedogma record of every source; a source without
-    one makes clone_integer_record raise a KeyError. Refuse such a pack up front, by name."""
+    """compile_tables clones the typedogma record of every source; a source without one makes the
+    clone raise a KeyError. Refuse such a pack up front, by name."""
     missing = sorted({
         request.source_type_id for request in requests
         if not has_record(dogma_payload, request.source_type_id, TYPEDOGMA_STRIDE)
@@ -1085,29 +955,50 @@ def item_description(pack_id: str, entry: dict[str, Any], name: str) -> str:
     return f"{name}. Custom type {entry['typeID']} (customTypes pack {pack_id})."
 
 
+def default_sde_dir(build: int) -> Path:
+    return SDE_ROOT / f"eve-online-static-data-{build}-jsonl"
+
+
+def python27_path(explicit: Path | None = None) -> Path:
+    if explicit:
+        return Path(explicit)
+    configured = os.environ.get(PYTHON27_ENV)
+    return Path(configured) if configured else DEFAULT_PYTHON27
+
+
+def supported_profile(index: ResourceIndex, profiles_dir: Path = PROFILES_DIR) -> ClientProfile:
+    """The discovered item-table profile of the client; refuses a build without a matching stored profile."""
+    profile = discover(index.client_root, index)
+    try:
+        require_supported(profile, profiles_dir)
+    except ProfileError as error:
+        raise ToolError(str(error)) from error
+    return profile
+
+
 def build_plan(
     client: Path,
     pack_paths: list[Path],
     staging: Path,
     skip_proof: bool,
     overlay: dict[str, Any] | None = None,
-    sde_dir: Path = DEFAULT_SDE_DIR,
+    sde_dir: Path | None = None,
+    python27: Path | None = None,
+    profiles_dir: Path = PROFILES_DIR,
 ) -> dict[str, Any]:
     started = time.perf_counter()
     timings: dict[str, float] = {}
     index = ResourceIndex.load(client)
-    profile = discover_build_profile(client)
+    profile = supported_profile(index, profiles_dir)
+    host = NativeLoaderHost(profile.bin_root, python27_path(python27))
+    sde_dir = sde_dir or default_sde_dir(profile.build)
     packs = load_packs(pack_paths)
     pack_label = "+".join(packs["packIDs"] + [entry["packID"] for entry in overlay_pack_entries(overlay)])
-    if not skip_proof:
-        proof = ensure_item_encoder_verified(profile)
-        if not proof.success:
-            raise ToolError("Item Forge encoder proof failed: " + "; ".join(proof.errors or ["unknown"]))
 
     types = packs["types"]
     icons_by_id = {icon["iconID"]: icon for icon in packs["icons"]}
     messages = allocate_messages(index, 2 * len(types))
-    items: list[CustomItem] = []
+    items: list[LocalizedItem] = []
     requests: list[ItemCloneRequest] = []
     for position, (pack_id, entry) in enumerate(types):
         overrides = entry.get("overrides", {})
@@ -1116,17 +1007,8 @@ def build_plan(
                             f"(null only for a source without an iconID)")
         icon = icons_by_id.get(overrides["iconID"])
         name = str(overrides.get("name") or f"Custom type {entry['typeID']}")
-        item = CustomItem(
-            item_id=f"{pack_id}:{entry['typeID']}",
-            source_type_id=int(entry["sourceTypeID"]),
-            name=name,
-            description=item_description(pack_id, entry, name),
-            target_type_id=int(entry["typeID"]),
-            native_icon_id=overrides.get("iconID"),
-            name_message_id=messages[2 * position],
-            description_message_id=messages[2 * position + 1],
-            published=bool(overrides.get("published", True)),
-        )
+        item = LocalizedItem(name=name, description=item_description(pack_id, entry, name),
+                             name_message_id=messages[2 * position], description_message_id=messages[2 * position + 1])
         field_overrides: dict[str, Any] = {}
         if overrides.get("groupID") is not None:
             field_overrides["groupID"] = int(overrides["groupID"])
@@ -1140,13 +1022,13 @@ def build_plan(
         items.append(item)
         requests.append(
             ItemCloneRequest(
-                source_type_id=item.source_type_id,
-                target_type_id=item.target_type_id,
+                source_type_id=int(entry["sourceTypeID"]),
+                target_type_id=int(entry["typeID"]),
                 name_message_id=item.name_message_id,
                 description_message_id=item.description_message_id,
                 icon_id=0 if overrides["iconID"] is None else int(overrides["iconID"]),
                 market_group_id=None,
-                published=item.published,
+                published=bool(overrides.get("published", True)),
                 source_icon_id=icon["templateIconID"] if icon else None,
                 dogma_overrides=dogma_overrides,
                 field_overrides=field_overrides,
@@ -1163,17 +1045,17 @@ def build_plan(
     try:
         compiled = compile_items(profile, requests)
     except CfsdEncodingError as error:
-        raise ToolError(f"ItemFsdEncoder refused the pack: {error}") from error
+        raise ToolError(f"the item encoder refused the pack: {error}") from error
     except KeyError as error:
-        raise ToolError(f"ItemFsdEncoder: {error} - the type is already in the client data (status?)") from error
+        raise ToolError(f"item encoder: {error} - the type is already in the client data (status?)") from error
     check_dogma_overrides(compiled.resources["typedogma"], requests)
     timings["encoder"] = time.perf_counter() - phase
 
     staging.mkdir(parents=True, exist_ok=False)
     phase = time.perf_counter()
-    warnings = [] if skip_proof else verify_types_natively(profile, compiled.resources["types"], requests, staging)
+    warnings = [] if skip_proof else verify_types_natively(host, profile, compiled.resources["types"], requests, staging)
     if not skip_proof and "iconids" in compiled.resources:
-        verify_icons_natively(profile, compiled.resources["iconids"], requests, staging)
+        verify_icons_natively(host, profile, compiled.resources["iconids"], requests, staging)
     timings["nativeCheck"] = time.perf_counter() - phase
 
     phase = time.perf_counter()
@@ -1186,7 +1068,7 @@ def build_plan(
             if skip_proof:
                 overlay_report["nativeCheck"] = "skipped (--skip-proof)"
             else:
-                verify_smb_natively(profile, dogma_payload, overlay_report, staging)
+                verify_smb_natively(host, profile, dogma_payload, overlay_report, staging)
         ratio_warning = smb_ratio_warning(overlay["config"])
         if ratio_warning:
             warnings.append(ratio_warning)
@@ -1203,9 +1085,8 @@ def build_plan(
     originals.update(icon_originals)
 
     phase = time.perf_counter()
-    item_pack = ItemPack(project_id=f"customTypes:{pack_label}", name=pack_label, build=profile.build, items=items)
     for record in localization_records(index):
-        payloads[record.logical_path] = patch_language_payload(index.read(record), item_pack)
+        payloads[record.logical_path] = patch_language_payload(index.read(record), items)
         originals[record.logical_path] = record
     timings["localization"] = time.perf_counter() - phase
 
@@ -1233,7 +1114,8 @@ def build_plan(
         "dogmaOverlays": {SMB_OVERLAY_ID: overlay_report} if overlay_report else {},
         "client": str(index.client_root),
         "build": profile.build,
-        "typeIDs": [item.target_type_id for item in items],
+        "typeIDs": [request.target_type_id for request in requests],
+        "sde": str(sde_dir) if overlay else None,
         "messageIDs": messages,
         "encoderSkippedTables": compiled.skipped_tables,
         "nativeCheck": "skipped (--skip-proof)" if skip_proof else "types read back by the client loader",
@@ -1277,6 +1159,89 @@ def write_state(state_dir: Path, state: dict[str, Any]) -> None:
     os.replace(temporary, state_dir / STATE_FILE)
 
 
+def client_build(client: Path) -> int:
+    try:
+        return discover(Path(client)).build
+    except (OSError, ValueError):
+        return 0
+
+
+def load_client_index(client: Path) -> ResourceIndex:
+    try:
+        return ResourceIndex.load(Path(client))
+    except (OSError, ValueError) as error:
+        raise ToolError(f"cannot read the client folder {client}: {error}") from error
+
+
+def require_client_build(client: Path, profiles_dir: Path = PROFILES_DIR) -> int:
+    """The build of a readable client with a stored profile; refuses before any state is touched."""
+    index = load_client_index(client)
+    try:
+        profile = discover(index.client_root, index)
+    except (OSError, ValueError) as error:
+        raise ToolError(f"cannot read the item tables of {index.client_root}: {error}") from error
+    if profile.build <= 0:
+        raise ToolError(f"{index.tq_root / 'start.ini'} names no client build; check --client "
+                        f"(or EVEJS_CLIENT_PATH) - nothing changed")
+    try:
+        require_supported(profile, profiles_dir)
+    except ProfileError as error:
+        raise ToolError(str(error)) from error
+    return profile.build
+
+
+def _positive_int(value: Any) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else None
+
+
+def recorded_build(state_dir: Path, state: dict[str, Any]) -> int | None:
+    """The client build of a state: its `build` field, else the build in the plan.json of its apply."""
+    build = _positive_int(state.get("build"))
+    if build:
+        return build
+    plan_path = state_dir / f"apply-{state.get('appliedAt')}" / "plan.json"
+    try:
+        planned = json.loads(plan_path.read_text("utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(planned, dict) or planned.get("client") != state.get("client"):
+        return None
+    return _positive_int(planned.get("build"))
+
+
+def state_with_build(state_dir: Path, state: dict[str, Any] | None) -> dict[str, Any] | None:
+    """The state with its client build filled in; an active state of an unknown build is refused,
+    with --force too: its backup may hold the index of another build."""
+    if not state:
+        return state
+    build = recorded_build(state_dir, state)
+    if build:
+        return {**state, "build": build}
+    if state.get("status") in ACTIVE_STATUSES:
+        raise ToolError(
+            f"{state_dir / STATE_FILE} records no client build (written by an older version of this tool) and "
+            f"its plan.json is gone, so its backup may belong to another build - nothing changed (not even with "
+            f"--force). If the client was updated since that apply, rename it to state.<old build>.json; if not, "
+            f"add \"build\": <client build> to it."
+        )
+    return state
+
+
+def other_build_state(state: dict[str, Any] | None, build: int) -> bool:
+    """True when the state was written for another client build or for an unknown one."""
+    return bool(state) and state.get("build") != build
+
+
+def archive_state(state_dir: Path, state: dict[str, Any]) -> Path:
+    """Moves state.json aside as state.<build>.json; the backups it names stay where they are."""
+    label = state.get("build") or "unknown"
+    target = state_dir / f"state.{label}.json"
+    if target.exists():
+        target = state_dir / f"state.{label}-{now_stamp()}.json"
+    os.replace(state_dir / STATE_FILE, target)
+    return target
+
+
 def replace_file(target: Path, payload: bytes) -> None:
     temporary = target.with_name(target.name + ".customtypes.tmp")
     temporary.write_bytes(payload)
@@ -1289,12 +1254,20 @@ def now_stamp() -> str:
 
 def command_plan(args: argparse.Namespace) -> int:
     staging = args.state_dir / f"plan-{now_stamp()}"
+    build = require_client_build(args.client, args.profiles_dir)
     state = read_state(args.state_dir)
-    if state and state.get("status") == "applied":
+    if state and not recorded_build(args.state_dir, state) and state.get("status") in ACTIVE_STATUSES:
+        print(f"Note: {args.state_dir / STATE_FILE} records no client build; `apply` and `rollback` refuse it "
+              f"until it is renamed to state.<old build>.json or given a \"build\" field.")
+    elif other_build_state(state_with_build(args.state_dir, state), build):
+        label = recorded_build(args.state_dir, state) or "unknown"
+        print(f"Note: {args.state_dir / STATE_FILE} belongs to client build {label}; `apply` moves it to "
+              f"state.{label}.json and starts a fresh state.")
+    elif state and state.get("status") == "applied":
         print("Note: a previous apply is active. `plan` reads the CURRENT client index, so it refuses the "
               "types applied already; `apply` rolls the previous apply back first (README, Re-apply).")
     plan = build_plan(args.client, args.pack, staging, args.skip_proof,
-                      load_dogma_overlays(args.dogma_overlays), args.sde)
+                      load_dogma_overlays(args.dogma_overlays), args.sde, args.python27, args.profiles_dir)
     printed = {key: value for key, value in plan["summary"].items() if key != "blueprintRows"}
     printed["dogmaOverlays"] = {
         name: {key: value for key, value in report.items() if key != "changedTypeIDs"}
@@ -1318,7 +1291,13 @@ def command_apply(args: argparse.Namespace) -> int:
     """Re-apply = rollback, then a fresh apply (the encoder and blueprints.static refuse a type or a
     blueprint that is already in the client data, so an in-place rewrite is not possible). The same
     pack files on an unchanged index: nothing to do."""
-    state = read_state(args.state_dir)
+    build = require_client_build(args.client, args.profiles_dir)
+    state = state_with_build(args.state_dir, read_state(args.state_dir))
+    if other_build_state(state, build):
+        archived = archive_state(args.state_dir, state)
+        print(f"The state of client build {state.get('build') or 'unknown'} was moved to {archived}; "
+              f"client build {build} starts fresh.")
+        state = None
     if state and state.get("status") == "applying":
         raise ToolError(f"the apply at {state['appliedAt']} was interrupted - run `rollback --force` first")
     if state and state.get("status") == "applied":
@@ -1337,7 +1316,7 @@ def apply_fresh(args: argparse.Namespace) -> int:
         raise ToolError(f"close the EVE client ({CLIENT_PROCESS}) first")
     stamp = now_stamp()
     plan = build_plan(args.client, args.pack, args.state_dir / f"apply-{stamp}", args.skip_proof,
-                      load_dogma_overlays(args.dogma_overlays), args.sde)
+                      load_dogma_overlays(args.dogma_overlays), args.sde, args.python27, args.profiles_dir)
     index: ResourceIndex = plan["index"]
     for path, digest in plan["summary"]["indexSha256Before"].items():
         if sha256_file(index.tq_root / path) != digest:
@@ -1357,6 +1336,7 @@ def apply_fresh(args: argparse.Namespace) -> int:
     state = {
         "status": "applying",
         "appliedAt": stamp,
+        "build": plan["summary"]["build"],
         "client": str(index.client_root),
         "tqRoot": str(index.tq_root),
         "backupDir": str(backup),
@@ -1408,8 +1388,14 @@ def command_rollback(args: argparse.Namespace) -> int:
     state = read_state(args.state_dir)
     if not state or state.get("status") not in ("applied", "applying"):
         raise ToolError("nothing applied (no active state)")
+    state = state_with_build(args.state_dir, state)
     if state["status"] == "applying" and not args.force:
         raise ToolError("the last apply was interrupted; `rollback --force` restores the backed-up index")
+    current_build = client_build(Path(state["client"]))
+    if other_build_state(state, current_build):
+        raise ToolError(f"the state belongs to client build {state['build']}, the client is build {current_build}: its "
+                        f"backup would put an old index on the new client (not even with --force). The client update "
+                        f"already replaced the applied files; `apply` moves this state aside.")
     if client_running():
         raise ToolError(f"close the EVE client ({CLIENT_PROCESS}) first")
     tq_root = Path(state["tqRoot"])
@@ -1449,7 +1435,8 @@ def command_status(args: argparse.Namespace) -> int:
     if not state:
         print("No state: nothing applied by this tool.")
         return 0
-    print(json.dumps({key: state[key] for key in ("status", "packID", "typeIDs", "appliedAt") if key in state}, indent=2))
+    print(json.dumps({key: state[key] for key in ("status", "build", "packID", "typeIDs", "appliedAt") if key in state},
+                     indent=2))
     for entry in state_packs(state):
         current = "missing"
         if entry.get("file") and Path(entry["file"]).is_file():
@@ -1464,25 +1451,48 @@ def command_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_profile(args: argparse.Namespace) -> int:
+    """Derives the stored profile of the client's build from its files; writes only to the profiles folder."""
+    profile = discover(args.client)
+    started = time.perf_counter()
+    try:
+        value = derive_profile(profile, NativeLoaderHost(profile.bin_root, python27_path(args.python27)))
+        path, written = write_profile(args.profiles_dir, value)
+    except ProfileError as error:
+        raise ToolError(str(error)) from error
+    print(json.dumps({"build": value["build"], "tables": value["tables"], "assertions": value["proof"]["assertions"]},
+                     indent=2))
+    verdict = "written" if written else "unchanged (same tables)"
+    print(f"Profile of client build {value['build']} {verdict}: {path} ({time.perf_counter() - started:.1f} s); "
+          f"nothing written to the client.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="customTypes client data (blueprints.static + item types)")
-    parser.add_argument("command", choices=("plan", "apply", "rollback", "status"))
+    parser.add_argument("command", choices=("plan", "apply", "rollback", "status", "profile"))
     parser.add_argument("--client", type=Path, default=os.environ.get("EVEJS_CLIENT_PATH"),
                         help="client folder, e.g. \"D:\\EVE Online\" (or EVEJS_CLIENT_PATH)")
     parser.add_argument("--pack", type=Path, action="append", default=None,
                         help="pack JSON, repeatable (default: every data/*.json pack, applied together)")
     parser.add_argument("--state-dir", type=Path, default=DEFAULT_STATE_DIR, help="backups, staging, state.json")
-    parser.add_argument("--skip-proof", action="store_true", help="do not run the Item Forge encoder proof")
+    parser.add_argument("--skip-proof", action="store_true",
+                        help="do not read the compiled tables back with the client loader")
     parser.add_argument("--force", action="store_true", help="rollback even if the index changed after apply")
     parser.add_argument("--dogma-overlays", type=Path, default=DOGMA_OVERLAYS_FILE,
                         help="dogma overlay file (default: dogma-overlays.json next to this tool; disabled overlays "
                              "change nothing)")
-    parser.add_argument("--sde", type=Path, default=DEFAULT_SDE_DIR,
-                        help="SDE jsonl folder for the ship list and volumes of the SMB overlay")
+    parser.add_argument("--sde", type=Path, default=None,
+                        help="SDE jsonl folder for the ship list and volumes of the SMB overlay "
+                             "(default: _local/sde/eve-online-static-data-<client build>-jsonl)")
+    parser.add_argument("--python27", type=Path, default=None,
+                        help=f"Python 2.7 for the client loaders (or {PYTHON27_ENV}; default: {DEFAULT_PYTHON27})")
+    parser.add_argument("--profiles-dir", type=Path, default=PROFILES_DIR, help="per-build item-table profiles")
     args = parser.parse_args(argv)
-    if args.command in ("plan", "apply") and not args.client:
+    if args.command in ("plan", "apply", "profile") and not args.client:
         parser.error("--client is required (or set EVEJS_CLIENT_PATH)")
-    commands = {"plan": command_plan, "apply": command_apply, "rollback": command_rollback, "status": command_status}
+    commands = {"plan": command_plan, "apply": command_apply, "rollback": command_rollback, "status": command_status,
+                "profile": command_profile}
     try:
         if args.pack is None and args.command in ("plan", "apply"):
             args.pack = default_pack_paths()
