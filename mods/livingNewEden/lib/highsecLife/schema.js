@@ -206,6 +206,7 @@ const TRAFFIC_INTS = Object.freeze(["pollMs", "spawnIntervalMs", "maxLifetimeMs"
   "miningBeamStartMeters", "miningBeamApproachMeters", "miningBeamRetryMs",
   "ratterPermille", "ratterMaxPerSystem", "ratterBeltsMin", "ratterBeltsMax", "ratterDwellMinMs", "ratterDwellMaxMs",
   "ratterLandingMeters", "ratterOrbitMeters", "ratterOrbitSpeedPermille", "ratterLegMs",
+  "ratterAnomalyPermille", "ratterAnomalyDwellMs",
   "explorerPermille", "explorerMaxPerSystem", "explorerMaxSites", "explorerScanMs", "explorerSiteDwellMs",
   "explorerSiteOffsetMeters", "explorerNpcClearMeters", "explorerSafeSpotOffsetMeters", "explorerSafeSpotMinMeters",
   "explorerSafeSpotTries", "explorerSiteReadsPerPass", "explorerLegMs", "fleeAlarmMeters", "fleeAlarmMaxPerPass",
@@ -287,6 +288,7 @@ function trafficSettingsOf(config) {
   settings.gateIdlePermille = Math.min(T.gateIdlePermille, MAX_PERMILLE);
   settings.minerPermille = Math.min(T.minerPermille, MAX_PERMILLE);
   settings.ratterPermille = Math.min(T.ratterPermille, MAX_PERMILLE);
+  settings.ratterAnomalyPermille = Math.min(T.ratterAnomalyPermille, MAX_PERMILLE);
   settings.ratterOrbitSpeedPermille = Math.min(T.ratterOrbitSpeedPermille, MAX_PERMILLE);
   settings.explorerPermille = Math.min(T.explorerPermille, MAX_PERMILLE);
   settings.miningBeamApproachMeters = followMetersOf(T.miningBeamApproachMeters, T.miningBeamStartMeters);
