@@ -84,7 +84,7 @@ function startMining(deps) {
     const service = createMiningService({ store, journal: persistence.journal, trips, fleets, scheduler, world,
       getStations: deps.getStations, graph: deps.graph || null, adapter: deps.adapter || null, clock, ids, config,
       telemetry: deps.telemetry || null, logger, nowMs: deps.nowMs, industryCatalog: made.catalog,
-      registry: (deps.strategy && deps.strategy.registry) || null });
+      registry: (deps.strategy && deps.strategy.registry) || null, worldSeed: persistence.worldSeed });
 
     let registration;
     try {

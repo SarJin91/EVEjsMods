@@ -610,6 +610,8 @@ function createMiningService(deps) {
           result: { closedBy: "mining", oreUnits: load.oreM3 } });
         if (!rel.ok) return rel;
         out.oreUnits = load.oreM3;
+        out.beltDebit = { systemId: trip.beltSystemId, fleetId: fleet.fleetId,
+          worldSeed: deps.worldSeed, oreM3: load.oreM3 };
         out.boosted = load.boosted;
         out.empty = cargoUnits(load.minerals) === 0;
         if (!controlled) out.reason = "CONTROL_LOST";
@@ -669,6 +671,19 @@ function createMiningService(deps) {
         bump("loaded");
         if (v.empty) bump("emptyLoads");
         if (v.boosted > 0) bump("boostedLoads");
+        const simulation = deps.config.population?.simulation;
+        if (simulation?.worldImpacts !== false && simulation?.beltDepletion !== false && v.beltDebit && v.beltDebit.oreM3 > 0 && typeof deps.adapter?.debitBeltOre === "function") {
+          try {
+            const debit = deps.adapter.debitBeltOre(v.beltDebit);
+            if (debit.ok && debit.debitedM3 > 0) {
+              log(`mining: trip ${v.tripId} system ${v.beltDebit.systemId} sites=${debit.siteIds.join(",")} scene=${debit.detached ? "detached" : "loaded"} debited ${debit.debitedM3.toFixed(2)} of ${v.oreUnits} m3`);
+            } else if (!debit.ok && debit.reason !== "SCENE_UNLOADED") {
+              log(`mining: trip ${v.tripId} belt debit skipped: ${debit.reason}`);
+            }
+          } catch (err) {
+            log(`mining: trip ${v.tripId} belt debit failed: ${messageOf(err)}`);
+          }
+        }
         break;
       case ACTION.RESEEK: bump("reseek"); break;
       case ACTION.ABORT: bump("aborted"); break;
