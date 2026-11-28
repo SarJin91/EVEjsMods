@@ -366,6 +366,34 @@ function createNpcSpawn({ requireGame, navyProfiles, invaderProfiles, industryPr
     }
   };
 
+
+  // Seed only the difference so that repeated stage updates cannot duplicate cargo.
+  const fillCivilianCargo = (entityId, cargo) => {
+    try {
+      if (!cargo || !isPositiveInt(cargo.typeId) || !Number.isInteger(cargo.percent)
+        || cargo.percent < 0 || cargo.percent > 95) return { ok: false, reason: "INVALID_INPUT" };
+      const store = requireGame(OPTIONAL_PATHS.store)?.exports;
+      const types = requireGame(ITEM_TYPES_PATH)?.exports;
+      const entity = store?.getNativeEntity(entityId);
+      if (!entity || !types) return { ok: false, reason: "STORE_UNAVAILABLE" };
+      const capacity = Number(types.resolveItemByTypeID(entity.typeID)?.capacity);
+      const volume = Number(types.resolveItemByTypeID(cargo.typeId)?.volume);
+      if (!(capacity > 0) || !(volume > 0)) return { ok: false, reason: "NO_CARGO_CAPACITY" };
+      const target = Math.floor(capacity * cargo.percent / (100 * volume));
+      const existing = store.listNativeCargoForEntity(entityId);
+      let current = 0;
+      let used = 0;
+      for (const stack of existing) {
+        if (stack.typeID === cargo.typeId) current += stack.quantity;
+        used += stack.quantity * (Number(types.resolveItemByTypeID(stack.typeID)?.volume) || 0);
+      }
+      const quantity = Math.min(target - current, Math.floor((capacity - used) / volume));
+      return quantity > 0 ? seedCargo(entityId, [{ typeId: cargo.typeId, quantity }]) : { ok: true, written: 0 };
+    } catch (err) {
+      return { ok: false, reason: "CARGO_WRITE_FAILED", detail: messageOf(err) };
+    }
+  };
+
   const bountyOptionsOf = (spec) => {
     const behaviors = data.BOUNTY_BEHAVIOR || {};
     const archetype = spec.archetype;
@@ -502,6 +530,7 @@ function createNpcSpawn({ requireGame, navyProfiles, invaderProfiles, industryPr
       }
       const entityId = toPositiveInt(result.data && result.data.entity && result.data.entity.itemID);
       if (entityId === 0) return { ok: false, reason: "SPAWN_FAILED", detail: "NO_ENTITY" };
+      if (spec.civilianOperation) result.data.entity.lneCivilianOperation = spec.civilianOperation;
       if (!keepMaterialized) dormancyGuard.protect(entityId);
       if (traffic) {
         const failed = zeroBounty(result.data.entity, entityId);
@@ -771,7 +800,7 @@ function createNpcSpawn({ requireGame, navyProfiles, invaderProfiles, industryPr
   const admitScene = (systemId, n, source) => admit(systemId, n, source);
 
   return { resolveProfiles, isSceneLoaded, pickAnchor, spawnShip, engage, publish, despawn, countAlive, orderAttack,
-    listAlive, setRelation, pickGridAnchor, seedCargo, markConvoyShips, forgetConvoyShips, admitScene };
+    listAlive, setRelation, pickGridAnchor, seedCargo, fillCivilianCargo, markConvoyShips, forgetConvoyShips, admitScene };
 }
 
 module.exports = { MODULE_PATHS, REQUIRED_FUNCTIONS, SEAM_METHODS, createNpcSpawn, checkNpcSpawnFrom };

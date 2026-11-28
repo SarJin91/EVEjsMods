@@ -1,6 +1,7 @@
 "use strict";
 
 const { performance } = require("node:perf_hooks");
+const { ARCHETYPE } = require("../../population/schema");
 const { createRng, randomSeed } = require("../../util/rng");
 const { TRAFFIC_METRICS, TRAFFIC_COUNTER_NAMES, AGGRO_COUNTER_NAMES, RAT_AGGRO_COUNTER_NAMES } = require("../schema");
 const { SHIP_STATE, DESPAWN_REASON, SHIP_ROLE, MINER_LEG, PATROL_LEG, PATROL_ROLES, EXPLORER_LEG, WARP_MODE,
@@ -23,6 +24,8 @@ const MAX_DETAIL = 160;
 const NAME_READ_MAX = 64;
 const NAME_MIN = 3;
 const NAME_MAX = 37;
+
+const CARGO_FILL_RANGES = Object.freeze({ outbound: [0, 4], working: [5, 70], returning: [5, 95] });
 
 function slimNameOf(value) {
   if (typeof value !== "string") return null;
@@ -218,6 +221,7 @@ function createTraffic(deps) {
     const patrol = PATROL_ROLES.includes(ship.role);
     if (patrol) releaseMotion(ship);
     ship.targetPoint = ship.exitPoint;
+    if (ship.role === SHIP_ROLE.MINER && ship.leg !== MINER_LEG.EXIT) loadMiningCargo(ship, "returning");
     ship.leg = patrol ? PATROL_LEG.EXIT : MINER_LEG.EXIT;
     warp(ship, now);
   }
@@ -625,6 +629,7 @@ function createTraffic(deps) {
       } else if (step.kind === "mine") {
         ship.state = SHIP_STATE.MINING;
         ship.mineUntil = now + ship.stayMs;
+        loadMiningCargo(ship, "working");
         ship.warpAttempts = 0;
       } else if (step.kind === "dwell") dwell(ship, now);
       else if (step.kind === "nextLeg") nextLeg(ship, now);
@@ -894,6 +899,29 @@ function createTraffic(deps) {
       target: { kind: target.kind, itemId: target.itemId }, targetPoint, docking, idleUntil: null };
   }
 
+  function cargoFor(plan, profileId, archetype) {
+    const miner = archetype === ARCHETYPE.MINER || plan.role === SHIP_ROLE.MINER
+      || /_(venture|retriever|skiff)$/.test(profileId);
+    const typeId = miner ? 1230 : archetype === ARCHETYPE.EXPLORER || /_(astero|stratios)$/.test(profileId)
+      ? 11478 : archetype === ARCHETYPE.RATTER ? 25595 : 3689;
+    const stage = plan.startStationId || plan.role === SHIP_ROLE.MINER ? "outbound"
+      : plan.target?.kind === "station" ? "returning" : "working";
+    return { typeId, percent: cargoPercent(stage) };
+  }
+
+  function cargoPercent(stage) {
+    const [low, high] = CARGO_FILL_RANGES[stage];
+    return low + Math.floor(rng() * (high - low + 1));
+  }
+
+  function loadMiningCargo(ship, stage) {
+    if (!ship.civilianCargo || typeof scene.fillCivilianCargo !== "function") return;
+    const cargo = { ...ship.civilianCargo, percent: Math.max(ship.civilianCargo.percent, cargoPercent(stage)) };
+    const result = call(() => scene.fillCivilianCargo(ship.entityId, cargo));
+    if (result?.ok) ship.civilianCargo = cargo;
+    else log("civilian cargo update refused (" + (result?.reason || "NO_RESULT") + ")");
+  }
+
   function spawnOne(systemId, nodes, now, st) {
     const plan = planOne(systemId, nodes, now);
     if (plan === null) {
@@ -909,7 +937,8 @@ function createTraffic(deps) {
     const slimName = T.namesEnabled === true ? pickName(systemId, st) : null;
     const hull = plan.spec.undock === true ? list.find((p) => p.profileId === profileId) : null;
     const shipTypeId = hull && Number.isSafeInteger(hull.shipTypeId) && hull.shipTypeId > 0 ? hull.shipTypeId : null;
-    const spec = { profileId, ...plan.spec,
+    const civilianCargo = typeof scene.fillCivilianCargo === "function" ? cargoFor(plan, profileId) : null;
+    const spec = { profileId, ...plan.spec, ...(civilianCargo ? { civilianCargo } : {}),
       spawnOffsetMeters: T.spawnOffsetMeters, ...(slimName !== null ? { slimName } : {}),
       ...(shipTypeId !== null ? { shipTypeId } : {}), ...jumpInSpec(plan.spec),
       ...arrivalSpec(plan, gateNodeOf(nodes, plan.spec), T.spawnOffsetMeters) };
@@ -919,7 +948,7 @@ function createTraffic(deps) {
       return;
     }
     noteJumpIn(r, spec);
-    ships.set(r.entityId, { entityId: r.entityId, systemId, state: plan.state, role: plan.role, profileId,
+    ships.set(r.entityId, { entityId: r.entityId, systemId, state: plan.state, role: plan.role, profileId, civilianCargo,
       startGateId: plan.startGateId, startStationId: plan.startStationId, target: plan.target,
       targetPoint: plan.targetPoint, docking: plan.docking, idleUntil: plan.idleUntil, slimName,
       spawnedAt: now, warpAt: null, arrivedAt: null, warpAttempts: 0, ...(plan.miner || {}),
@@ -1072,7 +1101,8 @@ function createTraffic(deps) {
         : hullOwn || list.find((p) => p.profileId === profileId);
       const shipTypeId = hull && Number.isSafeInteger(hull.shipTypeId) && hull.shipTypeId > 0 ? hull.shipTypeId : null;
       const gateNode = gateNodeOf(nodes, plan.spec);
-      const spec = { profileId, ...plan.spec,
+      const civilianCargo = typeof scene.fillCivilianCargo === "function" ? cargoFor(plan, profileId, cand.archetype) : null;
+      const spec = { profileId, ...plan.spec, ...(civilianCargo ? { civilianCargo } : {}),
         spawnOffsetMeters: T.spawnOffsetMeters, ...(slimName !== null ? { slimName } : {}),
         ...(shipTypeId !== null ? { shipTypeId } : {}), ...jumpInSpec(plan.spec),
         ...arrivalSpec(plan, gateNode, T.spawnOffsetMeters) };
@@ -1084,7 +1114,7 @@ function createTraffic(deps) {
         return 0;
       }
       noteJumpIn(r, spec);
-      const leaderShip = { entityId: r.entityId, systemId, state: plan.state, role: plan.role, profileId,
+      const leaderShip = { entityId: r.entityId, systemId, state: plan.state, role: plan.role, profileId, civilianCargo,
         startGateId: plan.startGateId, startStationId: plan.startStationId, target: plan.target,
         targetPoint: plan.targetPoint, docking: plan.docking, idleUntil: plan.idleUntil, slimName,
         spawnedAt: now, warpAt: null, arrivedAt: null, warpAttempts: 0, ...(plan.miner || {}),
@@ -1156,7 +1186,8 @@ function createTraffic(deps) {
       const shipTypeId = plan.spec.undock === true && hull && Number.isSafeInteger(hull.shipTypeId)
         && hull.shipTypeId > 0 ? hull.shipTypeId : null;
       const offset = T.spawnOffsetMeters + GS.spacingMeters * (k + 1);
-      const spec = { profileId, ...plan.spec,
+      const civilianCargo = typeof scene.fillCivilianCargo === "function" ? cargoFor(plan, profileId, m.archetype || cand.archetype) : null;
+      const spec = { profileId, ...plan.spec, ...(civilianCargo ? { civilianCargo } : {}),
         spawnOffsetMeters: offset, ...(slimName !== null ? { slimName } : {}),
         ...(shipTypeId !== null ? { shipTypeId } : {}), ...jumpInSpec(plan.spec),
         ...arrivalSpec(plan, gateNode || null, offset) };
@@ -1167,7 +1198,7 @@ function createTraffic(deps) {
         continue;
       }
       noteJumpIn(r, spec);
-      ships.set(r.entityId, { entityId: r.entityId, systemId, state: plan.state, role: plan.role, profileId,
+      ships.set(r.entityId, { entityId: r.entityId, systemId, state: plan.state, role: plan.role, profileId, civilianCargo,
         startGateId: plan.startGateId, startStationId: plan.startStationId, target: plan.target,
         targetPoint: plan.targetPoint, docking: plan.docking, idleUntil: plan.idleUntil, slimName,
         spawnedAt: now, warpAt: null, arrivedAt: null, warpAttempts: 0, ...(plan.miner || {}),

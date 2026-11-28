@@ -30,7 +30,7 @@ function candidateOf(p, event, rs, systemId, intents) {
   if (p.systemId !== systemId) return { ok: false, reason: "MOVED" };
   if (p.state === STATE.POD) return { ok: false, reason: "POD" };
   const acts = intents instanceof Set ? intents : NO_INTENTS;
-  const base = { pilotId: p.pilotId, kind: event.kind, shipTypeId: p.shipTypeId, at: event.at };
+  const base = { pilotId: p.pilotId, kind: event.kind, shipTypeId: p.shipTypeId, archetype: p.archetype, at: event.at };
   const isActivity = p.state === STATE.ACTIVE && acts.has(p.intent) && Boolean(ACTIVITY_ROLES[p.intent]);
   if (event.kind === "ACTIVITY") {
     return isActivity && p.intent === event.intent ? activityCandidate(base, p, 0) : { ok: false, reason: "LOCAL_ONLY" };
