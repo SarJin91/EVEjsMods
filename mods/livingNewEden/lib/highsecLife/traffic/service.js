@@ -223,6 +223,12 @@ function createTraffic(deps) {
   }
 
   function explore(ship, seen, now) {
+    const leg = ship.legs[ship.legIndex];
+    if (T.explorerClosePublicSitesEnabled === true && leg.kind === EXPLORER_LEG.SITE
+      && ship.lastCloseAttemptSite !== leg.targetId && typeof scene.closeExplorerSite === "function") {
+      ship.lastCloseAttemptSite = leg.targetId;
+      call(() => scene.closeExplorerSite(ship.systemId, leg.targetId, now));
+    }
     if (T.explorerSiteReadsPerPass <= 0) {
       bump("explorerNoSite");
       leave(ship, now);
@@ -246,7 +252,6 @@ function createTraffic(deps) {
       return;
     }
     bump("explorerNpcBlocked", Number.isSafeInteger(r.npcBlocked) ? r.npcBlocked : 0);
-    const leg = ship.legs[ship.legIndex];
     if (leg.kind === EXPLORER_LEG.SAFE) {
       const picks = pickSites(r.sites, rng, T, seen.position || leg.point);
       if (picks.length === 0) {

@@ -924,6 +924,16 @@ function createHighsecTrafficScene(deps) {
     }
   };
 
+  const closeExplorerSite = (systemId, siteId, now) => {
+    if (!isPositiveInt(systemId)) return false;
+    const sc = sceneOf(systemId);
+    if (!sc.ok) return false;
+    const signatures = requireGame(explorerSites.SIGNATURE_RUNTIME_PATH)?.exports;
+    const dungeon = requireGame("services/dungeon/dungeonRuntime")?.exports;
+    const occupied = requireGame("services/dungeon/dungeonUniverseSiteService")?.exports?._testing?.anyPlayerShipPresentAtSite;
+    return explorerSites.closePublicSite(signatures, dungeon, occupied, sc.scene, systemId, siteId, now);
+  };
+
   const readExplorerSites = (systemId, opts) => {
     if (!isPositiveInt(systemId)) return { ok: false, reason: "INVALID_INPUT" };
     try {
@@ -938,7 +948,7 @@ function createHighsecTrafficScene(deps) {
 
   return Object.freeze({ readNodes, readPlayers, spawnCivilian, warpTo, readShips, despawn, listTrafficIds,
     dockPointOf, readThreats, armPilotTarget, disarmPilotTarget, armPilotRatTarget, releaseEngagedRats,
-    presentGateJumpOut, presentMiningBeams, presentGateDeparture, presentPatrolOrbit, releasePatrolMotion,
+    presentGateJumpOut, presentMiningBeams, presentGateDeparture, presentPatrolOrbit, releasePatrolMotion, closeExplorerSite,
     readExplorerSites });
 }
 
