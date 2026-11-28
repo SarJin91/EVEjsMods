@@ -1,5 +1,7 @@
 "use strict";
 
+const { emitGateAnimation } = require("./gateAnimation");
+
 const data = require("./data/liveProfiles");
 const dormancyGuard = require("./dormancyGuard");
 const bountyVictims = require("./bountyVictims");
@@ -392,6 +394,7 @@ function createBountyScene(deps) {
         for (const id of made) {
           try {
             sc.scene.broadcastSpecialFx(id, JUMP_IN_FX, { duration: JUMP_IN_DURATION_MS }, sc.scene.getEntityByID(id));
+            emitGateAnimation(sc.scene, anchorEntity, id, "Arrival");
           } catch (_err) {
           }
         }
@@ -551,6 +554,7 @@ function createBountyScene(deps) {
       try {
         sc.scene.broadcastSpecialFx(entityId, JUMP_OUT_FX, { targetID: gateId, graphicInfo: { type: "tuple",
           items: [toPositiveInt(gate.destinationSolarSystemID) || null, null] }, start: true, active: false }, entity);
+        emitGateAnimation(sc.scene, gate, entityId, "Departure");
       } catch (_err) {
         return { ok: true, jumped: true, fx: false };
       }
