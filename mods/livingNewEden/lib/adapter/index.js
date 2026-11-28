@@ -3586,6 +3586,7 @@ function createAdapter(deps = {}) {
     readSystemInterior,
     readGridAnchors,
     readSystemBelts,
+    debitBeltOre: (request) => require("./beltOreDebit").debitBeltOre(requireGame, request),
     readSystemCelestials,
     readPlanetResources,
     readLocalResources,

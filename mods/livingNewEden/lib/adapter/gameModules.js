@@ -243,12 +243,19 @@ const GAME_MODULES = Object.freeze([
     sym("getAsteroidBeltsForSystem", "export", ["sites", MATERIALIZATION, GRID_ANCHORS, BOUNTY_REVENGE, SITUATIONS],
       "spawn anchor; grid belts; bounty revenge; situation belt names"),
   ]),
-  mod("space/asteroids/asteroidData", [sym("getBeltsForSystem", "export", ["mining", LOCAL_RESOURCES],
+  mod("space/asteroids/asteroidData", [sym("getBeltsForSystem", "export", ["mining", LOCAL_RESOURCES, "beltOreDebit"],
     "belt ore pool")]),
   mod("services/planet/planetStaticData", [sym("getPlanetResourceTypeIDs", "export", [EXTRACTION],
     "P0 of a planet type")]),
   mod("space/asteroids/asteroidService", [
-    sym("_testing", "export", [LOCAL_RESOURCES], "enriched ore pool", { valueType: "object" }),
+    sym("_testing", "export", [LOCAL_RESOURCES, "beltOreDebit"], "enriched ore pool and targeted belt generation", { valueType: "object" }),
+  ]),
+  mod("services/mining/miningRuntimeState", [
+    sym("getMineableState", "export", ["beltOreDebit"], "read current belt ore stock"),
+    sym("ensureSceneMiningState", "export", ["beltOreDebit"], "initialize detached belt stock"),
+    sym("readPersistedSystemEntities", "export", ["beltOreDebit"], "read depletion without a loaded scene"),
+    sym("readPersistedBeltGeneration", "export", ["beltOreDebit"], "identify exhausted generated belts"),
+    sym("applyMiningDelta", "export", ["beltOreDebit"], "debit committed mining yield"),
   ]),
   mod("services/mining/miningVisuals", [
     sym("getSolarSystemOreTypeRecords", "export", [LOCAL_RESOURCES], "raw ore pool (fallback)"),
