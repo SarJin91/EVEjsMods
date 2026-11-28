@@ -130,7 +130,7 @@ function civilianRowsOf(civ, data) {
     out.push(Object.freeze({
       profileID: civ.civilianProfileId(entry.key),
       name: entry.label,
-      description: `Living New Eden civilian ${entry.label} (hull ${entry.shipTypeId}, no weapons).`,
+      description: `Living New Eden civilian ${entry.label} (hull ${entry.shipTypeId}, ${entry.key.startsWith("ratter_") ? "combat fit" : "no weapons"}).`,
       aliases: Object.freeze([]),
       entityType: data.NPC_ENTITY_TYPE,
       shipTypeID: entry.shipTypeId,

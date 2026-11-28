@@ -8700,6 +8700,8 @@ const SCHEMA = deepFreeze([
     "Civilians alarmed per traffic pass (0 = only the victim flees)"),
   highsecTrafficRow("ratterEnabled", "RATTER_ENABLED", "boolean", false, undefined, undefined,
     "Civilian ratters patrol asteroid belts without weapons (needs civilianHullsEnabled)"),
+  highsecTrafficRow("ratterCombatEnabled", "RATTER_COMBAT_ENABLED", "boolean", false, undefined, undefined,
+    "Allow armed civilian ratters to engage belt NPCs during patrol stops"),
   highsecTrafficRow("ratterPermille", "RATTER_PERMILLE", "integer", 150, 0, 1000,
     "Share of the ratter role per spawn"),
   highsecTrafficRow("ratterMaxPerSystem", "RATTER_MAX_PER_SYSTEM", "integer", 2, 0, 10, "Ratters per system"),

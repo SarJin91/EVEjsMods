@@ -1,6 +1,7 @@
 "use strict";
 
 const { performance } = require("node:perf_hooks");
+const { armedRatterProfileOf } = require("../../adapter/data/civilianLiveProfiles");
 const { createRng, randomSeed } = require("../../util/rng");
 const { TRAFFIC_METRICS, TRAFFIC_COUNTER_NAMES, AGGRO_COUNTER_NAMES, RAT_AGGRO_COUNTER_NAMES } = require("../schema");
 const { SHIP_STATE, DESPAWN_REASON, SHIP_ROLE, MINER_LEG, PATROL_LEG, PATROL_ROLES, EXPLORER_LEG, WARP_MODE,
@@ -182,7 +183,21 @@ function createTraffic(deps) {
     return roleIn(systemId, SHIP_ROLE.EXPLORER);
   }
 
+  function stopRatterCombat(ship) {
+    if (!ship.ratterEngagement) return;
+    const engagement = ship.ratterEngagement;
+    ship.ratterEngagement = null;
+    call(() => scene.stopRatting(ship.systemId, ship.entityId, engagement));
+  }
+
+  function useArmedRatter(plan, profileId) {
+    return plan.role === SHIP_ROLE.RATTER && T.ratterCombatEnabled === true
+      && typeof scene.ratterStep === "function" && typeof scene.stopRatting === "function"
+      ? armedRatterProfileOf(profileId) : null;
+  }
+
   function releaseMotion(ship) {
+    stopRatterCombat(ship);
     if (ship.orbiting !== true) return;
     ship.orbiting = false;
     if (typeof scene.releasePatrolMotion !== "function") return;
@@ -342,6 +357,7 @@ function createTraffic(deps) {
 
   function despawnShips(systemId, shipList, reason) {
     const list = GS !== null ? withGroupShips(shipList) : shipList;
+    for (const ship of list) stopRatterCombat(ship);
     presentDepartures(systemId, list, reason);
     const removed = despawnIds(systemId, list.map((s) => s.entityId));
     for (const id of removed) ships.delete(id);
@@ -578,6 +594,7 @@ function createTraffic(deps) {
     for (const id of goneList) {
       const goneShip = ships.get(id);
       if (ships.delete(id)) {
+        stopRatterCombat(goneShip);
         bump("gone");
         goneIds.push(id);
         releasePilot(goneShip, outcomeOf(goneShip, GONE));
@@ -609,12 +626,20 @@ function createTraffic(deps) {
           const f = fleeStepOf(ship, seen, now, T);
           if (f.kind === "hold") continue;
           if (f.kind === "flee") {
+            stopRatterCombat(ship);
             flee(ship, seen, f.needTarget, nodesOf, now);
             continue;
           }
         }
       }
       const step = stepShip(ship, seen, now, T);
+      if (step.kind === "none" && ship.armedRatter && ship.state === SHIP_STATE.DWELLING && seen.live && !seen.inWarp) {
+        const leg = ship.legs[ship.legIndex];
+        const r = call(() => scene.ratterStep(systemId, ship.entityId, ship.ratterEngagement, {}, leg.targetId));
+        if (r?.engagement) ship.ratterEngagement = r.engagement;
+        if (r?.flee) { leave(ship, now); continue; }
+        if (r?.ok && !r.active) stopRatterCombat(ship);
+      }
       if (step.kind === "run") ship.state = SHIP_STATE.RUNNING;
       else if (step.kind === "warp") warp(ship, now, step.immediate === true);
       else if (step.kind === "adoptWarp") {
@@ -909,7 +934,8 @@ function createTraffic(deps) {
     const slimName = T.namesEnabled === true ? pickName(systemId, st) : null;
     const hull = plan.spec.undock === true ? list.find((p) => p.profileId === profileId) : null;
     const shipTypeId = hull && Number.isSafeInteger(hull.shipTypeId) && hull.shipTypeId > 0 ? hull.shipTypeId : null;
-    const spec = { profileId, ...plan.spec,
+    const armedRatter = useArmedRatter(plan, profileId);
+    const spec = { profileId: armedRatter || profileId, ...plan.spec,
       spawnOffsetMeters: T.spawnOffsetMeters, ...(slimName !== null ? { slimName } : {}),
       ...(shipTypeId !== null ? { shipTypeId } : {}), ...jumpInSpec(plan.spec),
       ...arrivalSpec(plan, gateNodeOf(nodes, plan.spec), T.spawnOffsetMeters) };
@@ -919,7 +945,7 @@ function createTraffic(deps) {
       return;
     }
     noteJumpIn(r, spec);
-    ships.set(r.entityId, { entityId: r.entityId, systemId, state: plan.state, role: plan.role, profileId,
+    ships.set(r.entityId, { entityId: r.entityId, systemId, state: plan.state, role: plan.role, profileId, armedRatter,
       startGateId: plan.startGateId, startStationId: plan.startStationId, target: plan.target,
       targetPoint: plan.targetPoint, docking: plan.docking, idleUntil: plan.idleUntil, slimName,
       spawnedAt: now, warpAt: null, arrivedAt: null, warpAttempts: 0, ...(plan.miner || {}),
@@ -1072,7 +1098,8 @@ function createTraffic(deps) {
         : hullOwn || list.find((p) => p.profileId === profileId);
       const shipTypeId = hull && Number.isSafeInteger(hull.shipTypeId) && hull.shipTypeId > 0 ? hull.shipTypeId : null;
       const gateNode = gateNodeOf(nodes, plan.spec);
-      const spec = { profileId, ...plan.spec,
+      const armedRatter = useArmedRatter(plan, profileId);
+      const spec = { profileId: armedRatter || profileId, ...plan.spec,
         spawnOffsetMeters: T.spawnOffsetMeters, ...(slimName !== null ? { slimName } : {}),
         ...(shipTypeId !== null ? { shipTypeId } : {}), ...jumpInSpec(plan.spec),
         ...arrivalSpec(plan, gateNode, T.spawnOffsetMeters) };
@@ -1084,7 +1111,7 @@ function createTraffic(deps) {
         return 0;
       }
       noteJumpIn(r, spec);
-      const leaderShip = { entityId: r.entityId, systemId, state: plan.state, role: plan.role, profileId,
+      const leaderShip = { entityId: r.entityId, systemId, state: plan.state, role: plan.role, profileId, armedRatter,
         startGateId: plan.startGateId, startStationId: plan.startStationId, target: plan.target,
         targetPoint: plan.targetPoint, docking: plan.docking, idleUntil: plan.idleUntil, slimName,
         spawnedAt: now, warpAt: null, arrivedAt: null, warpAttempts: 0, ...(plan.miner || {}),
@@ -1156,7 +1183,8 @@ function createTraffic(deps) {
       const shipTypeId = plan.spec.undock === true && hull && Number.isSafeInteger(hull.shipTypeId)
         && hull.shipTypeId > 0 ? hull.shipTypeId : null;
       const offset = T.spawnOffsetMeters + GS.spacingMeters * (k + 1);
-      const spec = { profileId, ...plan.spec,
+      const armedRatter = useArmedRatter(plan, profileId);
+      const spec = { profileId: armedRatter || profileId, ...plan.spec,
         spawnOffsetMeters: offset, ...(slimName !== null ? { slimName } : {}),
         ...(shipTypeId !== null ? { shipTypeId } : {}), ...jumpInSpec(plan.spec),
         ...arrivalSpec(plan, gateNode || null, offset) };
@@ -1167,7 +1195,7 @@ function createTraffic(deps) {
         continue;
       }
       noteJumpIn(r, spec);
-      ships.set(r.entityId, { entityId: r.entityId, systemId, state: plan.state, role: plan.role, profileId,
+      ships.set(r.entityId, { entityId: r.entityId, systemId, state: plan.state, role: plan.role, profileId, armedRatter,
         startGateId: plan.startGateId, startStationId: plan.startStationId, target: plan.target,
         targetPoint: plan.targetPoint, docking: plan.docking, idleUntil: plan.idleUntil, slimName,
         spawnedAt: now, warpAt: null, arrivedAt: null, warpAttempts: 0, ...(plan.miner || {}),
@@ -1573,6 +1601,7 @@ function createTraffic(deps) {
     ratWindow.clear();
     for (const [systemId, list] of shipsBySystem()) {
       try {
+        for (const ship of list) stopRatterCombat(ship);
         despawnIds(systemId, list.map((s) => s.entityId));
       } catch (err) {
         fail("despawn", messageOf(err));

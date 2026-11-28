@@ -2000,7 +2000,8 @@ function buildHooks(ctx) {
             data: require("./lib/adapter/data/factionLiveProfiles"), includeFactions: factions,
             bountyFreighters: freighters,
             ...(civilians ? { civilianRows: true, civilianData: require("./lib/adapter/data/civilianLiveProfiles")
-              .civilianDataOf({ pilotHulls: pilotHullsEnabled(ctx) }) } : {}) }),
+              .civilianDataOf({ pilotHulls: pilotHullsEnabled(ctx),
+                armedRatters: getConfig(ctx).config.highsecLife?.traffic?.ratterCombatEnabled === true }) } : {}) }),
           onOutcome: (outcome, detail) => noteFactionProfiles(ctx, outcome, detail),
         });
         if (!r.ok) {
