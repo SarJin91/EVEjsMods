@@ -223,6 +223,11 @@ function createHighsecTrafficScene(deps) {
     return { ok: false, reason: "SPAWN_FAILED", detail: String(detail).slice(0, MAX_DETAIL), leftover };
   };
 
+  const fillCivilianCargo = (entityId, cargo) => {
+    const spawn = facade(getNpcSpawn, ["fillCivilianCargo"]);
+    return spawn ? spawn.fillCivilianCargo(entityId, cargo) : { ok: false, reason: "CARGO_UNAVAILABLE" };
+  };
+
   const spawnCivilian = (systemId, spec) => {
     const profileId = spec && typeof spec.profileId === "string" ? spec.profileId.trim() : "";
     const given = (value) => value !== undefined && value !== null;
@@ -293,6 +298,7 @@ function createHighsecTrafficScene(deps) {
           detail: String((shot && (shot.detail || shot.reason)) || "SPAWN_FAILED").slice(0, MAX_DETAIL) };
       }
       entityId = shot.entityId;
+      if (spec.civilianCargo) fillCivilianCargo(entityId, spec.civilianCargo);
       const pub = spawn.publish(systemId, [entityId]);
       if (!pub || pub.ok !== true) return refuseSpawned(spawn, systemId, entityId, "PUBLISH_FAILED");
       if (!(pub.published >= 1)) return refuseSpawned(spawn, systemId, entityId, "PUBLISH_PARTIAL");
@@ -936,7 +942,7 @@ function createHighsecTrafficScene(deps) {
     }
   };
 
-  return Object.freeze({ readNodes, readPlayers, spawnCivilian, warpTo, readShips, despawn, listTrafficIds,
+  return Object.freeze({ readNodes, readPlayers, spawnCivilian, fillCivilianCargo, warpTo, readShips, despawn, listTrafficIds,
     dockPointOf, readThreats, armPilotTarget, disarmPilotTarget, armPilotRatTarget, releaseEngagedRats,
     presentGateJumpOut, presentMiningBeams, presentGateDeparture, presentPatrolOrbit, releasePatrolMotion,
     readExplorerSites });
