@@ -9619,6 +9619,8 @@ const SCHEMA = deepFreeze([
     "Home band weights highsec,lowsec,nullsec (k-space only)", "populationBandPermille"),
   populationRow("archetypePermille", "ARCHETYPE_PERMILLE", "string", "300,200,200,100,200", undefined, undefined,
     "Archetype weights TRADER,MINER,RATTER,EXPLORER,COMMUTER", "populationArchetypePermille"),
+  populationRow("simulation.beltRatRandomTarget", "SIM_BELT_RAT_RANDOM_TARGET", "boolean", true, undefined, undefined, "NPC simulation belt rat random target"),
+  populationRow("simulation.beltRatTargetMeters", "SIM_BELT_RAT_TARGET_METERS", "integer", 150000, 1000, 500000, "NPC simulation belt rat target meters"),
   populationRow("dwellMinMs", "DWELL_MIN_MS", "integer", 1200000, 60000, 86400000, "Shortest stop"),
   populationRow("dwellMaxMs", "DWELL_MAX_MS", "integer", 5400000, 60000, 86400000,
     "Longest stop (the service takes max(min, max), W196)"),
