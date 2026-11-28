@@ -220,7 +220,7 @@ const TRAFFIC_POSITIVE = Object.freeze(["pollMs", "spawnIntervalMs", "maxLifetim
 const TRAFFIC_BOOLEANS = Object.freeze(["undockEnabled", "dockToPointEnabled", "gateIdleEnabled", "namesEnabled",
   "minerEnabled", "gateJumpFxEnabled", "alignBeforeWarpEnabled", "miningBeamsEnabled", "fleeEnabled",
   "gateControllerEventsEnabled", "miningBeamApproachEnabled", "ratterEnabled", "explorerEnabled", "fleeAlarmEnabled",
-  "visibleWarpEnabled", "gateArrivalPoseEnabled"]);
+  "visibleWarpEnabled", "gateArrivalPoseEnabled", "ratterCombatEnabled"]);
 const NO_ACTIVITY_INTENTS = Object.freeze([]);
 const EXPLORER_FAMILIES = Object.freeze(["data", "relic"]);
 
